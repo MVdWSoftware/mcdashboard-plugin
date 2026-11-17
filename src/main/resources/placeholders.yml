@@ -1,0 +1,83 @@
+# Only placeholders listed here can ever be read by the app.
+# permission: optional Bukkit permission the paired player must hold to read it (a way to keep server internals for staff).
+# access: PUBLIC (anyone who can reach the server) or PLAYER (needs a paired device; resolved for that player).
+# type: STRING, INTEGER, DECIMAL, BOOLEAN, PERCENTAGE, AUTO (number, true/false or text, decided per value) or IMAGE.
+# group / description: optional, shown by the app when browsing the catalog (group defaults to General).
+placeholders:
+  - id: online
+    name: Players online
+    group: Server
+    description: Players currently connected
+    value: '%server_online%'
+    type: INTEGER
+    access: PUBLIC
+    max-from: max-players    # gauges use the value of this placeholder as their maximum
+    min-interval: 5
+    history: 120      # keep 2 hours of samples for charts (PUBLIC placeholders only)
+  - id: tps
+    name: Ticks per second
+    group: Server
+    description: Server performance, 20 is perfect
+    value: '%server_tps_1%'
+    type: DECIMAL
+    access: PUBLIC
+    min-interval: 5
+    min-value: 0
+    max-value: 20
+    history: 120
+  - id: max-players
+    name: Max players
+    group: Server
+    value: '%server_max_players%'
+    type: INTEGER
+    access: PUBLIC
+  - id: player-name
+    name: Player
+    group: Player
+    value: '%player_name%'
+    type: STRING
+    access: PLAYER
+  - id: player-health
+    name: Health
+    group: Player
+    description: Hearts, 20 is full health
+    value: '%player_health%'
+    type: DECIMAL
+    access: PLAYER
+    min-interval: 2
+    min-value: 0
+    max-value: 20
+
+# IMAGE placeholders (PNG, JPEG, GIF or WebP, max 256 KB, recognised by content, not by extension). Uncomment to use.
+# source: file:<path> reads plugins/MCDashboard/images/<path> and reloads it when the file changes.
+# source: url:<template> downloads (http/https, cached at least 5 minutes) and expands %placeholders% for the paired player.
+#  - id: server-logo
+#    name: Server logo
+#    group: Images
+#    type: IMAGE
+#    source: 'file:logo.png'
+#  - id: player-head
+#    name: Your head
+#    group: Images
+#    type: IMAGE
+#    access: PLAYER
+#    source: 'url:https://mc-heads.net/avatar/%player_uuid%/64'
+
+# Expansion catalog: expose every placeholder an installed PlaceholderAPI expansion declares as an AUTO placeholder
+# with the id <expansion>_<name> (explicit entries above win). Placeholders with parameters (<, { or [) are skipped and
+# names containing ip, password, token, secret or address are always left out; deny adds more globs, max caps the amount
+# (default 2000). Uncomment and restart.
+# params: [a, b] lists names explicitly (each becomes %<expansion>_<a>%) and is combined with discovery. Discovery asks the
+# expansion for its list and, when it declares none (many do not), PlaceholderAPI's cloud data; if both are empty the plugin
+# logs a warning after a few retries and you should list the names with params.
+# catalog:
+#  - expansion: server
+#    group: Server
+#    access: PUBLIC
+#    params: [online, max_players, tps]
+#  - expansion: player
+#    group: Player
+#    access: PLAYER
+#    permission: mcdashboard.catalog.player   # optional
+#    deny: ['*displayname*']
+#    max: 500

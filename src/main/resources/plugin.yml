@@ -1,0 +1,35 @@
+name: MCDashboard
+main: org.mcdashboard.MCDashboard
+version: ${project.version}
+author: MVdW-Software
+description: Exposes PlaceholderAPI placeholders to the MinecraftDashboard mobile app.
+api-version: "1.18"
+website: https://mcdashboard.org
+load: POSTWORLD
+softdepend:
+  - PlaceholderAPI
+
+commands:
+  mcdashboard:
+    description: Link devices to the MinecraftDashboard app
+    aliases: [dashboard]
+    usage: /<command> <link|qr|devices|revoke|developer|about>
+
+permissions:
+  mcdashboard.player:
+    description: Link and unlink devices.
+    default: true
+  mcdashboard.developer:
+    description: Design a dashboard in the app and upload it to this server.
+    default: false
+  mcdashboard.admin:
+    description: Administer the plugin.
+    default: op
+    children:
+      mcdashboard.player: true
+  mcdashboard.dashboard.player:
+    description: See the Player dashboard.
+    default: true
+  mcdashboard.dashboard.server:
+    description: See the Server dashboard.
+    default: op

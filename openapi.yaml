@@ -1,0 +1,349 @@
+openapi: 3.1.0
+info:
+  title: MCDashboard API
+  version: 1.0.0
+  description: |
+    REST API exposed by the MCDashboard Spigot plugin. Sensor data is encoded as SenML
+    (RFC 8428, `application/senml+json`), authentication uses JWT bearer tokens (RFC 7519/6750).
+    Value responses carry `ETag` and `Cache-Control: max-age=<min-interval>`, and anonymous
+    responses are `public`, so a reverse proxy or CDN may cache them. Per-player responses are
+    `private` and `Vary: Authorization`.
+
+    Every route except `GET /info` requires the official app's `User-Agent`, `MCDashboard/<x.y.z> (<android|ios|dev>)`.
+    Others get `403`; a version below the server's `minClientVersion` gets `426`. A server owner can allow more clients.
+    The User-Agent identifies the client and its version; it is not a credential. Responses do not vary by it.
+servers:
+  - url: https://{host}/v1
+    variables: { host: { default: mc.example.com } }
+security:
+  - {}
+  - bearer: []
+paths:
+  /info:
+    get:
+      summary: Server information and capabilities
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Info' } } } }
+  /auth:
+    post:
+      summary: Pair a device with the one-time code from /mcdashboard link
+      security: []
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/AuthRequest' } } }
+      responses:
+        '200': { description: Tokens, content: { application/json: { schema: { $ref: '#/components/schemas/Tokens' } } } }
+        '401': { description: Invalid or expired code }
+        '403': { description: Device limit reached }
+        '429': { description: Too many attempts }
+  /auth/refresh:
+    post:
+      summary: Rotate the refresh token and get a new access token
+      security: []
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [refreshToken], properties: { refreshToken: { type: string } } } } }
+      responses:
+        '200': { description: Tokens, content: { application/json: { schema: { $ref: '#/components/schemas/Tokens' } } } }
+        '401': { description: Invalid, revoked or already used refresh token }
+  /placeholders:
+    get:
+      summary: Placeholders the caller may read (metadata only), searchable and paged, sorted by group then name
+      parameters:
+        - { name: q, in: query, required: false, schema: { type: string }, description: Case-insensitive substring of id, name, description or group }
+        - { name: group, in: query, required: false, schema: { type: string }, description: Exact group name }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { name: offset, in: query, required: false, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: ids, in: query, required: false, schema: { type: string }, description: 'Comma separated ids (max 100). Returns exactly the readable ones and ignores q, group, limit and offset; groups is empty' }
+      responses:
+        '200': { description: 'OK. Cacheable: public when anonymous, private when authenticated', content: { application/json: { schema: { $ref: '#/components/schemas/PlaceholdersPage' } } } }
+        '400': { description: Invalid limit, offset or ids }
+  /placeholders/{id}:
+    get:
+      summary: Current value as a one-record SenML pack
+      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      responses:
+        '200': { $ref: '#/components/responses/Values' }
+        '304': { description: Not modified }
+        '401': { description: Authentication required }
+        '404': { description: Unknown placeholder }
+  /values:
+    get:
+      summary: Current values of up to 100 placeholders as one SenML pack
+      parameters: [ { name: ids, in: query, required: true, schema: { type: string }, description: Comma separated ids } ]
+      responses:
+        '200': { $ref: '#/components/responses/Values' }
+        '304': { description: Not modified }
+  /history/{id}:
+    get:
+      summary: Recorded samples of a PUBLIC placeholder with history enabled, as a SenML pack
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: since, in: query, required: false, schema: { type: integer }, description: unix seconds }
+      responses:
+        '200': { $ref: '#/components/responses/Values' }
+        '404': { description: No history for this placeholder }
+  /dashboards:
+    get:
+      summary: The preset dashboards the caller may open (by permission), in order
+      parameters: [ { $ref: '#/components/parameters/AcceptLanguage' } ]
+      responses:
+        '200': { description: 'OK. Names and descriptions are translated for Accept-Language; Vary: Authorization, Accept-Language', content: { application/json: { schema: { type: object, required: [dashboards, canUpload], properties: { dashboards: { type: array, items: { $ref: '#/components/schemas/DashboardSummary' } }, canUpload: { type: boolean, description: 'the paired player holds mcdashboard.developer and the owner enabled developer mode' } } } } } }
+    post:
+      summary: Upload or replace the caller's developer dashboard (saved as dev-<player>.yml)
+      description: |
+        Developer mode must be on (`developer.enabled` or `/mcdashboard developer on`) and the caller needs
+        `mcdashboard.developer`. The server assigns the id, order, permission and owner; uploading again replaces the
+        caller's one dashboard. The saved permission is `mcdashboard.dashboard.<id>`; only players with that permission
+        (developers inherit it) can see the dashboard.
+      security: [ { bearer: [] } ]
+      parameters: [ { $ref: '#/components/parameters/AcceptLanguage' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DashboardUpload' }
+      responses:
+        '200': { description: 'Saved. Names and titles are translated for Accept-Language', content: { application/json: { schema: { $ref: '#/components/schemas/Dashboard' } } } }
+        '400': { description: Invalid dashboard (unknown placeholder or widget, no items, a value out of range) }
+        '401': { description: Not paired }
+        '403': { description: Developer mode is off, or the caller lacks mcdashboard.developer }
+  /dashboards/{id}:
+    get:
+      summary: One preset, filtered to the placeholders the caller may read
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { $ref: '#/components/parameters/AcceptLanguage' }
+      responses:
+        '200': { description: 'OK. Names, descriptions and tile titles are translated for Accept-Language; Vary: Authorization, Accept-Language', content: { application/json: { schema: { $ref: '#/components/schemas/Dashboard' } } } }
+        '404': { description: Unknown, or not offered to this caller }
+  /dashboard:
+    get:
+      summary: The first dashboard the caller may open (kept for apps that predate presets)
+      parameters: [ { $ref: '#/components/parameters/AcceptLanguage' } ]
+      responses:
+        '200': { description: 'OK. Translated for Accept-Language', content: { application/json: { schema: { $ref: '#/components/schemas/Dashboard' } } } }
+  /devices/self:
+    delete:
+      summary: Unpair the calling device
+      security: [ { bearer: [] } ]
+      responses:
+        '200': { description: Revoked }
+  /events:
+    get:
+      summary: Stream of device events for a service such as MCDashboard-proxy (server-sent events)
+      x-internal: true
+      description: |
+        Not for apps; a reverse proxy uses it to learn that a device was revoked (`/mcdashboard revoke` or
+        `DELETE /v1/devices/self`) so it stops serving what it cached for that device. It does not exist unless
+        `events.token` is set, and the token (not a device token) is the credential. Keep it off the public side.
+
+        `Content-Type: text/event-stream`. Each event has `id: <epoch>:<seq>`, `event: device.revoked` and the JSON
+        `DeviceRevokedEvent` as data; `: ping` comments keep the connection alive. After a reconnect send the last id
+        as `Last-Event-ID`: missed events are replayed (the last 256 are kept). When that is impossible (the plugin
+        restarted, or the history moved on) the stream starts with `event: reset` and the consumer must assume it
+        missed revocations (a cache should drop what it holds for devices).
+      security: [ { eventsToken: [] } ]
+      parameters:
+        - { name: Last-Event-ID, in: header, required: false, schema: { type: string, example: 'a1b2c3d4:17' } }
+      responses:
+        '200': { description: The event stream, content: { text/event-stream: { schema: { type: string } } } }
+        '401': { description: Missing or wrong events token }
+        '404': { description: Events are not enabled }
+        '429': { description: Too many attempts }
+        '503': { description: Too many open event streams }
+webhooks:
+  deviceRevoked:
+    post:
+      summary: A device was revoked (sent to every URL in `events.webhooks`)
+      description: |
+        Delivered once per event with retries (about 12 minutes), so a receiver must be idempotent and answer `2xx`.
+        Headers: `X-MCDashboard-Event: device.revoked`, `X-MCDashboard-Delivery: <epoch>:<seq>`,
+        `X-MCDashboard-Timestamp` (unix seconds) and `X-MCDashboard-Signature: sha256=<hex>`, the HMAC-SHA256 of
+        `<timestamp>.<raw body>` keyed with the webhook's `secret`. Verify in constant time and reject timestamps
+        more than a few minutes old.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/DeviceRevokedEvent' } } }
+      responses:
+        '204': { description: Accepted }
+components:
+  parameters:
+    AcceptLanguage:
+      name: Accept-Language
+      in: header
+      required: false
+      schema: { type: string, example: 'nl-BE,nl;q=0.9,en;q=0.8' }
+      description: |
+        The app's UI language (one of en, nl, fr, de, es; regions are ignored). Dashboard names,
+        descriptions and tile titles are resolved in this language, then in the server's
+        `server.default-language`, then in any language the dashboard provides.
+  securitySchemes:
+    bearer: { type: http, scheme: bearer, bearerFormat: JWT }
+    eventsToken: { type: http, scheme: bearer, description: The shared `events.token` from config.yml }
+  responses:
+    UnsupportedClient:
+      description: 'Any route except GET /info: the User-Agent is missing or is not the official app (MCDashboard/x.y.z (android|ios|dev)) and is not allowed by the owner (security.allowed-clients)'
+      content: { application/json: { schema: { type: object, required: [error], properties: { error: { type: string } } } } }
+    ClientTooOld:
+      description: 'Any route except GET /info: the app version is below security.min-client-version; update the app'
+      content: { application/json: { schema: { type: object, required: [error, minVersion], properties: { error: { type: string }, minVersion: { type: string } } } } }
+    TooManyRequests:
+      description: 'The device (or, when not paired, the address) exceeded security.requests-per-minute'
+      headers: { Retry-After: { schema: { type: integer }, description: seconds } }
+      content: { application/json: { schema: { type: object, required: [error], properties: { error: { type: string } } } } }
+    Values:
+      description: SenML pack (RFC 8428)
+      headers:
+        ETag: { schema: { type: string } }
+        Cache-Control: { schema: { type: string }, description: 'public|private, max-age=<seconds>' }
+      content: { application/senml+json: { schema: { type: array, items: { $ref: '#/components/schemas/SenMLRecord' } } } }
+  schemas:
+    DeviceRevokedEvent:
+      type: object
+      required: [type, epoch, seq, time, deviceId, player]
+      properties:
+        type: { type: string, enum: [device.revoked] }
+        epoch: { type: string, description: Identifies one run of the plugin; the sequence restarts with a new epoch }
+        seq: { type: integer, description: Counts events within the epoch }
+        time: { type: integer, description: unix seconds }
+        deviceId: { type: string, description: The `sub` claim of the revoked device's tokens }
+        player: { type: string, description: UUID of the player the device was paired to }
+    Info:
+      type: object
+      required: [name, plugin, version, protocol, authRequired]
+      properties:
+        name: { type: string }
+        plugin: { const: MCDashboard }
+        version: { type: string }
+        protocol: { type: integer, const: 1 }
+        authRequired: { type: boolean }
+        defaultLanguage: { type: string, enum: [en, nl, fr, de, es], description: 'language used when the app asks for one a dashboard does not provide' }
+        languages: { type: array, items: { type: string, enum: [en, nl, fr, de, es] }, description: 'languages the server publishes dashboards in, sorted' }
+        websocketPort: { type: integer }
+        polling: { type: boolean, description: 'false when values are only served over the live feed (GET /v1/values and /v1/placeholders/{id} answer 403); absent means polling works' }
+        endpoints:
+          type: array
+          items: { type: string, format: uri }
+          description: >-
+            Where clients should connect (for example the MCDashboard-proxy), best first. The address a client was given is
+            only used to read this list; clients use the first endpoint that answers /v1/info as an MCDashboard server.
+        icon: { type: string, description: data URI }
+        motd: { type: string, description: legacy section-sign colour codes }
+        online: { type: integer }
+        maxPlayers: { type: integer }
+        gameVersion: { type: string }
+        gamePort: { type: integer }
+        licenseId: { type: string, description: public id of the server's premium subscription }
+        minClientVersion: { type: string, pattern: '^\d+\.\d+\.\d+$', description: 'oldest app version the server accepts; older apps get 426' }
+    AuthRequest:
+      type: object
+      required: [otp]
+      properties: { otp: { type: string }, deviceLabel: { type: string, maxLength: 40 } }
+    Tokens:
+      type: object
+      required: [accessToken, refreshToken, expiresIn, player]
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        expiresIn: { type: integer }
+        player: { type: object, properties: { uuid: { type: string }, name: { type: string } } }
+    PlaceholdersPage:
+      type: object
+      required: [placeholders, total, groups]
+      properties:
+        placeholders: { type: array, items: { $ref: '#/components/schemas/Placeholder' } }
+        total: { type: integer, description: matches before paging }
+        groups:
+          type: array
+          description: groups of the readable placeholders matching q (ignoring the group filter), sorted by name
+          items: { type: object, required: [name, count], properties: { name: { type: string }, count: { type: integer } } }
+    Placeholder:
+      type: object
+      required: [id, name, type, access, group, minInterval]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        group: { type: string, description: 'catalog group, "General" by default' }
+        description: { type: string }
+        type: { enum: [STRING, INTEGER, DECIMAL, BOOLEAN, PERCENTAGE, AUTO, IMAGE], description: 'AUTO values are typed per value; IMAGE values arrive as vd' }
+        access: { enum: [PUBLIC, PLAYER] }
+        minInterval: { type: integer, description: seconds }
+        min: { type: number }
+        max: { type: number }
+        unit: { type: string }
+        maxFrom: { type: string, description: id of the placeholder whose value is this one's maximum }
+        historyMinutes: { type: integer, description: 'minutes of history kept; see /history/{id}' }
+    SenMLRecord:
+      type: object
+      required: [n, t]
+      properties:
+        n: { type: string, description: placeholder id }
+        t: { type: number, description: unix time in seconds }
+        u: { type: string }
+        v: { type: number }
+        vb: { type: boolean }
+        vs: { type: string }
+        vd: { type: string, description: 'RFC 8428 data value: an IMAGE (PNG, JPEG, GIF or WebP, max 256 KB) as base64url without padding; sniff the type from the bytes' }
+    DashboardSummary:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string }
+        name: { type: string, description: 'translated for Accept-Language' }
+        description: { type: string, description: 'translated for Accept-Language' }
+    Dashboard:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string, description: 'translated for Accept-Language' }
+        description: { type: string, description: 'translated for Accept-Language' }
+        permission: { type: string, description: 'derived from the file name: mcdashboard.dashboard.<id>' }
+        background:
+          type: string
+          enum: [grid, dirt, stone, planks, checker, cobble, creeper]
+          description: subtle pattern behind the dashboard; the player can override it
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/DashboardItem' }
+    DashboardItem:
+      type: object
+      required: [placeholder, widget]
+      properties:
+        placeholder: { type: string, description: the first placeholder; older apps only read this one }
+        placeholders: { type: array, items: { type: string }, description: all placeholders of a combined tile (list, line, bar, pie), the first included; only those the caller may read; absent for a single one }
+        widget: { type: string, description: widget id of the app }
+        title: { type: string, description: 'translated for Accept-Language' }
+        column: { type: integer }
+        row: { type: integer }
+        width: { type: integer }
+        height: { type: integer }
+    DashboardItemUpload:
+      type: object
+      required: [widget]
+      anyOf:
+        - { required: [placeholder] }
+        - { required: [placeholders] }
+      properties:
+        placeholder: { type: string, description: the first placeholder; required unless placeholders is given }
+        placeholders: { type: array, items: { type: string }, minItems: 1, maxItems: 12 }
+        widget: { type: string, enum: [text, image, number, progress, list, status, gauge, ring, line, area, bar, pie] }
+        title: { type: string, maxLength: 80 }
+        column: { type: integer, minimum: 0, maximum: 3 }
+        row: { type: integer, minimum: 0, maximum: 999 }
+        width: { type: integer, minimum: 1, maximum: 4 }
+        height: { type: integer, minimum: 1, maximum: 64 }
+    DashboardUpload:
+      type: object
+      required: [name, items]
+      properties:
+        name: { type: string, maxLength: 64 }
+        description: { type: string, maxLength: 240 }
+        background:
+          type: string
+          enum: [grid, dirt, stone, planks, checker, cobble, creeper]
+        items:
+          type: array
+          minItems: 1
+          maxItems: 40
+          items: { $ref: '#/components/schemas/DashboardItemUpload' }

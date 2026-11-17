@@ -1,0 +1,10 @@
+stages: [test]
+
+build:
+  stage: test
+  image: maven:3-eclipse-temurin-17
+  script:
+    - mvn -B verify
+    - jar tf target/MCDashboard.jar | grep -vE '^(org/mcdashboard/|META-INF/|dashboards/|lang/|[a-z]+\.yml|org/$|dashboards/$|lang/$)' && exit 1 || true  # nothing shaded
+  artifacts:
+    paths: [target/MCDashboard.jar]

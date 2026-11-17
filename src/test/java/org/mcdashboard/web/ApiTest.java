@@ -1,0 +1,537 @@
+package org.mcdashboard.web;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Clock;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.mcdashboard.auth.*;
+import org.mcdashboard.dashboard.DashboardStore;
+import org.mcdashboard.json.Json;
+import org.mcdashboard.placeholder.*;
+import org.mcdashboard.web.ServerStatus;
+
+class ApiTest {
+    @TempDir
+    Path temp;
+    HttpApi api;
+    OtpService otps;
+    HttpClient http = HttpClient.newHttpClient();
+    String base;
+    ApiContext ctx;
+    /** What the official app sends; every helper adds it unless a test passes its own. */
+    static final String APP = "MCDashboard/1.2.3 (android)";
+
+    @BeforeEach
+    void start() throws Exception {
+        Clock clock = Clock.systemUTC();
+        ValueSource src = (tpl, uuid) -> tpl.equals("%server_tps%") ? "19.9" : tpl.equals("%player_name%") ? "Steve:" + uuid : "7";
+        var defs = PlaceholderDefinition.parseAll(List.of(
+                Map.of("id", "tps", "value", "%server_tps%", "type", "DECIMAL", "min-interval", 5, "unit", "tps"),
+                Map.of("id", "online", "value", "%server_online%", "type", "INTEGER"),
+                Map.of("id", "me", "value", "%player_name%", "access", "PLAYER")), m -> fail(m));
+        otps = new OtpService(clock, 60);
+        ctx = new ApiContext("Test", "1.0", () -> ServerStatus.EMPTY, false, 2, 900, 3600, 0,
+                new PlaceholderService(src, clock, 1000, defs), new TokenService(new byte[48], clock),
+                new DeviceStore(Files.createTempFile("devices", ".json")), otps, new RateLimiter(clock, 100, 60000), List.of(), Set.of(), new HistoryService(clock, defs), null, d -> {}, PermissionCache.allowAll(), "en");
+        api = new HttpApi(ctx);
+        api.start("127.0.0.1", 0, null);
+        base = "http://127.0.0.1:" + api.port();
+    }
+
+    @AfterEach
+    void stop() {
+        api.stop();
+    }
+
+    HttpResponse<String> get(String path, String... headers) throws Exception {
+        var b = HttpRequest.newBuilder(URI.create(base + path)).setHeader("User-Agent", APP);
+        for (int i = 0; i < headers.length; i += 2) b.setHeader(headers[i], headers[i + 1]);
+        return http.send(b.build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    HttpResponse<String> post(String path, String body) throws Exception {
+        return http.send(HttpRequest.newBuilder(URI.create(base + path)).POST(HttpRequest.BodyPublishers.ofString(body))
+                .setHeader("User-Agent", APP).build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    HttpResponse<String> post(String path, String body, String token) throws Exception {
+        var builder = HttpRequest.newBuilder(URI.create(base + path)).POST(HttpRequest.BodyPublishers.ofString(body))
+                .setHeader("User-Agent", APP);
+        if (token != null) builder.header("Authorization", "Bearer " + token);
+        return http.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    @Test
+    void publicValueIsSenMlAndCacheable() throws Exception {
+        var r = get("/v1/placeholders/tps");
+        assertEquals(200, r.statusCode());
+        assertTrue(r.headers().firstValue("Content-Type").orElse("").startsWith("application/senml+json"));
+        assertEquals("public, max-age=5", r.headers().firstValue("Cache-Control").orElseThrow());
+        var rec = (Map<?, ?>) ((List<?>) Json.parse(r.body())).get(0);
+        assertEquals("tps", rec.get("n"));
+        assertEquals(19.9, rec.get("v"));
+        assertEquals("tps", rec.get("u"));
+        String etag = r.headers().firstValue("ETag").orElseThrow();
+        assertEquals(304, get("/v1/placeholders/tps", "If-None-Match", etag).statusCode());
+    }
+
+    @Test
+    void bulkValuesAndUnknownIds() throws Exception {
+        var r = get("/v1/values?ids=tps,online,nope,me");
+        var list = (List<?>) Json.parse(r.body());
+        assertEquals(2, list.size(), "unknown and player-only ids are skipped for anonymous callers");
+        assertEquals(400, get("/v1/values").statusCode());
+    }
+
+    @Test
+    void playerPlaceholderNeedsPairingAndIsPrivate() throws Exception {
+        assertEquals(401, get("/v1/placeholders/me").statusCode());
+        String code = otps.create("uuid-1", "Steve");
+        var auth = Json.parseObject(post("/v1/auth", "{\"otp\":\"" + code + "\",\"deviceLabel\":\"Pixel\"}").body());
+        String access = (String) auth.get("accessToken");
+        var r = get("/v1/placeholders/me", "Authorization", "Bearer " + access);
+        assertEquals(200, r.statusCode());
+        assertTrue(r.headers().firstValue("Cache-Control").orElseThrow().startsWith("private"));
+        assertTrue(r.body().contains("Steve:uuid-1"));
+        assertEquals(401, post("/v1/auth", "{\"otp\":\"" + code + "\"}").statusCode(), "code is single use");
+    }
+
+    @Test
+    void refreshRotatesAndOldRefreshTokenDies() throws Exception {
+        var auth = Json.parseObject(post("/v1/auth", "{\"otp\":\"" + otps.create("u", "S") + "\"}").body());
+        String r1 = (String) auth.get("refreshToken");
+        var second = post("/v1/auth/refresh", "{\"refreshToken\":\"" + r1 + "\"}");
+        assertEquals(200, second.statusCode());
+        assertEquals(401, post("/v1/auth/refresh", "{\"refreshToken\":\"" + r1 + "\"}").statusCode());
+    }
+
+    @Test
+    void deviceLimitAndMalformedBodies() throws Exception {
+        for (int i = 0; i < 2; i++) assertEquals(200, post("/v1/auth", "{\"otp\":\"" + otps.create("u", "S") + "\"}").statusCode());
+        assertEquals(403, post("/v1/auth", "{\"otp\":\"" + otps.create("u", "S") + "\"}").statusCode());
+        assertEquals(400, post("/v1/auth", "not json").statusCode());
+    }
+
+    @Test
+    void tooManyAuthAttemptsGetRateLimited() throws Exception {
+        api.stop();
+        Clock clock = Clock.systemUTC();
+        var defs = PlaceholderDefinition.parseAll(List.of(Map.of("id", "tps", "value", "%server_tps%")), m -> fail(m));
+        var ctx = new ApiContext("Test", "1.0", () -> ServerStatus.EMPTY, false, 2, 900, 3600, 0,
+                new PlaceholderService((t, u) -> "1", clock, 0, defs), new TokenService(new byte[48], clock),
+                new DeviceStore(Files.createTempFile("devices", ".json")), otps, new RateLimiter(clock, 3, 60000), List.of(), Set.of(),
+                new HistoryService(clock, defs), null, d -> {}, PermissionCache.allowAll(), "en");
+        api = new HttpApi(ctx);
+        api.start("127.0.0.1", 0, null);
+        base = "http://127.0.0.1:" + api.port();
+        for (int i = 0; i < 3; i++) assertEquals(401, post("/v1/auth", "{\"otp\":\"AAAAAAAA\"}").statusCode());
+        assertEquals(429, post("/v1/auth", "{\"otp\":\"AAAAAAAA\"}").statusCode());
+        assertEquals(429, post("/v1/auth/refresh", "{\"refreshToken\":\"x\"}").statusCode(), "refresh shares the limit");
+    }
+
+    /** A server with a permissioned overview, a staff-only dashboard, a player dashboard and a staff-only placeholder. */
+    private void presetServer(PermissionCache perms) throws Exception {
+        api.stop();
+        Clock clock = Clock.systemUTC();
+        var defs = PlaceholderDefinition.parseAll(List.of(
+                Map.of("id", "tps", "value", "%server_tps%", "type", "DECIMAL", "history", 10),
+                Map.of("id", "online", "value", "%server_online%", "type", "INTEGER", "max-from", "max"),
+                Map.of("id", "max", "value", "%server_max_players%", "type", "INTEGER"),
+                Map.of("id", "me", "value", "%player_name%", "access", "PLAYER"),
+                Map.of("id", "secret", "value", "%server_version%", "permission", "x.staff")), m -> fail(m));
+        var dashboards = List.of(
+                org.mcdashboard.dashboard.Dashboard.fromMap("staff", Map.of("name", "Staff", "order", 30,
+                        "items", List.of(Map.of("placeholder", "tps", "widget", "gauge")))),
+                org.mcdashboard.dashboard.Dashboard.fromMap("mine", Map.of("name", "Mine", "order", 20,
+                        "items", List.of(Map.of("placeholder", "me", "widget", "text")))),
+                org.mcdashboard.dashboard.Dashboard.fromMap("overview", Map.of("name", Map.of("en", "Overview", "nl", "Overzicht", "de", "Übersicht"),
+                        "description", Map.of("en", "Public", "nl", "Openbaar"), "order", 10, "background", " Stone ",
+                        "items", List.of(Map.of("placeholder", "online", "widget", "gauge"), Map.of("placeholder", "secret", "widget", "text"),
+                                Map.of("placeholders", List.of("tps", "secret", "online"), "widget", "line")))));
+        var ctx = new ApiContext("Test", "1.0", () -> ServerStatus.EMPTY, false, 5, 900, 3600, 0,
+                new PlaceholderService((t, u) -> "7", clock, 0, defs), new TokenService(new byte[48], clock),
+                new DeviceStore(Files.createTempFile("devices", ".json")), otps, new RateLimiter(clock, 100, 60000), dashboards, Set.of(),
+                new HistoryService(clock, defs), null, d -> {}, perms, "en");
+        api = new HttpApi(ctx);
+        api.start("127.0.0.1", 0, null);
+        base = "http://127.0.0.1:" + api.port();
+    }
+
+    private String pair(String uuid, String name) throws Exception {
+        var res = Json.parseObject(post("/v1/auth", "{\"otp\":\"" + otps.create(uuid, name) + "\"}").body());
+        return (String) res.get("accessToken");
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> dashboardIds(String token) throws Exception {
+        var res = token == null ? get("/v1/dashboards") : get("/v1/dashboards", "Authorization", "Bearer " + token);
+        return ((List<Map<String, Object>>) ((Map<String, Object>) Json.parse(res.body())).get("dashboards")).stream().map(m -> (String) m.get("id")).toList();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void dashboardCarriesItsBackground() throws Exception {
+        presetServer(PermissionCache.allowAll());
+        assertEquals("stone", ((Map<String, Object>) Json.parse(get("/v1/dashboards/overview").body())).get("background"), "normalised to lower case");
+    }
+
+    @Test
+    void presetsAreOfferedByPermissionAndOrder() throws Exception {
+        PermissionCache perms = new PermissionCache();
+        presetServer(perms);
+        assertEquals(List.of(), dashboardIds(null), "anonymous: a dashboard needs mcdashboard.dashboard.<id>");
+        String steveUuid = "00000000-0000-0000-0000-000000000001";
+        String steve = pair(steveUuid, "Steve");
+        perms.update(java.util.UUID.fromString(steveUuid),
+                Set.of("mcdashboard.dashboard.overview", "mcdashboard.dashboard.mine"));
+        assertEquals(List.of("overview", "mine"), dashboardIds(steve), "a paired player with the dashboard permissions");
+        String staffUuid = "00000000-0000-0000-0000-000000000002";
+        String staffToken = pair(staffUuid, "Alex");
+        perms.update(java.util.UUID.fromString(staffUuid), Set.of("mcdashboard.dashboard.overview",
+                "mcdashboard.dashboard.mine", "mcdashboard.dashboard.staff"));
+        assertEquals(List.of("overview", "mine", "staff"), dashboardIds(staffToken), "ordered by `order`");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void dashboardsFollowAcceptLanguageAndFallBackToTheServerDefault() throws Exception {
+        presetServer(PermissionCache.allowAll());
+        var dutch = (Map<String, Object>) Json.parse(get("/v1/dashboards/overview", "Accept-Language", "nl-BE,nl;q=0.9,en;q=0.8").body());
+        assertEquals("Overzicht", dutch.get("name"));
+        assertEquals("Openbaar", dutch.get("description"));
+
+        var german = (Map<String, Object>) Json.parse(get("/v1/dashboards/overview", "Accept-Language", "de-AT").body());
+        assertEquals("Übersicht", german.get("name"));
+        assertEquals("Public", german.get("description"), "the untranslated description falls back to the server default");
+
+        var listing = (Map<String, Object>) Json.parse(get("/v1/dashboards", "Accept-Language", "fr").body());
+        var first = (Map<String, Object>) ((List<?>) listing.get("dashboards")).get(0);
+        assertEquals("Overview", first.get("name"), "no French: the server default is English");
+        assertEquals("Authorization, Accept-Language", get("/v1/dashboards", "Accept-Language", "fr").headers().firstValue("Vary").orElseThrow());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void infoAdvertisesTheDefaultLanguageAndEveryDashboardLanguage() throws Exception {
+        presetServer(new PermissionCache());
+        var info = (Map<String, Object>) Json.parse(get("/v1/info").body());
+        assertEquals("en", info.get("defaultLanguage"));
+        assertEquals(List.of("de", "en", "nl"), info.get("languages"));
+    }
+
+    @Test
+    void aPresetThatIsNotOfferedCanNotBeFetchedEither() throws Exception {
+        PermissionCache perms = new PermissionCache();
+        presetServer(perms);
+        String steveUuid = "00000000-0000-0000-0000-000000000001";
+        String steve = pair(steveUuid, "Steve");
+        perms.update(java.util.UUID.fromString(steveUuid), Set.of("mcdashboard.dashboard.overview"));
+        assertEquals(404, get("/v1/dashboards/staff", "Authorization", "Bearer " + steve).statusCode());
+        assertEquals(404, get("/v1/dashboards/mine").statusCode());
+        var overview = (Map<?, ?>) Json.parse(get("/v1/dashboards/overview", "Authorization", "Bearer " + steve).body());
+        assertEquals("Public", overview.get("description"));
+        assertEquals("mcdashboard.dashboard.overview", overview.get("permission"), "the permission is derived from the file name");
+        var items = (List<?>) overview.get("items");
+        assertEquals(2, items.size(), "the tile with only the staff-only placeholder is left out of the public dashboard");
+        var combined = (Map<?, ?>) items.get(1);
+        assertEquals(List.of("tps", "online"), combined.get("placeholders"), "a combined tile keeps what the caller may read");
+        assertEquals("tps", combined.get("placeholder"), "the first one stays in `placeholder` for older apps");
+        assertFalse(((Map<?, ?>) items.get(0)).containsKey("placeholders"), "a single placeholder does not repeat itself");
+    }
+
+    @Test
+    void permissionedPlaceholdersAreGatedOnEveryRoute() throws Exception {
+        PermissionCache perms = new PermissionCache();
+        presetServer(perms);
+        String steve = pair("uuid-steve", "Steve");
+        assertEquals(401, get("/v1/placeholders/secret").statusCode(), "anonymous");
+        assertEquals(403, get("/v1/placeholders/secret", "Authorization", "Bearer " + steve).statusCode(), "paired but without the permission");
+        assertEquals("[]", get("/v1/values?ids=secret", "Authorization", "Bearer " + steve).body());
+        assertFalse(get("/v1/placeholders", "Authorization", "Bearer " + steve).body().contains("secret"));
+        perms.update(java.util.UUID.fromString("00000000-0000-0000-0000-000000000002"), Set.of("x.staff"));
+        String staff = pair("00000000-0000-0000-0000-000000000002", "Staff");
+        assertEquals(200, get("/v1/placeholders/secret", "Authorization", "Bearer " + staff).statusCode());
+    }
+
+    @Test
+    void aDashboardMaximumCanComeFromAnotherPlaceholder() throws Exception {
+        presetServer(new PermissionCache());
+        var list = (List<?>) ((Map<?, ?>) Json.parse(get("/v1/placeholders").body())).get("placeholders");
+        var online = list.stream().map(o -> (Map<?, ?>) o).filter(m -> "online".equals(m.get("id"))).findFirst().orElseThrow();
+        assertEquals("max", online.get("maxFrom"));
+    }
+
+    @Test
+    void linkingADeviceNotifiesTheOwner() throws Exception {
+        api.stop();
+        Clock clock = Clock.systemUTC();
+        var defs = PlaceholderDefinition.parseAll(List.of(Map.of("id", "tps", "value", "%server_tps%")), m -> fail(m));
+        var linked = new java.util.ArrayList<DeviceStore.Device>();
+        var ctx = new ApiContext("Test", "1.0", () -> ServerStatus.EMPTY, false, 2, 900, 3600, 0,
+                new PlaceholderService((t, u) -> "1", clock, 0, defs), new TokenService(new byte[48], clock),
+                new DeviceStore(Files.createTempFile("devices", ".json")), otps, new RateLimiter(clock, 100, 60000), List.of(), Set.of(),
+                new HistoryService(clock, defs), null, linked::add, PermissionCache.allowAll(), "en");
+        api = new HttpApi(ctx);
+        api.start("127.0.0.1", 0, null);
+        base = "http://127.0.0.1:" + api.port();
+        assertEquals(401, post("/v1/auth", "{\"otp\":\"AAAAAAAA\"}").statusCode());
+        assertTrue(linked.isEmpty(), "a failed pairing notifies nobody");
+        assertEquals(200, post("/v1/auth", "{\"otp\":\"" + otps.create("uuid-9", "Alex") + "\",\"deviceLabel\":\"Pixel\"}").statusCode());
+        assertEquals(1, linked.size());
+        assertEquals("Alex", linked.get(0).playerName());
+        assertEquals("Pixel", linked.get(0).label());
+    }
+
+    @Test
+    void infoPublishesTheLicenseIdOnlyWhenConfigured() throws Exception {
+        assertFalse(get("/v1/info").body().contains("licenseId"));
+        api.stop();
+        Clock clock = Clock.systemUTC();
+        var defs = PlaceholderDefinition.parseAll(List.of(Map.of("id", "tps", "value", "%server_tps%")), m -> fail(m));
+        var ctx = new ApiContext("Test", "1.0", () -> ServerStatus.EMPTY, false, 2, 900, 3600, 0,
+                new PlaceholderService((t, u) -> "1", clock, 0, defs), new TokenService(new byte[48], clock),
+                new DeviceStore(Files.createTempFile("devices", ".json")), otps, new RateLimiter(clock, 100, 60000), List.of(), Set.of(),
+                new HistoryService(clock, defs), "mcl_abc", d -> {}, PermissionCache.allowAll(), "en");
+        api = new HttpApi(ctx);
+        api.start("127.0.0.1", 0, null);
+        base = "http://127.0.0.1:" + api.port();
+        assertEquals("mcl_abc", ((Map<?, ?>) Json.parse(get("/v1/info").body())).get("licenseId"));
+    }
+
+    @Test
+    void liveFeedHandshakeAndValues() throws Exception {
+        // exercised end-to-end in LiveServerTest
+        assertEquals(200, get("/v1/info").statusCode());
+    }
+
+    @Test
+    void placeholderCatalogPagesSearchesAndLooksUpIds() throws Exception {
+        api.stop();
+        Clock clock = Clock.systemUTC();
+        List<Map<String, Object>> raw = new java.util.ArrayList<>();
+        for (int i = 0; i < 120; i++) {
+            raw.add(Map.of("id", "p" + i, "name", "Item " + i, "value", "%x_" + i + "%", "group", i < 100 ? "Bulk" : "Other",
+                    "description", i == 5 ? "Needle here" : "plain"));
+        }
+        raw.add(Map.of("id", "secret", "name", "Secret", "value", "%x_s%", "group", "Staff", "permission", "x.staff"));
+        var defs = PlaceholderDefinition.parseAll(raw, m -> fail(m));
+        var ctx = new ApiContext("Test", "1.0", () -> ServerStatus.EMPTY, false, 2, 900, 3600, 0,
+                new PlaceholderService((t, u) -> "1", clock, 0, defs), new TokenService(new byte[48], clock),
+                new DeviceStore(Files.createTempFile("devices", ".json")), otps, new RateLimiter(clock, 100, 60000), List.of(), Set.of(),
+                new HistoryService(clock, defs), null, d -> {}, new PermissionCache(), "en");
+        api = new HttpApi(ctx);
+        api.start("127.0.0.1", 0, null);
+        base = "http://127.0.0.1:" + api.port();
+
+        var page = (Map<?, ?>) Json.parse(get("/v1/placeholders").body());
+        assertEquals(50, ((List<?>) page.get("placeholders")).size());
+        assertEquals(120L, ((Number) page.get("total")).longValue(), "secret is hidden from anonymous callers");
+        var groups = (List<?>) page.get("groups");
+        assertEquals(Map.of("name", "Bulk", "count", 100L), normalise(groups.get(0)));
+        assertEquals(2, groups.size());
+        assertEquals("Bulk", ((Map<?, ?>) ((List<?>) page.get("placeholders")).get(0)).get("group"));
+        assertTrue(get("/v1/placeholders").headers().firstValue("Cache-Control").orElse("").startsWith("public"));
+
+        var second = (Map<?, ?>) Json.parse(get("/v1/placeholders?limit=100&offset=100").body());
+        assertEquals(20, ((List<?>) second.get("placeholders")).size());
+        assertEquals(1, ((List<?>) ((Map<?, ?>) Json.parse(get("/v1/placeholders?q=NEEDLE").body())).get("placeholders")).size());
+        var other = (Map<?, ?>) Json.parse(get("/v1/placeholders?group=Other&q=item").body());
+        assertEquals(20L, ((Number) other.get("total")).longValue());
+        assertEquals(2, ((List<?>) other.get("groups")).size(), "groups ignore the group filter");
+        assertEquals(400, get("/v1/placeholders?limit=0").statusCode());
+        assertEquals(400, get("/v1/placeholders?limit=101").statusCode());
+        assertEquals(400, get("/v1/placeholders?offset=-1").statusCode());
+        assertEquals(400, get("/v1/placeholders?limit=x").statusCode());
+
+        var byIds = (Map<?, ?>) Json.parse(get("/v1/placeholders?ids=p7,secret,nope,p3&q=zzz&limit=1").body());
+        var items = (List<?>) byIds.get("placeholders");
+        assertEquals(2, items.size(), "unknown and unreadable ids are left out; q and limit are ignored");
+        assertEquals(2L, ((Number) byIds.get("total")).longValue());
+        assertEquals(List.of(), byIds.get("groups"));
+        assertEquals(400, get("/v1/placeholders?ids=" + String.join(",", java.util.Collections.nCopies(101, "p1"))).statusCode());
+    }
+
+    /** Starts a server whose dashboards are written to {@code temp} and whose developer mode is {@code mode}. */
+    private DashboardStore developerServer(PermissionCache perms, AtomicBoolean mode) throws Exception {
+        api.stop();
+        Clock clock = Clock.systemUTC();
+        var defs = PlaceholderDefinition.parseAll(List.of(
+                Map.of("id", "tps", "value", "%server_tps%", "type", "DECIMAL"),
+                Map.of("id", "online", "value", "%server_online%", "type", "INTEGER")), m -> fail(m));
+        DashboardStore store = new DashboardStore(temp.resolve("dashboards"));
+        var ctx = new ApiContext("Test", "1.0", () -> ServerStatus.EMPTY, false, 5, 900, 3600, 0,
+                new PlaceholderService((t, u) -> "7", clock, 0, defs), new TokenService(new byte[48], clock),
+                new DeviceStore(Files.createTempFile("devices", ".json")), otps, new RateLimiter(clock, 100, 60000),
+                store, Set.of(), new HistoryService(clock, defs), null, d -> {}, perms, "en", mode::get, () -> {});
+        api = new HttpApi(ctx);
+        api.start("127.0.0.1", 0, null);
+        base = "http://127.0.0.1:" + api.port();
+        return store;
+    }
+
+    @Test
+    void developerUploadsAndReplacesOwnDashboard() throws Exception {
+        PermissionCache perms = new PermissionCache();
+        String developerUuid = "00000000-0000-0000-0000-000000000010";
+        String otherUuid = "00000000-0000-0000-0000-000000000011";
+        perms.update(java.util.UUID.fromString(developerUuid), Set.of("mcdashboard.developer"));
+        AtomicBoolean mode = new AtomicBoolean(true);
+        developerServer(perms, mode);
+        String developer = pair(developerUuid, "Dev");
+        String other = pair(otherUuid, "Other");
+
+        var before = (Map<?, ?>) Json.parse(get("/v1/dashboards", "Authorization", "Bearer " + developer).body());
+        assertEquals(true, before.get("canUpload"), "a developer may upload when developer mode is on");
+        assertEquals(false, ((Map<?, ?>) Json.parse(get("/v1/dashboards", "Authorization", "Bearer " + other).body())).get("canUpload"));
+        assertEquals(false, ((Map<?, ?>) Json.parse(get("/v1/dashboards").body())).get("canUpload"), "anonymous callers never upload");
+
+        String first = "{\"name\":\"Staff board\",\"description\":\"For the staff\",\"background\":\"stone\",\"items\":[{\"placeholder\":\"tps\",\"widget\":\"gauge\",\"title\":\"TPS\",\"column\":0,\"row\":0,\"width\":2,\"height\":2}]}";
+        assertEquals(401, post("/v1/dashboards", first).statusCode(), "a developer must be paired");
+        assertEquals(403, post("/v1/dashboards", first, other).statusCode(), "the developer permission is required");
+        var saved = (Map<?, ?>) Json.parse(post("/v1/dashboards", first, developer).body());
+        String id = (String) saved.get("id");
+        assertTrue(id.startsWith("dev-"), "one stable dashboard per developer");
+        assertEquals("mcdashboard.dashboard." + id, saved.get("permission"), "derived from the file name");
+        assertEquals("Staff board", saved.get("name"));
+
+        assertTrue(dashboardIds(developer).contains(id), "the uploader sees the uploaded dashboard");
+        assertFalse(dashboardIds(other).contains(id), "it is only for developers");
+        Path file = temp.resolve("dashboards").resolve(id + ".yml");
+        assertTrue(Files.readString(file).contains("Staff board"));
+        assertTrue(Files.readString(file).contains("mcdashboard.dashboard." + id));
+
+        String second = "{\"name\":\"Second board\",\"items\":[{\"placeholder\":\"online\",\"widget\":\"number\",\"column\":0,\"row\":0,\"width\":1,\"height\":1}]}";
+        var replaced = (Map<?, ?>) Json.parse(post("/v1/dashboards", second, developer).body());
+        assertEquals(id, replaced.get("id"), "uploading again replaces the developer's one dashboard");
+        assertEquals("Second board", replaced.get("name"));
+        try (var files = Files.list(temp.resolve("dashboards"))) {
+            assertEquals(1, files.count(), "no duplicate YAML files");
+        }
+        assertEquals(1, dashboardIds(developer).stream().filter(id::equals).count());
+
+        assertEquals(400, post("/v1/dashboards", "{\"name\":\"x\",\"items\":[{\"placeholder\":\"tps\",\"widget\":\"nope\"}]}", developer).statusCode());
+        assertEquals(400, post("/v1/dashboards", "{\"name\":\"x\",\"items\":[{\"placeholder\":\"missing\",\"widget\":\"text\"}]}", developer).statusCode());
+        assertEquals(400, post("/v1/dashboards", "{\"name\":\"x\",\"items\":[]}", developer).statusCode());
+        assertEquals(400, post("/v1/dashboards", "{\"name\":\"x\",\"background\":\"lava\",\"items\":[{\"placeholder\":\"tps\",\"widget\":\"text\"}]}", developer).statusCode());
+
+        mode.set(false);
+        assertEquals(403, post("/v1/dashboards", second, developer).statusCode(), "the admin switch stops uploads");
+        assertEquals(false, ((Map<?, ?>) Json.parse(get("/v1/dashboards", "Authorization", "Bearer " + developer).body())).get("canUpload"));
+    }
+
+    private static Map<String, Object> normalise(Object o) {
+        Map<String, Object> m = new java.util.LinkedHashMap<>();
+        ((Map<?, ?>) o).forEach((k, v) -> m.put(k.toString(), v instanceof Number n ? n.longValue() : v));
+        return m;
+    }
+
+    private void restart(ClientPolicy policy) throws Exception {
+        api.stop();
+        api = new HttpApi(ctx, policy);
+        api.start("127.0.0.1", 0, null);
+        base = "http://127.0.0.1:" + api.port();
+    }
+
+    private String pair(String label) throws Exception {
+        String code = otps.create("uuid-" + label, "Steve");
+        return (String) Json.parseObject(post("/v1/auth", "{\"otp\":\"" + code + "\",\"deviceLabel\":\"" + label + "\"}").body()).get("accessToken");
+    }
+
+    @Test
+    void onlyTheOfficialClientIsAccepted() throws Exception {
+        assertEquals(200, get("/v1/placeholders/tps", "User-Agent", "MCDashboard/1.0.0 (ios)").statusCode());
+        assertEquals(200, get("/v1/placeholders/tps", "User-Agent", "MCDashboard/2.0.0-rc.1 (dev)").statusCode());
+        for (String ua : List.of("curl/8.0", "Mozilla/5.0 MCDashboard/1.2.3 (android)", "MCDashboard/1.2 (android)",
+                "MCDashboard/1.2.3 (windows)", "MCDashboard/1.2.3 (android) x", "")) {
+            var r = get("/v1/placeholders/tps", "User-Agent", ua);
+            assertEquals(403, r.statusCode(), "User-Agent: " + ua);
+            assertEquals("no-store", r.headers().firstValue("Cache-Control").orElseThrow());
+        }
+    }
+
+    @Test
+    void infoStaysOpenAndPairingNeedsTheClient() throws Exception {
+        assertEquals(200, get("/v1/info", "User-Agent", "Uptime-Monitor/1").statusCode());
+        String code = otps.create("uuid-1", "Steve");
+        var denied = http.send(HttpRequest.newBuilder(URI.create(base + "/v1/auth"))
+                .POST(HttpRequest.BodyPublishers.ofString("{\"otp\":\"" + code + "\"}")).setHeader("User-Agent", "curl/8.0").build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals(403, denied.statusCode());
+        assertEquals(200, post("/v1/auth", "{\"otp\":\"" + code + "\"}").statusCode(), "a refused client must not burn the code");
+    }
+
+    @Test
+    void ownerCanAllowFurtherClients() throws Exception {
+        restart(ClientPolicy.of(Clock.systemUTC(), List.of("Grafana/\\d+\\.\\d+.*"), null, 100, 100, m -> fail(m)));
+        assertEquals(200, get("/v1/placeholders/tps", "User-Agent", "Grafana/10.2.1 (linux)").statusCode());
+        assertEquals(403, get("/v1/placeholders/tps", "User-Agent", "Prometheus/2.0").statusCode());
+        assertEquals(200, get("/v1/placeholders/tps").statusCode(), "the official app still works");
+    }
+
+    @Test
+    void oldAppsGet426AndInfoPublishesTheMinimum() throws Exception {
+        restart(ClientPolicy.of(Clock.systemUTC(), List.of(), "1.2.3", 100, 100, m -> fail(m)));
+        assertEquals("1.2.3", ((Map<?, ?>) Json.parse(get("/v1/info", "User-Agent", "x").body())).get("minClientVersion"));
+        assertEquals(200, get("/v1/placeholders/tps", "User-Agent", "MCDashboard/1.2.3 (ios)").statusCode());
+        assertEquals(200, get("/v1/placeholders/tps", "User-Agent", "MCDashboard/1.10.0 (ios)").statusCode(), "1.10 is newer than 1.2");
+        var old = get("/v1/placeholders/tps", "User-Agent", "MCDashboard/1.2.2 (ios)");
+        assertEquals(426, old.statusCode());
+        assertEquals("1.2.3", ((Map<?, ?>) Json.parse(old.body())).get("minVersion"));
+        assertEquals(426, get("/v1/placeholders/tps", "User-Agent", "MCDashboard/0.9.9 (android)").statusCode());
+    }
+
+    @Test
+    void noMinimumByDefaultAndBadConfigIsReported() throws Exception {
+        assertNull(((Map<?, ?>) Json.parse(get("/v1/info").body())).get("minClientVersion"));
+        List<String> warnings = new java.util.ArrayList<>();
+        var p = ClientPolicy.of(Clock.systemUTC(), List.of("(unclosed"), "one.two", 10, 10, warnings::add);
+        assertEquals(2, warnings.size());
+        assertNull(p.minVersion());
+        assertTrue(p.identify("MCDashboard/0.0.1 (dev)").isPresent());
+        assertTrue(p.identify("(unclosed").isEmpty(), "a pattern that cannot compile never widens the policy");
+    }
+
+    @Test
+    void limitsFollowThePairedDeviceNotTheUserAgent() throws Exception {
+        String access = pair("Pixel");
+        restart(ClientPolicy.of(Clock.systemUTC(), List.of("Spoof.*"), null, 3, 1000, m -> fail(m)));
+        for (int i = 0; i < 3; i++) {
+            assertEquals(200, get("/v1/placeholders/tps", "Authorization", "Bearer " + access,
+                    "User-Agent", i % 2 == 0 ? APP : "Spoof/" + i).statusCode());
+        }
+        var limited = get("/v1/placeholders/tps", "Authorization", "Bearer " + access, "User-Agent", "Spoof/new");
+        assertEquals(429, limited.statusCode());
+        assertNotNull(limited.headers().firstValue("Retry-After").orElse(null));
+        String other = pair("Tablet");
+        assertEquals(200, get("/v1/placeholders/tps", "Authorization", "Bearer " + other).statusCode(), "another device has its own budget");
+    }
+
+    @Test
+    void anonymousRequestsAreLimitedPerAddress() throws Exception {
+        restart(ClientPolicy.of(Clock.systemUTC(), List.of(), null, 100, 2, m -> fail(m)));
+        assertEquals(200, get("/v1/placeholders/tps").statusCode());
+        assertEquals(200, get("/v1/placeholders/tps").statusCode());
+        assertEquals(429, get("/v1/placeholders/tps").statusCode());
+        assertEquals(200, get("/v1/info").statusCode(), "/info is not counted");
+    }
+
+    @Test
+    void pairingRecordsTheClient() throws Exception {
+        pair("Pixel");
+        var device = ctx.devices().devicesOf("uuid-Pixel").get(0);
+        assertEquals(APP, device.client());
+    }
+}

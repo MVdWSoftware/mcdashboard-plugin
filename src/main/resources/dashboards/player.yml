@@ -1,0 +1,12 @@
+# A preset dashboard. The permission is derived from the file name: mcdashboard.dashboard.player (everyone by default).
+# A dashboard the owner adds, such as admin.yml, needs mcdashboard.dashboard.admin (nobody by default).
+# Items a player may not read are left out.
+# Names, descriptions and titles may be plain, or a language map: { en: Player, nl: Speler }.
+name: { en: Player, nl: Speler, fr: Joueur, de: Spieler, es: Jugador }
+description: { en: Your own stats, nl: Jouw statistieken, fr: Vos propres statistiques, de: Deine Statistiken, es: Tus propias estadísticas }
+background: dirt
+order: 10
+items:
+  - { placeholder: player-name, widget: text, title: { en: Player, nl: Speler, fr: Joueur, de: Spieler, es: Jugador }, column: 0, row: 0, width: 2, height: 1 }
+  - { placeholder: player-health, widget: ring, title: { en: Health, nl: Gezondheid, fr: Santé, de: Gesundheit, es: Salud }, column: 2, row: 0, width: 2, height: 2 }
+  - { placeholder: online, widget: number, title: { en: Players online, nl: Spelers online, fr: Joueurs en ligne, de: Spieler online, es: Jugadores en línea }, column: 0, row: 1, width: 2, height: 1 }
