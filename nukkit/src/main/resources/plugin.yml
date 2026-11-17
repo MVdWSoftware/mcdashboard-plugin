@@ -1,0 +1,37 @@
+# Copyright (c) 2026 MVdW-Software
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: MCDashboard
+main: org.mcdashboard.nukkit.MCDashboardNukkit
+version: "${project.version}"
+api: "3.0.0"
+authors: ["MVdW-Software"]
+description: Exposes PlaceholderAPI placeholders to the MinecraftDashboard mobile app.
+website: https://mcdashboard.org
+load: POSTWORLD
+depend:
+  - PlaceholderAPI
+
+commands:
+  mcdashboard:
+    description: Link devices to the MinecraftDashboard app
+    aliases: [dashboard]
+    usage: /mcdashboard <link|devices|revoke|developer|tunnel|about>
+
+permissions:
+  mcdashboard.player:
+    description: Link and unlink devices.
+    default: true
+  mcdashboard.developer:
+    description: Design a dashboard in the app and upload it to this server.
+    default: false
+  mcdashboard.admin:
+    description: Administer the plugin.
+    default: op
+    children:
+      mcdashboard.player: true
+  mcdashboard.dashboard.player:
+    description: See the Player dashboard.
+    default: true
+  mcdashboard.dashboard.server:
+    description: See the Server dashboard.
+    default: op

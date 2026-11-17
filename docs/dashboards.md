@@ -24,12 +24,13 @@ items:
   any dashboard you add is off until you grant its permission.
   Items a player may not read are left out, and a preset with nothing left to show is not offered at all.
 - **The permission is not only cosmetic.** A placeholder can carry its own `permission:` in `placeholders.yml`; the API then
-  refuses it (403) for everyone without it, on every route (value, bulk values, history, live feed). A dashboard
+  refuses it (403) for everyone without it, on every route. A dashboard
   permission only decides what is offered; use placeholder permissions for data that must stay private.
 - **Permissions refresh** on join, on quit and every 5 seconds for online players. An offline player keeps what they had
   when they left, until they join again.
 - **Widgets** are the app's widget ids: `text`, `image`, `number`, `progress` (free), `status`, `gauge` (half circle), `ring`,
-  `line`, `area`, `bar`, `pie` (full version, or a subscribed server). `line` and `area` need history for the
+  `stat` (value with its trend), `line`, `area`, `stacked` (several series summed), `heatmap` (day by hour), `bar`, `pie`
+  (full version, or a subscribed server). `stat`, `line`, `area`, `stacked` and `heatmap` need history for the
   placeholder: `history:` in `placeholders.yml` or `history.include` in `config.yml` ([history.md](history.md)). The grid has 4 columns.
 - **Maximum from another placeholder.** `max-from: max-players` on `online` makes gauges and rings show players online out
   of the real maximum, even when it changes.
@@ -109,9 +110,42 @@ server:
 
 Resolution order for every `name`, `description` and item `title`: the app's language, then `server.default-language`,
 then the first language the dashboard provides. A text that is a plain string wins over the last step and is not
-translated. `/v1/info` reports `defaultLanguage` and every `languages` the server publishes, so the app can tell what is
+translated. The server reports `defaultLanguage` and every `languages` it publishes, so the app can tell what is
 available. Nothing needs to change in `plugin.yml`: the languages live with the dashboard content, not in the plugin
 descriptor.
+
+## Icons and tile options
+
+Every item can have an `icon` and `options`; both are optional and an older app ignores them.
+
+```yaml
+items:
+  - placeholder: tps
+    widget: number
+    title: TPS
+    icon: fa6-solid:gauge-high
+    options:
+      decimals: 1
+      thresholds:                       # checked in order; the first match colours the value
+        - { when: below, value: 15, color: red }
+        - { when: below, value: 18, color: orange }
+  - { placeholder: player-health, widget: progress, icon: game-icons:health-normal, options: { style: hearts }, column: 0, row: 1, width: 2, height: 1 }
+```
+
+- `icon` is `pack:name`. The app bundles Font Awesome Free (`fa6-solid`, `fa6-regular`, `fa6-brands`), Game Icons
+  (`game-icons`), Pixelarticons (`pixelarticons`), Ionicons (`ion`) and Material Design Icons (`mdi`); browse names
+  on [icon-sets.iconify.design](https://icon-sets.iconify.design/). An icon the app does not have is simply not drawn.
+- `options`:
+  - `style`: the progress widget's look: `bar` (default), `segments`, `battery`, `bullet` (with `target`), `hearts`, `hunger`,
+    `armor` or `xp`; `count` sets the number of icons or segments (1-20).
+  - `color` and `thresholds`: `accent`, `green`, `yellow`, `orange`, `red`, `purple`, `cyan` or `muted`. They follow the
+    player's style, so there are no hex colours.
+  - Number format: `decimals` (0-4), `compact` (`false` shows `1,234` instead of `1.2k`), `unit` (empty hides it),
+    `prefix`.
+  - Layout: `hideTitle`, `align` (`start`, `center`, `end`), `size` (`s`, `m`, `l`), `card` (`default`, `accent`, `plain`).
+  - `invertTrend: true` on a `stat` tile makes a falling value green (lag, ping).
+
+The server drops unknown keys and bad values instead of sending them on.
 
 ## Background
 
@@ -120,5 +154,18 @@ descriptor.
 read on every style and accent, and only appear behind the dashboard, never in the rest of the app. An unknown
 name shows no background, so a server can use a pattern an older app does not have yet.
 
-The player can override it under Settings > Dashboard background: *Server default* (the default), *None*, or any
-pattern of their own.
+`background-image:` puts a picture behind the dashboard instead (it wins over `background`):
+
+```yaml
+background-image:
+  url: https://cdn.example.com/spawn.jpg   # https only; the app loads it directly from there
+  dim: 0.5                                 # 0-0.9: how much the dashboard colour covers it, so tiles stay readable (default 0.4)
+  blur: 4                                  # 0-20 pixels (default 0)
+  fit: cover                               # cover, contain or tile (default cover)
+```
+
+Host the picture somewhere that serves it over HTTPS. Every player's app fetches it from there, so that host sees their
+IP addresses.
+
+The player can override it under Settings > Dashboard background: *Server default* (the default), *None*, *Picture*
+(a photo from their device or an image URL, full version) or any pattern of their own.

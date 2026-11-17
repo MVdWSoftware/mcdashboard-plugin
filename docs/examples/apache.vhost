@@ -1,7 +1,21 @@
-ServerName myserver.net
-DocumentRoot /var/www/example.metamug.net 
+# Copyright (c) 2026 MVdW-Software
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# TLS in front of MCDashboard with a cache for public answers. Needs mod_ssl, mod_proxy, mod_proxy_http,
+# mod_proxy_wstunnel, mod_cache and mod_cache_disk. Bind the plugin to 127.0.0.1 (server.host).
+<VirtualHost *:443>
+    ServerName mc.example.com
+    SSLEngine on
+    SSLCertificateFile    /etc/letsencrypt/live/mc.example.com/fullchain.pem
+    SSLCertificateKeyFile /etc/letsencrypt/live/mc.example.com/privkey.pem
 
-ProxyPreserveHost On
+    # mod_proxy appends the client's address to X-Forwarded-For; the plugin uses that last hop (security.trusted-proxies).
+    ProxyPass        /v1/live ws://127.0.0.1:1554/v1/live
+    ProxyPass        /v1/     http://127.0.0.1:1553/v1/
+    ProxyPassReverse /v1/     http://127.0.0.1:1553/v1/
 
-ProxyPass / http://127.0.0.1:8080/
-ProxyPassReverse / http://127.0.0.1:8080/
+    # Only responses the plugin marks public are stored; per-player answers are private.
+    CacheEnable disk /v1/
+    CacheRoot /var/cache/apache2/mcdashboard
+    CacheIgnoreNoLastMod On
+</VirtualHost>

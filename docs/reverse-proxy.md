@@ -6,17 +6,17 @@ this, using only standard HTTP:
 
 | Mechanism | Standard | What it gives a proxy |
 | --- | --- | --- |
-| Sensor data as SenML | RFC 8428, `application/senml+json` | Any SenML-aware tool can read the values |
+| Sensor data as SenML | RFC 8428, `application/senml+json` | Readable with standard HTTP tooling |
 | `Cache-Control: public, max-age=N` | RFC 9111 | N is the placeholder's `min-interval`, so a cached copy is never older than allowed |
 | `ETag` + `If-None-Match` | RFC 9110 | Cheap revalidation (`304`) |
 | `Vary: Authorization` | RFC 9110 | Per-player answers are `private` and never shared between players |
-| JWT bearer tokens | RFC 7519 / 6750 | Access tokens are stateless and can be checked by anything holding the secret |
+| JWT bearer tokens | RFC 7519 / 6750 | Access tokens are stateless |
 | `X-Forwarded-For` | de-facto | Rate limiting sees the real client when the proxy is in `security.trusted-proxies` |
 
 The plugin only accepts the official app's `User-Agent` ([security.md](security.md)): a proxy must pass `User-Agent` through
 (nginx and Apache do by default) and must not replace it. A response served from a shared cache never reaches the plugin, so the
 check is not applied to it; `security.require-authentication: true` makes every response `private` and keeps cached data away
-from other clients. The live feed and `/v1/info` follow the same rules (`/v1/info` stays open).
+from other clients. The live feed and the discovery endpoint follow the same rules (the discovery endpoint stays open).
 
 Only responses for PUBLIC placeholders without any `Authorization` header are `public`. When
 `security.require-authentication` is on, nothing is shared-cacheable.
@@ -57,7 +57,7 @@ Set `server.host: "127.0.0.1"` so only the proxy can reach the plugin, and keep
 
 ## MCDashboard-proxy
 
-For public servers there is a purpose-built, open source (MIT) proxy: [MCDashboard-proxy](https://github.com/MVdWSoftware/MCDashboard-proxy).
+For public servers there is a purpose-built, open source (AGPL) proxy: [MCDashboard-proxy](https://github.com/MVdWSoftware/MCDashboard-proxy).
 It speaks the same API and adds a shared Redis cache, request coalescing, stale-if-error, rate limiting, request
 validation and optional token pre-checks. It follows device revocations through the [device events](events.md), so a revoked device is
 refused at once even when its answers are cached. The proxy can also be reached through a [reverse tunnel](tunnel.md): the plugin dials out over one WebSocket, so the server needs no inbound port for the API. Put it behind your TLS terminator instead of a plain nginx cache.

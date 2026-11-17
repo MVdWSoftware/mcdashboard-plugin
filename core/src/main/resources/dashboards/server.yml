@@ -1,0 +1,15 @@
+# Copyright (c) 2026 MVdW-Software
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Permission: mcdashboard.dashboard.server (operators by default). See docs/dashboards.md.
+name: { en: Server, nl: Server, fr: Serveur, de: Server, es: Servidor }
+description: { en: Performance and players, nl: Prestaties en spelers, fr: Performances et joueurs, de: Leistung und Spieler, es: Rendimiento y jugadores }
+order: 20
+# grid, dirt, stone, planks, checker, cobble or creeper
+background: stone
+items:
+  - { placeholder: online, widget: gauge, title: { en: Players, nl: Spelers, fr: Joueurs, de: Spieler, es: Jugadores }, icon: fa6-solid:users, column: 0, row: 0, width: 2, height: 2 }
+  - { placeholder: tps, widget: gauge, title: TPS, icon: fa6-solid:gauge-high, options: { thresholds: [{ when: below, value: 15, color: red }, { when: below, value: 18, color: orange }] }, column: 2, row: 0, width: 2, height: 2 }
+  - { placeholder: tps, widget: area, title: { en: TPS history, nl: TPS-historiek, fr: Historique TPS, de: TPS-Verlauf, es: Historial de TPS }, column: 0, row: 2, width: 4, height: 3 }
+  - { placeholder: online, widget: line, title: { en: Players over time, nl: Spelers door de tijd, fr: Joueurs au fil du temps, de: Spieler im Zeitverlauf, es: Jugadores a lo largo del tiempo }, column: 0, row: 5, width: 4, height: 3 }
+  - { placeholders: [online, max-players], widget: list, title: { en: Capacity, nl: Capaciteit, fr: Capacité, de: Kapazität, es: Capacidad }, column: 0, row: 8, width: 2, height: 2 }

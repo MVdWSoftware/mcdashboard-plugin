@@ -106,7 +106,6 @@ ORDER BY o.result_time;
 
 ## What the app gets
 
-`GET /v1/history/{id}?since=<unix seconds>&points=<n>` ([openapi.yaml](../openapi.yaml)). With a database the
-range can be long, so the server reduces it: it splits the range into at most `points` (2 to 2000, default 2000)
-equal time buckets and returns the average of the numbers in each (for text, the last value), stamped with the
-time of the bucket's last sample. The app asks for 150 points.
+The app reads history through the API. With a database the range can be long, so the server reduces it: it splits
+the range into equal time buckets and returns the average of the numbers in each (for text, the last value),
+stamped with the time of the bucket's last sample.

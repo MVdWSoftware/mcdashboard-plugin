@@ -1,0 +1,12 @@
+# Copyright (c) 2026 MVdW-Software
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Permission: mcdashboard.dashboard.<file name>, here mcdashboard.dashboard.player (everyone). See docs/dashboards.md.
+name: { en: Player, nl: Speler, fr: Joueur, de: Spieler, es: Jugador }
+description: { en: Your own stats, nl: Jouw statistieken, fr: Vos propres statistiques, de: Deine Statistiken, es: Tus propias estadísticas }
+background: dirt
+order: 10
+items:
+  - { placeholder: player-name, widget: text, title: { en: Player, nl: Speler, fr: Joueur, de: Spieler, es: Jugador }, column: 0, row: 0, width: 2, height: 1 }
+  - { placeholder: player-health, widget: ring, icon: game-icons:health-normal, options: { color: red }, title: { en: Health, nl: Gezondheid, fr: Santé, de: Gesundheit, es: Salud }, column: 2, row: 0, width: 2, height: 2 }
+  - { placeholder: online, widget: number, title: { en: Players online, nl: Spelers online, fr: Joueurs en ligne, de: Spieler online, es: Jugadores en línea }, column: 0, row: 1, width: 2, height: 1 }

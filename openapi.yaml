@@ -1,3 +1,6 @@
+# Copyright (c) 2026 MVdW-Software
+# SPDX-License-Identifier: MIT
+
 openapi: 3.1.0
 info:
   title: MCDashboard API
@@ -304,9 +307,53 @@ components:
           type: string
           enum: [grid, dirt, stone, planks, checker, cobble, creeper]
           description: subtle pattern behind the dashboard; the player can override it
+        backgroundImage: { $ref: '#/components/schemas/BackgroundImage' }
         items:
           type: array
           items: { $ref: '#/components/schemas/DashboardItem' }
+    Icon:
+      type: string
+      maxLength: 64
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*:[a-z0-9]+(-[a-z0-9]+)*$'
+      description: 'icon as pack:name with an Iconify prefix the app bundles (fa6-solid, fa6-regular, fa6-brands, game-icons, pixelarticons, ion, mdi), e.g. fa6-solid:memory; an unknown icon is not drawn'
+    TileColor:
+      type: string
+      enum: [accent, green, yellow, orange, red, purple, cyan, muted]
+      description: named colour; the app maps it to a theme token
+    Threshold:
+      type: object
+      required: [when, value, color]
+      properties:
+        when: { type: string, enum: [above, below] }
+        value: { type: number }
+        color: { $ref: '#/components/schemas/TileColor' }
+    TileOptions:
+      type: object
+      description: how a tile looks; every field is optional, widgets ignore what does not apply, the server drops unknown keys
+      properties:
+        style: { type: string, pattern: '^[a-z0-9-]{1,24}$', description: 'widget variant, e.g. progress: bar, segments, battery, bullet, hearts, hunger, armor, xp' }
+        color: { $ref: '#/components/schemas/TileColor' }
+        thresholds: { type: array, maxItems: 6, items: { $ref: '#/components/schemas/Threshold' }, description: checked in order, the first match colours the value }
+        decimals: { type: integer, minimum: 0, maximum: 4 }
+        compact: { type: boolean, description: '1.2k instead of 1,234 (default true)' }
+        unit: { type: string, maxLength: 16, description: replaces the placeholder unit; empty hides it }
+        prefix: { type: string, maxLength: 8 }
+        hideTitle: { type: boolean }
+        align: { type: string, enum: [start, center, end] }
+        size: { type: string, enum: [s, m, l] }
+        card: { type: string, enum: [default, accent, plain] }
+        target: { type: number, description: marker of the bullet style }
+        invertTrend: { type: boolean, description: 'stat: a falling value is good' }
+        count: { type: integer, minimum: 1, maximum: 20, description: icons or segments of the icon and segment styles }
+    BackgroundImage:
+      type: object
+      required: [url]
+      description: 'picture behind the dashboard (dashboards/*.yml: background-image); wins over background; the player can override it'
+      properties:
+        url: { type: string, maxLength: 2048, pattern: '^https://', description: an https URL the app loads directly }
+        dim: { type: number, minimum: 0, maximum: 0.9, default: 0.4, description: how much the dashboard colour covers the picture }
+        blur: { type: number, minimum: 0, maximum: 20, default: 0, description: pixels }
+        fit: { type: string, enum: [cover, contain, tile], default: cover }
     DashboardItem:
       type: object
       required: [placeholder, widget]
@@ -315,6 +362,8 @@ components:
         placeholders: { type: array, items: { type: string }, description: all placeholders of a combined tile (list, line, bar, pie), the first included; only those the caller may read; absent for a single one }
         widget: { type: string, description: widget id of the app }
         title: { type: string, description: 'translated for Accept-Language' }
+        icon: { $ref: '#/components/schemas/Icon' }
+        options: { $ref: '#/components/schemas/TileOptions' }
         column: { type: integer }
         row: { type: integer }
         width: { type: integer }
@@ -328,8 +377,10 @@ components:
       properties:
         placeholder: { type: string, description: the first placeholder; required unless placeholders is given }
         placeholders: { type: array, items: { type: string }, minItems: 1, maxItems: 12 }
-        widget: { type: string, enum: [text, image, number, progress, list, status, gauge, ring, line, area, bar, pie] }
+        widget: { type: string, enum: [text, image, number, progress, list, status, gauge, ring, line, area, bar, pie, stat, stacked, heatmap] }
         title: { type: string, maxLength: 80 }
+        icon: { $ref: '#/components/schemas/Icon' }
+        options: { $ref: '#/components/schemas/TileOptions' }
         column: { type: integer, minimum: 0, maximum: 3 }
         row: { type: integer, minimum: 0, maximum: 999 }
         width: { type: integer, minimum: 1, maximum: 4 }
@@ -343,6 +394,7 @@ components:
         background:
           type: string
           enum: [grid, dirt, stone, planks, checker, cobble, creeper]
+        backgroundImage: { $ref: '#/components/schemas/BackgroundImage' }
         items:
           type: array
           minItems: 1

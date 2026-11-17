@@ -3,6 +3,22 @@
 `plugins/MCDashboard/placeholders.yml` is the allowlist of what the app may read. Players never send a `%placeholder%`
 template; they pick from this list, so nothing outside it is ever evaluated.
 
+## Keys
+
+| Key | Meaning |
+| --- | --- |
+| `id` | What the app asks for: letters, digits, `_`, `.` and `-`, at most 64. |
+| `name`, `description`, `group` | Shown in the app; `group` defaults to `General`. |
+| `value` | One PlaceholderAPI placeholder, e.g. `'%server_online%'`. |
+| `type` | `STRING`, `INTEGER`, `DECIMAL`, `BOOLEAN`, `PERCENTAGE`, `AUTO` (decided per value) or `IMAGE` (see below). |
+| `access` | `PUBLIC`: anyone who can reach the server. `PLAYER`: a paired device, resolved for that player. |
+| `permission` | Optional node the paired player must hold for any request. |
+| `min-interval` | Seconds; the value is resolved at most this often (never below `security.min-interval`). |
+| `min-value`, `max-value`, `unit` | Scale and unit for gauges and charts. |
+| `max-from` | Another placeholder whose value is this one's maximum, e.g. `max-players` for `online`. |
+| `history` | Minutes of samples kept for charts (PUBLIC only; up to a year with a database, see [history.md](history.md)). |
+| `history-interval` | Seconds between two samples of this placeholder (default `history.sampling.interval`). |
+
 ## Groups, search and previews
 
 Give every entry a `group` (default `General`) and an optional `description`. The app shows the groups as filter chips,
@@ -48,13 +64,11 @@ placeholders:
     source: url:https://mc-heads.net/avatar/%player_uuid%/64   # PlaceholderAPI is expanded for the paired player
 ```
 
-- Sent to the app as a SenML data value (`vd`, base64url without padding) and shown by the `image` widget.
+- Sent to the app and shown by the `image` widget.
 - Only PNG, JPEG, GIF and WebP are accepted, decided by the file's bytes, never by its name or Content-Type; at most
   256 KB. `file:` paths cannot leave the `images/` folder. `url:` must be http(s) with a fixed host (a placeholder in the
   host is refused), is fetched off the main thread with a 5 second timeout, cached for at least 5 minutes, and the last
   good copy keeps being served if the origin is down.
-- Head, map-tile and other image URL templates (mc-heads, crafatar, squaremap, Pl3xMap) and their limits:
-  [demo-placeholders.md](demo-placeholders.md), section "Images and maps".
 
 ## Permissions
 

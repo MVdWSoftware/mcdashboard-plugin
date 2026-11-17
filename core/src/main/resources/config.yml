@@ -1,0 +1,103 @@
+# Copyright (c) 2026 MVdW-Software
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# MCDashboard: every setting is explained in docs/configuration.md
+# (https://github.com/MVdWSoftware/MCDashboard-plugin/blob/main/docs/configuration.md).
+# Terms: https://mcdashboard.org/en/terms-of-service/  Privacy: https://mcdashboard.org/en/privacy-statement/
+
+server:
+  # Review placeholders.yml before turning this on.
+  enabled: false
+  name: null
+  # en, nl, fr, de or es
+  default-language: en
+  # e.g. https://mc.example.com; enables the mcdashboard:// link and the QR map.
+  public-url: ""
+  # Where the app should really connect (e.g. your MCDashboard-proxy), best first.
+  endpoints: []
+  # Answer only GET /v1/info here; the API is reached through the tunnel or a trusted reverse proxy.
+  discovery-only: false
+  # Empty = all interfaces; 127.0.0.1 behind a reverse proxy.
+  host: ""
+  port: 1553
+  # At least one of polling and websocket stays on.
+  polling:
+    enabled: true
+  websocket:
+    enabled: true
+    port: 1554
+    max-connections: 200
+
+security:
+  # Only paired players can read anything, PUBLIC placeholders included.
+  require-authentication: false
+  max-devices: 5
+  # Seconds; all timeouts below are in seconds.
+  otp-timeout: 300
+  access-token-timeout: 900
+  refresh-token-timeout: 31536000
+  # Per address, for pairing and token refresh.
+  auth-attempts-per-minute: 10
+  # No placeholder is resolved more often than this, whatever the app asks.
+  min-interval: 1
+  # Regular expressions for User-Agents besides the official app. Identification, not a password.
+  allowed-clients: []
+  # x.y.z; older official apps get 426.
+  min-client-version: ""
+  requests-per-minute: 120
+  anonymous-requests-per-minute: 60
+  # Only these peers may set X-Forwarded-For.
+  trusted-proxies: ["127.0.0.1", "0:0:0:0:0:0:0:1"]
+
+# Samples for the chart widgets; see docs/history.md.
+history:
+  storage:
+    # memory, sqlite, mysql, mariadb or postgresql (PostgreSQL needs its driver jar in plugins/MCDashboard/drivers/).
+    type: memory
+    file: history.db
+    host: localhost
+    # 5432 for postgresql
+    port: 3306
+    database: mcdashboard
+    user: ""
+    password: ""
+    # A full JDBC URL instead of host, port and database; never put the password in it.
+    url: ""
+    # Servers sharing one database need different ids. Default: server.name.
+    server-id: ""
+    # Default: urn:mcdashboard:<server-id>
+    base-uri: ""
+  sampling:
+    # Seconds between two samples, 10 to 86400.
+    interval: 30
+    flush-interval: 10
+  # 0 = forever
+  retention-days: 30
+  # Placeholder ids (* matches anything) to record besides those with `history:` in placeholders.yml.
+  include: []
+  exclude: []
+
+# Dial out to MCDashboard-proxy over one WebSocket; see docs/tunnel.md.
+tunnel:
+  enabled: false
+  # wss://...; ws:// only to a private IP unless allow-insecure is set.
+  url: ""
+  # The proxy's TUNNEL_TOKEN, 32+ random characters. Keep it secret.
+  key: ""
+  allow-insecure: false
+
+# Tell a caching proxy about revoked devices; see docs/events.md.
+events:
+  # 16+ random characters; opens GET /v1/events. Keep this port private.
+  token: ""
+  # - url: "https://proxy.example.com:9191/hooks/mcdashboard"
+  #   secret: "at-least-16-random-characters"
+  webhooks: []
+
+# /mcdashboard developer on|off overrides this at runtime.
+developer:
+  enabled: false
+
+# Public licence id from the MVdW portal; only valid for the address registered there.
+license:
+  id: ""

@@ -1,10 +1,13 @@
+# Copyright (c) 2026 MVdW-Software
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 stages: [test]
 
 build:
   stage: test
-  image: maven:3-eclipse-temurin-17
+  image: maven:3-eclipse-temurin-21
   script:
     - mvn -B verify
-    - jar tf target/MCDashboard.jar | grep -vE '^(org/mcdashboard/|META-INF/|dashboards/|lang/|[a-z]+\.yml|org/$|dashboards/$|lang/$)' && exit 1 || true  # nothing shaded
+    - for jar in spigot/target/MCDashboard.jar nukkit/target/MCDashboard-Nukkit.jar; do jar tf "$jar" | grep -vE '^(org/mcdashboard/|META-INF/|dashboards/|lang/|nukkit/|[a-z]+\.yml|org/$|dashboards/$|lang/$|nukkit/$)' && exit 1 || true; done  # nothing shaded
   artifacts:
-    paths: [target/MCDashboard.jar]
+    paths: [spigot/target/MCDashboard.jar, nukkit/target/MCDashboard-Nukkit.jar]
