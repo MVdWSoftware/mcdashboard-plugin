@@ -26,7 +26,18 @@ mvn -B verify          # compile, unit tests, jar in target/MCDashboard.jar
 ```
 
 The tests start the HTTP API and the live feed on random local ports with a fake placeholder source, so no
-Minecraft server is needed.
+Minecraft server is needed. The history tests run against SQLite. To run them against PostgreSQL and MySQL as
+well, start the databases and pass their JDBC URLs:
+
+```sh
+docker run -d --name mcd-pg -e POSTGRES_PASSWORD=test -p 5432:5432 postgres:16
+docker run -d --name mcd-my -e MYSQL_ROOT_PASSWORD=test -e MYSQL_DATABASE=mcd -p 3306:3306 mysql:8
+MCD_TEST_POSTGRES_URL='jdbc:postgresql://localhost:5432/postgres?user=postgres&password=test' \
+MCD_TEST_MYSQL_URL='jdbc:mysql://localhost:3306/mcd?user=root&password=test&allowPublicKeyRetrieval=true&useSSL=false' \
+mvn -B verify
+```
+
+The tests drop and recreate the `mcd_*` tables in those databases: use throwaway ones.
 
 ## Pull requests
 

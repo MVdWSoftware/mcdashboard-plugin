@@ -10,6 +10,7 @@ Only placeholders you list in `placeholders.yml` are ever resolved, and nothing 
 - Java 17, Spigot or Paper 1.18+, PlaceholderAPI on the server. No other runtime dependencies: the HTTP server,
   WebSocket and JSON are the JDK's own.
 - Pairing with one-time codes and QR maps, JWT (HS256) tokens, per-device revocation, rate limits.
+- Optional history for charts, in memory or in SQLite, MySQL/MariaDB or PostgreSQL with a SOSA/SSN schema ([docs/history.md](docs/history.md)).
 - Optional reverse tunnel and caching proxy support ([MCDashboard-proxy](https://github.com/MVdWSoftware/MCDashboard-proxy)).
 
 ## Install
@@ -27,7 +28,7 @@ mvn -B verify    # target/MCDashboard.jar
 
 ## Documentation
 
-[docs/](docs/README.md) covers installation, the security model, placeholders, dashboards, events and the
+[docs/](docs/README.md) covers installation, the security model, placeholders, dashboards, history, events and the
 tunnel. The API is described in [openapi.yaml](openapi.yaml). To contribute, read [CONTRIBUTING.md](CONTRIBUTING.md);
 report vulnerabilities as described in [SECURITY.md](SECURITY.md).
 

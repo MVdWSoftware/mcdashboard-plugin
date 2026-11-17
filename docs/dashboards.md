@@ -29,8 +29,8 @@ items:
 - **Permissions refresh** on join, on quit and every 5 seconds for online players. An offline player keeps what they had
   when they left, until they join again.
 - **Widgets** are the app's widget ids: `text`, `image`, `number`, `progress` (free), `status`, `gauge` (half circle), `ring`,
-  `line`, `area`, `bar`, `pie` (full version, or a subscribed server). `line` and `area` need `history:` on the
-  placeholder. The grid has 4 columns.
+  `line`, `area`, `bar`, `pie` (full version, or a subscribed server). `line` and `area` need history for the
+  placeholder: `history:` in `placeholders.yml` or `history.include` in `config.yml` ([history.md](history.md)). The grid has 4 columns.
 - **Maximum from another placeholder.** `max-from: max-players` on `online` makes gauges and rings show players online out
   of the real maximum, even when it changes.
 - Presets are created from the defaults only on the first start; delete a file to remove a preset.

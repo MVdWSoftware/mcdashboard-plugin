@@ -92,12 +92,12 @@ public final class JdbcHistoryStore implements HistoryStore {
             long feature = ensure(c, SosaSchema.FEATURE, baseUri.replaceAll("[:/#]$", ""), platformLabel);
             Map<String, Long> ids = new HashMap<>();
             for (Series s : series) {
-                long property = ensure(c, SosaSchema.PROPERTY, baseUri + "property:" + s.id(), s.label());
+                long property = ensure(c, SosaSchema.PROPERTY, baseUri + "property:" + s.id(), s.label(), Map.of("feature_of_interest_id", feature));
                 update(c, "UPDATE " + SosaSchema.PROPERTY + " SET unit = ?, feature_of_interest_id = ? WHERE id = ?", s.unit(), feature, property);
                 long procedure = ensure(c, SosaSchema.PROCEDURE, baseUri + "procedure:" + s.id(), s.label());
                 update(c, "UPDATE " + SosaSchema.PROCEDURE + " SET sampling_interval_s = ? WHERE id = ?", (int) (s.intervalMs() / 1000), procedure);
                 long system = ensure(c, SosaSchema.SYSTEM, baseUri + "sensor:" + s.id(), s.label());
-                try (PreparedStatement p = c.prepareStatement(dialect.insertIgnore(SosaSchema.SENSOR,
+                try (PreparedStatement p = c.prepareStatement(dialect.insertIfAbsent(SosaSchema.SENSOR,
                         List.of("system_id", "platform_id", "observed_property_id", "procedure_id")))) {
                     p.setLong(1, system);
                     p.setLong(2, platform);
@@ -119,13 +119,17 @@ public final class JdbcHistoryStore implements HistoryStore {
         }
     }
 
-    /** The id of the row with this URI, created when missing; the label follows the configuration. */
-    private long ensure(Connection c, String table, String uri, String label) throws SQLException {
+    /** The id of the row with this URI, created (with the extra columns) when missing; the label follows the configuration. */
+    private long ensure(Connection c, String table, String uri, String label, Map<String, Object> extra) throws SQLException {
         Long id = find(c, table, uri);
         if (id == null) {
-            try (PreparedStatement p = c.prepareStatement(dialect.insertIgnore(table, List.of("uri", "label")))) {
+            List<String> columns = new ArrayList<>(List.of("uri", "label"));
+            columns.addAll(extra.keySet());
+            try (PreparedStatement p = c.prepareStatement(dialect.insertIfAbsent(table, columns))) {
                 p.setString(1, uri);
                 p.setString(2, label);
+                int i = 3;
+                for (Object v : extra.values()) p.setObject(i++, v);
                 p.executeUpdate();
             }
             id = find(c, table, uri);
@@ -134,6 +138,10 @@ public final class JdbcHistoryStore implements HistoryStore {
             update(c, "UPDATE " + table + " SET label = ? WHERE id = ?", label, id);
         }
         return id;
+    }
+
+    private long ensure(Connection c, String table, String uri, String label) throws SQLException {
+        return ensure(c, table, uri, label, Map.of());
     }
 
     private static Long find(Connection c, String table, String uri) throws SQLException {
@@ -167,7 +175,7 @@ public final class JdbcHistoryStore implements HistoryStore {
         if (samples.isEmpty()) return;
         Connection c = connection();
         c.setAutoCommit(false);
-        try (PreparedStatement p = c.prepareStatement(dialect.insertIgnore(SosaSchema.OBSERVATION,
+        try (PreparedStatement p = c.prepareStatement(dialect.insertIfAbsent(SosaSchema.OBSERVATION,
                 List.of("sensor_id", "result_time", "result_numeric", "result_text")))) {
             for (Samples.Sample s : samples) {
                 Long sensor = sensors.get(s.id());

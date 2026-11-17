@@ -51,6 +51,7 @@ public final class MCDashboard extends JavaPlugin {
     private int maxDevices;
     private volatile org.mcdashboard.web.ServerStatus status = org.mcdashboard.web.ServerStatus.EMPTY;
     private org.mcdashboard.placeholder.HistoryService history;
+    private org.mcdashboard.history.HistorySettings historySettings = org.mcdashboard.history.HistorySettings.defaults();
     private final org.mcdashboard.auth.PermissionCache permissions = new org.mcdashboard.auth.PermissionCache();
     private volatile java.util.Set<String> permissionNodes = java.util.Set.of();
     private DashboardStore dashboardStore;
@@ -96,15 +97,19 @@ public final class MCDashboard extends JavaPlugin {
             TokenService tokens = new TokenService(secret(), clock);
 
             YamlConfiguration yaml = YamlConfiguration.loadConfiguration(new File(getDataFolder(), "placeholders.yml"));
-            List<PlaceholderDefinition> defs = PlaceholderDefinition.parseAll(yaml.getMapList("placeholders"),
-                    msg -> getLogger().warning("placeholders.yml: " + msg));
+            historySettings = org.mcdashboard.history.HistorySettings.parse(org.mcdashboard.history.HistorySettings.toMap(cfg.getConfigurationSection("history")),
+                    cfg.getString("server.name") != null ? cfg.getString("server.name") : "server", msg -> getLogger().warning("config.yml: " + msg));
+            List<PlaceholderDefinition> defs = historySettings.apply(PlaceholderDefinition.parseAll(yaml.getMapList("placeholders"),
+                    msg -> getLogger().warning("placeholders.yml: " + msg)));
             Path images = getDataFolder().toPath().resolve("images");
             Files.createDirectories(images);
             PlaceholderService placeholders = new PlaceholderService(new PapiValueSource(this), clock,
                     cfg.getLong("security.min-interval", 1) * 1000, defs, images,
                     new org.mcdashboard.image.ImageCache(clock));
 
-            history = new org.mcdashboard.placeholder.HistoryService(clock, defs);
+            history = new org.mcdashboard.placeholder.HistoryService(clock, defs, historySettings, historyStore(clock, cfg),
+                    msg -> getLogger().warning(msg));
+            history.start();
             startPermissionSnapshots(defs);
             // Expansions register with PlaceholderAPI after plugins enable, so read their lists on the first main-thread tick.
             List<org.mcdashboard.placeholder.ExpansionCatalog.Entry> catalog = org.mcdashboard.placeholder.ExpansionCatalog.parseAll(
@@ -165,8 +170,9 @@ public final class MCDashboard extends JavaPlugin {
             List<PlaceholderDefinition> built = org.mcdashboard.placeholder.ExpansionCatalog.build(catalog,
                     new org.mcdashboard.placeholder.PapiExpansionLookup().orElse(new org.mcdashboard.placeholder.PapiCloudLookup()),
                     problems::add, counts);
-            List<PlaceholderDefinition> all = org.mcdashboard.placeholder.ExpansionCatalog.merge(explicit, built);
+            List<PlaceholderDefinition> all = historySettings.apply(org.mcdashboard.placeholder.ExpansionCatalog.merge(explicit, built));
             placeholders.setDefinitions(all);
+            history.track(all);
             addPermissionNodes(built);
             getLogger().info(built.size() + " catalog placeholder(s) loaded, " + all.size() + " in total.");
         } catch (RuntimeException e) {
@@ -256,7 +262,6 @@ public final class MCDashboard extends JavaPlugin {
     }
 
     private void startSampler(PlaceholderService placeholders) {
-        if (history.trackedIds().isEmpty()) return;
         sampler = java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "MCDashboard-history");
             t.setDaemon(true);
@@ -265,7 +270,7 @@ public final class MCDashboard extends JavaPlugin {
         sampler.scheduleWithFixedDelay(() -> {
             for (String id : history.trackedIds()) {
                 placeholders.definition(id).ifPresent(d ->
-                        placeholders.read(id, null).ifPresent(v -> history.record(id, v.value(), placeholders.intervalMs(d))));
+                        placeholders.read(id, null).ifPresent(v -> history.record(id, v.value(), history.stepMs(d, placeholders.intervalMs(d)))));
             }
         }, 5, 5, java.util.concurrent.TimeUnit.SECONDS);
     }
@@ -435,6 +440,19 @@ public final class MCDashboard extends JavaPlugin {
         if (http != null) http.stop();
         if (live != null) live.stop();
         if (sampler != null) sampler.shutdownNow();
+        if (history != null) history.close();
+    }
+
+    /** The database for history, or null for memory only (also when the database settings are unusable). */
+    private org.mcdashboard.history.HistoryStore historyStore(Clock clock, FileConfiguration cfg) {
+        var storage = historySettings.storage();
+        if (storage.dialect() == null) return null;
+        String name = cfg.getString("server.name") != null ? cfg.getString("server.name") : "Minecraft server";
+        Path data = getDataFolder().toPath();
+        getLogger().info("History is stored in " + storage.type() + " (" + storage.jdbcUrl(data).replaceAll("(?i)(password|pwd)=[^&;]*", "$1=***") + ")");
+        return new org.mcdashboard.history.JdbcHistoryStore(storage.dialect(),
+                new org.mcdashboard.history.JdbcConnector(storage.jdbcUrl(data), storage.user(), storage.password(), data.resolve("drivers")),
+                storage.baseUri(), name, clock);
     }
 
     public OtpService otps() {

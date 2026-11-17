@@ -60,7 +60,7 @@ public record HistorySettings(Storage storage, long intervalMs, int retentionDay
             type = "memory";
         }
         int port = dialect == SqlDialect.POSTGRESQL ? 5432 : 3306;
-        String slug = serverId.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_.-]+", "-").replaceAll("^-+|-+$", "");
+        String slug = str(st.get("server-id"), serverId).toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_.-]+", "-").replaceAll("^-+|-+$", "");
         String base = str(st.get("base-uri"), "").trim();
         Storage storage = new Storage(type, dialect, str(st.get("file"), "history.db"), str(st.get("host"), "localhost"),
                 num(st.get("port"), port, 1, 65535, "history.storage.port", warn), str(st.get("database"), "mcdashboard"),
@@ -115,10 +115,26 @@ public record HistorySettings(Storage storage, long intervalMs, int retentionDay
 
     /** {@code *} matches any run of characters; everything else is literal. */
     static boolean matches(List<String> globs, String id) {
-        for (String g : globs) {
-            if (Pattern.matches(Pattern.compile("\\*").splitAsStream(g).map(Pattern::quote).reduce((a, b) -> a + ".*" + b).orElse("") + (g.endsWith("*") ? ".*" : ""), id)) return true;
+        for (String glob : globs) {
+            StringBuilder regex = new StringBuilder();
+            for (String part : glob.split("\\*", -1)) {
+                if (regex.length() > 0) regex.append(".*");
+                regex.append(Pattern.quote(part));
+            }
+            if (id.matches(regex.toString())) return true;
         }
         return false;
+    }
+
+    /** A configuration section as nested maps (what {@link #parse} reads); null when absent. */
+    public static Map<String, Object> toMap(org.bukkit.configuration.ConfigurationSection section) {
+        if (section == null) return null;
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        for (String key : section.getKeys(false)) {
+            Object v = section.get(key);
+            out.put(key, v instanceof org.bukkit.configuration.ConfigurationSection s ? toMap(s) : v);
+        }
+        return out;
     }
 
     private static Map<?, ?> map(Object o) {

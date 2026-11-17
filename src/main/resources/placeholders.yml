@@ -3,6 +3,8 @@
 # access: PUBLIC (anyone who can reach the server) or PLAYER (needs a paired device; resolved for that player).
 # type: STRING, INTEGER, DECIMAL, BOOLEAN, PERCENTAGE, AUTO (number, true/false or text, decided per value) or IMAGE.
 # group / description: optional, shown by the app when browsing the catalog (group defaults to General).
+# history: minutes of samples kept for charts (PUBLIC only; up to a year with a database, see `history` in config.yml).
+# history-interval: seconds between two samples of this placeholder (default: history.sampling.interval).
 placeholders:
   - id: online
     name: Players online
@@ -14,6 +16,7 @@ placeholders:
     max-from: max-players    # gauges use the value of this placeholder as their maximum
     min-interval: 5
     history: 120      # keep 2 hours of samples for charts (PUBLIC placeholders only)
+    history-interval: 15
   - id: tps
     name: Ticks per second
     group: Server

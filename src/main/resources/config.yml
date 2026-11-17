@@ -60,6 +60,40 @@ security:
   # Reverse proxies/caches whose X-Forwarded-For header is trusted (used for rate limiting).
   trusted-proxies: ["127.0.0.1", "0:0:0:0:0:0:0:1"]
 
+# History for charts (the line and area widgets, the home-screen graph). Only PUBLIC placeholders are recorded: those with
+# `history: <minutes>` in placeholders.yml, plus the ones matched by `include` below. See docs/history.md.
+history:
+  storage:
+    # memory: the last two hours or so, lost on restart. sqlite: one file, nothing to set up. mysql, mariadb, postgresql:
+    # a database server, shared by several Minecraft servers if each has its own server-id. The server already carries
+    # the SQLite and MySQL/MariaDB drivers; for PostgreSQL put the driver jar in plugins/MCDashboard/drivers/.
+    type: memory
+    file: history.db           # sqlite: relative to plugins/MCDashboard/
+    host: localhost            # mysql, mariadb, postgresql
+    port: 3306                 # 5432 for postgresql
+    database: mcdashboard
+    user: ""
+    password: ""
+    # Instead of host, port and database: a complete JDBC URL (without the password), e.g. for a driver in drivers/.
+    url: ""
+    # Names this server in the data (the SOSA platform) so several servers can share one database. Default: server.name.
+    server-id: ""
+    # The IRI the stored resources are minted under (sensors, properties, platform). Default: urn:mcdashboard:<server-id>.
+    base-uri: ""
+  sampling:
+    # Seconds between two samples of a placeholder (10 to 86400). A placeholder can set its own `history-interval`.
+    # Never faster than the placeholder's own refresh interval.
+    interval: 30
+    # Seconds between two writes to the database; samples are written in batches off the server thread.
+    flush-interval: 10
+  # Days a sample is kept in the database (0 = forever). A placeholder's own `history: <minutes>` overrides this for it.
+  retention-days: 30
+  # Placeholder ids to record, `*` matches anything: ["tps", "ram-*"]. Only PUBLIC placeholders (not images) qualify.
+  # Also covers catalog entries (placeholders.yml `catalog`). Entries here need no `history:` of their own.
+  include: []
+  # Never record these, even when they have `history:` or match `include`.
+  exclude: []
+
 # Reverse tunnel to MCDashboard-proxy (docs/tunnel.md): the plugin dials OUT to the proxy over one WebSocket and the proxy
 # sends REST requests, live-feed streams and device events over it. The server then needs no inbound port for the API
 # (set server.discovery-only), and device events need no events.token / webhook.

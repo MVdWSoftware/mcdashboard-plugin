@@ -27,20 +27,23 @@ public enum SqlDialect {
         };
     }
 
-    /** An INSERT that silently skips a row that already exists (any unique key). */
-    String insertIgnore(String table, List<String> columns) {
+    /**
+     * An INSERT that skips a row whose key already exists, and only that: a NOT NULL or foreign key violation still
+     * fails. ({@code INSERT OR IGNORE} and MySQL's {@code INSERT IGNORE} would swallow those too.)
+     */
+    String insertIfAbsent(String table, List<String> columns) {
         String cols = String.join(", ", columns);
         String marks = String.join(", ", columns.stream().map(c -> "?").toList());
+        String insert = "INSERT INTO " + table + " (" + cols + ") VALUES (" + marks + ")";
         return switch (this) {
-            case SQLITE -> "INSERT OR IGNORE INTO " + table + " (" + cols + ") VALUES (" + marks + ")";
-            case MYSQL -> "INSERT IGNORE INTO " + table + " (" + cols + ") VALUES (" + marks + ")";
-            case POSTGRESQL -> "INSERT INTO " + table + " (" + cols + ") VALUES (" + marks + ") ON CONFLICT DO NOTHING";
+            case SQLITE, POSTGRESQL -> insert + " ON CONFLICT DO NOTHING";
+            case MYSQL -> insert + " ON DUPLICATE KEY UPDATE " + columns.get(0) + " = " + columns.get(0);
         };
     }
 
     /** Integer division: MySQL's {@code /} yields a decimal. */
     String intDiv(String a, long b) {
-        return this == MYSQL ? "(" + a + " DIV " + b + ")" : "(" + a + " / " + b + ")";
+        return this == MYSQL ? "((" + a + ") DIV " + b + ")" : "((" + a + ") / " + b + ")";
     }
 
     /** MySQL has no {@code COMMENT ON}: comments are part of the column and table definitions. */

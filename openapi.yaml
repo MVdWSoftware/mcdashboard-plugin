@@ -80,6 +80,7 @@ paths:
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
         - { name: since, in: query, required: false, schema: { type: integer }, description: unix seconds }
+        - { name: points, in: query, required: false, schema: { type: integer, minimum: 2, maximum: 2000, default: 2000 }, description: 'at most this many records; longer series are reduced by averaging numbers (text: the last value) per equal time bucket, each record keeps the time of the last sample in its bucket' }
       responses:
         '200': { $ref: '#/components/responses/Values' }
         '404': { description: No history for this placeholder }
@@ -273,7 +274,7 @@ components:
         max: { type: number }
         unit: { type: string }
         maxFrom: { type: string, description: id of the placeholder whose value is this one's maximum }
-        historyMinutes: { type: integer, description: 'minutes of history kept; see /history/{id}' }
+        historyMinutes: { type: integer, description: 'minutes of history kept (in memory, or in the database when the owner enabled persistent history); see /history/{id}' }
     SenMLRecord:
       type: object
       required: [n, t]

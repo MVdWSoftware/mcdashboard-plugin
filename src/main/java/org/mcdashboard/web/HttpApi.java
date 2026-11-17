@@ -247,7 +247,11 @@ public final class HttpApi implements HttpHandler {
             String q = ex.getRequestURI().getRawQuery();
             if (q != null && q.matches("^(.*&)?since=\\d+.*")) since = Long.parseLong(q.replaceFirst("^(.*&)?since=(\\d+).*$", "$2")) * 1000;
             List<Object> records = new ArrayList<>();
-            for (var p : ctx.history().since(id, since)) {
+            int points = org.mcdashboard.placeholder.HistoryService.MAX_POINTS;
+            if (q != null && q.matches("^(.*&)?points=\\d{1,9}(&.*)?$")) {
+                points = Integer.parseInt(q.replaceFirst("^(.*&)?points=(\\d+).*$", "$2"));
+            }
+            for (var p : ctx.history().since(id, since, points)) {
                 records.add(SenMl.record(def.get(), new PlaceholderService.Value(id, p.value(), p.timeMs())));
             }
             cacheable(ex, records, List.of(def.get()), false);
