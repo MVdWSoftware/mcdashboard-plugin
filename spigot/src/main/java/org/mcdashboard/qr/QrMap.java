@@ -66,7 +66,11 @@ public final class QrMap {
     public static boolean isQrMap(ItemStack item) {
         if (item == null || item.getType() != Material.FILLED_MAP) return false;
         ItemMeta meta = item.getItemMeta();
-        return meta != null && meta.getPersistentDataContainer().has(MARKER, PersistentDataType.BYTE);
+        if (meta == null) return false;
+        if (meta.getPersistentDataContainer().has(MARKER, PersistentDataType.BYTE)) return true;
+        // Maps created by an older plugin version have no marker; their display name still identifies them.
+        String name = meta.getDisplayName();
+        return name != null && (name.contains("MCDashboard link") || name.contains("MinecraftDashboard link"));
     }
 
     /** The owner stored in the map, or null when it is not one of ours or the data is unreadable. */
