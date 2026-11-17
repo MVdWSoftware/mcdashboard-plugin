@@ -42,4 +42,4 @@ and reconnects with exponential backoff (1 s to 60 s, forever). The backoff rese
 30 s, so a flapping proxy cannot cause a reconnect storm. An outage is logged once, not on every attempt. `/mcdashboard tunnel`
 (permission `mcdashboard.admin`) shows whether it is connected, the last error, the attempt number and the ping.
 
-Protocol and the proxy's settings: [MCDashboard-proxy `docs/tunnel.md`](https://github.com/MVdWSoftware/MCDashboard-proxy).
+Protocol and the proxy's settings: [MCDashboard-proxy `docs/tunnel.md`](https://git.mvdw-software.com/mcdashboard/mcdashboard-proxy).

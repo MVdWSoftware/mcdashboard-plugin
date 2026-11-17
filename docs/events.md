@@ -1,7 +1,7 @@
 # Device events
 
 When a device is revoked (in game or from the app) the plugin itself refuses its tokens at once. A reverse proxy
-that caches per-player answers (such as [MCDashboard-proxy](https://github.com/MVdWSoftware/MCDashboard-proxy)) has to be
+that caches per-player answers (such as [MCDashboard-proxy](https://git.mvdw-software.com/mcdashboard/mcdashboard-proxy)) has to be
 told, or it would keep serving that device from its cache until the entry expires. The plugin tells it in two ways;
 use either or both. Both are off until configured, and neither carries anything but ids.
 

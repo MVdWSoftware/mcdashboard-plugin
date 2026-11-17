@@ -57,7 +57,7 @@ Set `server.host: "127.0.0.1"` so only the proxy can reach the plugin, and keep
 
 ## MCDashboard-proxy
 
-For public servers there is a purpose-built, open source (AGPL) proxy: [MCDashboard-proxy](https://github.com/MVdWSoftware/MCDashboard-proxy).
+For public servers there is a purpose-built, open source (AGPL) proxy: [MCDashboard-proxy](https://git.mvdw-software.com/mcdashboard/mcdashboard-proxy).
 It speaks the same API and adds a shared Redis cache, request coalescing, stale-if-error, rate limiting, request
 validation and optional token pre-checks. It follows device revocations through the [device events](events.md), so a revoked device is
 refused at once even when its answers are cached. The proxy can also be reached through a [reverse tunnel](tunnel.md): the plugin dials out over one WebSocket, so the server needs no inbound port for the API. Put it behind your TLS terminator instead of a plain nginx cache.

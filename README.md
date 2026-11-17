@@ -13,7 +13,7 @@ Only placeholders you list in `placeholders.yml` are ever resolved, and nothing 
   WebSocket and JSON are the JDK's own.
 - Pairing with one-time codes and QR maps, signed tokens, per-device revocation, rate limits.
 - Optional history for charts, in memory or in SQLite, MySQL/MariaDB or PostgreSQL with a SOSA/SSN schema ([docs/history.md](docs/history.md)).
-- Optional reverse tunnel and caching proxy support ([MCDashboard-proxy](https://github.com/MVdWSoftware/MCDashboard-proxy)).
+- Optional reverse tunnel and caching proxy support ([MCDashboard-proxy](https://git.mvdw-software.com/mcdashboard/mcdashboard-proxy)).
 
 ## Install
 

@@ -31,12 +31,12 @@
     </developer>
   </developers>
   <scm>
-    <url>https://github.com/MVdWSoftware/MCDashboard-plugin</url>
-    <connection>scm:git:https://github.com/MVdWSoftware/MCDashboard-plugin.git</connection>
+    <url>https://git.mvdw-software.com/mcdashboard/mcdashboard-plugin</url>
+    <connection>scm:git:https://git.mvdw-software.com/mcdashboard/mcdashboard-plugin.git</connection>
   </scm>
   <issueManagement>
     <system>GitHub</system>
-    <url>https://github.com/MVdWSoftware/MCDashboard-plugin/issues</url>
+    <url>https://git.mvdw-software.com/mcdashboard/mcdashboard-plugin/issues</url>
   </issueManagement>
 
   <properties>

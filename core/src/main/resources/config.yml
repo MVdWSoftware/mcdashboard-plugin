@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
 # MCDashboard: every setting is explained in docs/configuration.md
-# (https://github.com/MVdWSoftware/MCDashboard-plugin/blob/main/docs/configuration.md).
+# (https://git.mvdw-software.com/mcdashboard/mcdashboard-plugin/blob/main/docs/configuration.md).
 # Terms: https://mcdashboard.org/en/terms-of-service/  Privacy: https://mcdashboard.org/en/privacy-statement/
 
 server:

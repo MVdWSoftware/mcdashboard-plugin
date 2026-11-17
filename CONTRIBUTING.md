@@ -10,7 +10,7 @@ Thanks for helping! Bug reports, fixes, documentation and ideas are all welcome.
   `plugins/MCDashboard/drivers/`.
 - **The contract comes first.** The API is described in [`openapi.yaml`](openapi.yaml). Change it together with
   the code (`web/HttpApi` and its `*Routes` classes, `web/SenMl`) and add a test. Companion clients, such as the
-  [MCDashboard-proxy](https://github.com/MVdWSoftware/MCDashboard-proxy), follow this file.
+  [MCDashboard-proxy](https://git.mvdw-software.com/mcdashboard/mcdashboard-proxy), follow this file.
 - **Values are SenML**, tokens are JWT HS256 (reject any other `alg`). Caching headers are set in
   `PlaceholderRoutes.cacheable`; anything per player must stay `private`.
 - **Only `placeholders.yml` entries are ever resolved.** Never evaluate a client-supplied template.
