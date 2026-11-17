@@ -82,6 +82,7 @@ public final class MCDashboardCommand implements CommandExecutor, TabCompleter {
                 return true;
             }
             String name = target.getName() == null ? args[1] : target.getName();
+            if (target instanceof Player targetPlayer) QrMap.destroyFor(targetPlayer, true); // the old map is stale
             String code = plugin.otps().create(target.getUniqueId().toString(), name);
             boolean self = sender instanceof Player me && me.getUniqueId().equals(target.getUniqueId());
             sender.sendMessage((self ? "Your pairing code is " : "The pairing code for " + name + " is ") + OtpService.display(code)
@@ -112,15 +113,21 @@ public final class MCDashboardCommand implements CommandExecutor, TabCompleter {
         }
         switch (sub) {
             case "qr" -> {
+                if (player.getInventory().firstEmpty() == -1) {
+                    sender.sendMessage("§cMake room in your inventory for the QR map, then run /" + label + " qr again.");
+                    return true;
+                }
+                QrMap.destroyFor(player, true); // one live map per player
                 String code = plugin.otps().create(player.getUniqueId().toString(), player.getName());
                 String link = commands.connectLink(code);
                 if (link == null) {
                     sender.sendMessage("QR codes need server.public-url in the plugin config. Use the code instead: " + OtpService.display(code));
                     return true;
                 }
-                var leftover = player.getInventory().addItem(QrMap.create(player, link));
-                leftover.values().forEach(i -> player.getWorld().dropItemNaturally(player.getLocation(), i));
-                sender.sendMessage("§aHere is your QR map. Scan it with the MinecraftDashboard app, then throw it away.");
+                long seconds = plugin.otpTimeoutSeconds() < 0 ? 300 : Math.min(300, plugin.otpTimeoutSeconds());
+                player.getInventory().addItem(QrMap.create(player, link, System.currentTimeMillis() + seconds * 1000));
+                sender.sendMessage("§aHere is your QR map. Scan it with the MCDashboard app; it self-destructs in "
+                        + Math.max(1, seconds / 60) + " min or as soon as you drop or store it.");
             }
             case "devices" -> {
                 List<DeviceStore.Device> list = plugin.devices().devicesOf(player.getUniqueId().toString());

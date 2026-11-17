@@ -17,6 +17,7 @@ import org.mcdashboard.placeholder.ValueSource;
 import org.mcdashboard.platform.Log;
 import org.mcdashboard.platform.Permissions;
 import org.mcdashboard.platform.Platform;
+import org.mcdashboard.qr.QrMap;
 import org.mcdashboard.web.ServerStatus;
 
 import java.nio.file.Path;
@@ -93,7 +94,8 @@ final class SpigotPlatform implements Platform {
         Bukkit.getScheduler().runTask(plugin, () -> {
             Player p = Bukkit.getPlayer(UUID.fromString(device.playerUuid()));
             if (p != null) {
-                p.sendMessage("§aA device (§f" + device.label() + "§a) was linked to your account for MinecraftDashboard.");
+                QrMap.destroyFor(p, true); // the code has been used; the map must not stay readable
+                p.sendMessage("§aA device (§f" + device.label() + "§a) was linked to your account for MCDashboard.");
                 p.sendMessage("§7Not you? Run §f/mcdashboard revoke " + device.id() + "§7 to remove it.");
             }
         });

@@ -10,6 +10,7 @@ import org.mcdashboard.auth.DeviceStore;
 import org.mcdashboard.auth.OtpService;
 import org.mcdashboard.commands.DashboardCommands;
 import org.mcdashboard.commands.MCDashboardCommand;
+import org.mcdashboard.qr.QrMapGuard;
 import org.mcdashboard.tunnel.TunnelClient;
 
 /** Publishes an allowlist of PlaceholderAPI placeholders to the MinecraftDashboard app over REST and a live feed. */
@@ -20,6 +21,7 @@ public final class MCDashboard extends JavaPlugin {
     public void onEnable() {
         core = new MCDashboardCore(new SpigotPlatform(this), new BukkitYaml(), getDataFolder().toPath());
         core.start();
+        getServer().getPluginManager().registerEvents(new QrMapGuard(this), this);
         PluginCommand cmd = getCommand("mcdashboard");
         if (cmd != null) {
             MCDashboardCommand handler = new MCDashboardCommand(this, new DashboardCommands(core));
