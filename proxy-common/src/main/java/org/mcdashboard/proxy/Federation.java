@@ -60,7 +60,7 @@ public final class Federation implements AutoCloseable {
                 snapshots.put(b.name().toLowerCase(Locale.ROOT), new Snapshot(Map.copyOf(fetcher.fetch(b)), clock.millis()));
                 if (failing.remove(b.name()) != null) warn.accept("network.backends: " + b.name() + " is reachable again");
             } catch (Exception e) {
-                if (failing.put(b.name(), true) == null) warn.accept("network.backends: could not read " + b.name() + ": " + e.getMessage());
+                if (failing.put(b.name(), true) == null) warn.accept("network.backends: could not read " + b.name() + ": " + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()));
             }
         }
     }

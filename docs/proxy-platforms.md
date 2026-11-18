@@ -98,5 +98,29 @@ What it does, and its limits:
   sockets (BungeeCord) are not listed.
 - The proxy has no ticks; the core's scheduler runs on the proxy's scheduler (1 tick = 50 ms) and there is no main thread.
 - Velocity does not give plugins a YAML library, so the Velocity jar carries a relocated SnakeYAML (`org/mcdashboard/libs/`).
-- The jars were compiled against velocity-api 3.4.0 and bungeecord-api 1.21; they have not been run on a real proxy in this
-  repository's tests (the core is exercised against a fake proxy).
+- The jars were compiled against velocity-api 3.4.0 and bungeecord-api 1.21.
+
+## Tested on real proxies
+
+Run in Docker on 18 November 2026 with `scripts/proxy-smoke-test.sh` (backend up/down, federation, API values) and an interactive pass with a mineflayer bot (player counts, pairing, commands, permissions):
+Velocity 4.3.1 (itzg/mc-proxy, `TYPE=VELOCITY`), BungeeCord build 2113 (version 26.1-R0.1-SNAPSHOT, `TYPE=BUNGEECORD`), both with
+one Paper 1.21.4 backend (offline mode, no forwarding) that ran `MCDashboard.jar` and PlaceholderAPI 2.12.3. Verified on both:
+
+- The plugin loads without errors; `config.yml`, `placeholders.yml` and `dashboards/` are written.
+- `/v1/info`, `/v1/placeholders` and `/v1/values` answer with the app User-Agent, pairing works (`/mcdashboard link`, the code
+  to `POST /v1/auth`, player placeholders with the token, 401 without a token), and `devices`, `revoke` (the refresh token
+  stops working), `reload`, `about`, `developer` and `tunnel` run from a player and from the console (`link` needs a player,
+  as documented).
+- `proxy_online`, `proxy_server_<name>_online`, `proxy_servers`, `proxy_version` and `proxy_platform` are right, with 0 and with
+  1 connected player; `proxy_server_<name>_up` is `true` for the running backend, `false` for a port nobody listens on and
+  flips to `false` within one `ping-interval` after the backend is stopped and back to `true` after it starts.
+- Federation: `backend_lobby_*` appears in the catalog and returns the Spigot backend's values; a stopped backend is logged once.
+- BungeeCord permissions through the `groups`/`permissions` of its `config.yml` (the network dashboard appears with
+  `mcdashboard.dashboard.network`, `/mcdashboard reload` needs `mcdashboard.admin`).
+
+Not verified: a proxy with LuckPerms, Velocity modern forwarding to the backend, TLS (the tests used `tls.mode: off`),
+Waterfall, the tunnel and the live feed (WebSocket) on a proxy, history storage other than memory, the licence and the
+clickable chat text as seen in a real client, and the older proxy versions (Velocity 3.x, BungeeCord 1.21 builds): the jars
+were compiled against velocity-api 3.4.0 and bungeecord-api 1.21 but only the newer proxies above were run. Federation
+needs the backend to be up when the proxy starts or within the first 30 seconds of the catalog's retries; otherwise run
+`/mcdashboard reload` once the backend is reachable.

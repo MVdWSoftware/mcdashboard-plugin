@@ -56,7 +56,7 @@ public final class ProxyValueSource implements ValueSource {
             String k = key.substring("proxy_".length());
             return switch (k) {
                 case "online" -> String.valueOf(adapter.onlinePlayers());
-                case "max" -> String.valueOf(adapter.maxPlayers());
+                case "max" -> String.valueOf(Math.max(0, adapter.maxPlayers())); // BungeeCord reports -1 for no limit
                 case "servers" -> String.valueOf(adapter.servers().size());
                 case "version" -> adapter.proxyVersion();
                 case "platform" -> adapter.platformName();

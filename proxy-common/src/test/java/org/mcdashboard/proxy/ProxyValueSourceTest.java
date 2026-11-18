@@ -32,6 +32,12 @@ class ProxyValueSourceTest {
     }
 
     @Test
+    void noPlayerLimitIsZeroNotMinusOne() {
+        adapter.max = -1; // BungeeCord's player_limit: -1
+        assertEquals("0", source.resolve("%proxy_max%", null));
+    }
+
+    @Test
     void perServerOnlineAndUpUseTheNameWithUnderscoresAndAnyCase() {
         assertEquals("2", source.resolve("%proxy_server_lobby_online%", null));
         assertEquals("1", source.resolve("%proxy_server_sky_block_online%", null));
