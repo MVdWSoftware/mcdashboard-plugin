@@ -10,17 +10,24 @@ import org.mcdashboard.auth.DeviceStore;
 import org.mcdashboard.auth.OtpService;
 import org.mcdashboard.commands.DashboardCommands;
 import org.mcdashboard.commands.MCDashboardCommand;
+import org.mcdashboard.placeholder.McDashboardExpansion;
 import org.mcdashboard.qr.QrMapGuard;
 import org.mcdashboard.tunnel.TunnelClient;
 
 /** Publishes an allowlist of PlaceholderAPI placeholders to the MinecraftDashboard app over REST and a live feed. */
 public final class MCDashboard extends JavaPlugin {
     private MCDashboardCore core;
+    private McDashboardExpansion expansion;
 
     @Override
     public void onEnable() {
         core = new MCDashboardCore(new SpigotPlatform(this), new BukkitYaml(), getDataFolder().toPath());
         core.start();
+        // The counters exist whether or not the web server runs; they are only offered to the app with stats.offer-to-app.
+        if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
+            expansion = new McDashboardExpansion(core::stats, "MVdW-Software");
+            expansion.register();
+        }
         getServer().getPluginManager().registerEvents(new QrMapGuard(this), this);
         PluginCommand cmd = getCommand("mcdashboard");
         if (cmd != null) {
@@ -32,6 +39,7 @@ public final class MCDashboard extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (expansion != null) expansion.unregister();
         if (core != null) core.stop();
     }
 

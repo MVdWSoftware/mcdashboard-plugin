@@ -1,0 +1,10 @@
+{
+  "id": "mcdashboard",
+  "name": "MCDashboard",
+  "version": "${project.version}",
+  "description": "One MinecraftDashboard for the whole network: built-in network placeholders for the mobile app.",
+  "url": "https://mcdashboard.org",
+  "authors": ["MVdW-Software"],
+  "dependencies": [],
+  "main": "org.mcdashboard.velocity.MCDashboardVelocity"
+}

@@ -1,0 +1,17 @@
+# Copyright (c) 2026 MVdW-Software
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Permission: mcdashboard.dashboard.network (grant it to staff; proxies have no operators). See docs/dashboards.md.
+# Per server tiles (proxy_server_<name>_online and _up) are in the placeholder list for the app's editor.
+name: { en: Network, nl: Netwerk, fr: Réseau, de: Netzwerk, es: Red }
+description: { en: Players and servers of the whole network, nl: Spelers en servers van het hele netwerk, fr: Joueurs et serveurs de tout le réseau, de: Spieler und Server des ganzen Netzwerks, es: Jugadores y servidores de toda la red }
+order: 20
+# grid, dirt, stone, planks, checker, cobble or creeper
+background: stone
+items:
+  - { placeholder: online, widget: gauge, title: { en: Players, nl: Spelers, fr: Joueurs, de: Spieler, es: Jugadores }, icon: fa6-solid:users, column: 0, row: 0, width: 2, height: 2 }
+  - { placeholder: servers, widget: number, title: { en: Servers, nl: Servers, fr: Serveurs, de: Server, es: Servidores }, icon: fa6-solid:server, column: 2, row: 0, width: 2, height: 1 }
+  - { placeholder: uptime, widget: number, title: { en: Uptime (s), nl: Uptime (s), fr: Disponibilité (s), de: Laufzeit (s), es: Tiempo activo (s) }, column: 2, row: 1, width: 2, height: 1 }
+  - { placeholder: online, widget: line, title: { en: Players over time, nl: Spelers door de tijd, fr: Joueurs au fil du temps, de: Spieler im Zeitverlauf, es: Jugadores a lo largo del tiempo }, column: 0, row: 2, width: 4, height: 3 }
+  - { placeholders: [online, max-players], widget: list, title: { en: Capacity, nl: Capaciteit, fr: Capacité, de: Kapazität, es: Capacidad }, column: 0, row: 5, width: 2, height: 2 }
+  - { placeholders: [platform, version], widget: list, title: { en: Proxy, nl: Proxy, fr: Proxy, de: Proxy, es: Proxy }, column: 2, row: 5, width: 2, height: 2 }

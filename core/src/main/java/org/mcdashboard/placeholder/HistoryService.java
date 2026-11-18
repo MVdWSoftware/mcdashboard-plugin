@@ -50,6 +50,7 @@ public final class HistoryService implements AutoCloseable {
     private final Consumer<String> log;
     private final LinkedBlockingQueue<Samples.Sample> queue = new LinkedBlockingQueue<>(MAX_BACKLOG);
     private final List<Samples.Sample> inflight = new ArrayList<>();
+    private final java.util.concurrent.atomic.AtomicLong written = new java.util.concurrent.atomic.AtomicLong();
     private volatile boolean dirty = true;
     private long lastPrune;
     private long lastWarn;
@@ -142,6 +143,11 @@ public final class HistoryService implements AutoCloseable {
         return Samples.reduce(out, max);
     }
 
+    /** Samples written to the database since start (0 without a store). In memory, safe on any thread. */
+    public long samplesWritten() {
+        return written.get();
+    }
+
     /** Starts the database writer; a no-op without a store. */
     public void start() {
         if (store == null || writer != null) return;
@@ -165,6 +171,7 @@ public final class HistoryService implements AutoCloseable {
             while (inflight.size() < MAX_BACKLOG && (s = queue.poll()) != null) inflight.add(s);
             if (!inflight.isEmpty()) {
                 store.append(inflight);
+                written.addAndGet(inflight.size());
                 inflight.clear();
             }
             long now = clock.millis();

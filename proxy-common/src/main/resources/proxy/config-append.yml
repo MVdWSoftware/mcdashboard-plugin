@@ -1,0 +1,20 @@
+# ---- Proxy (Velocity / BungeeCord) ----
+# server.enabled above is false until you turn it on; set server.public-url to the address players reach this proxy on.
+# See docs/proxy-platforms.md.
+network:
+  # Seconds between the up/down checks of the backend servers (5 to 3600).
+  ping-interval: 15
+  # Seconds between reads of the backend servers below (5 to 3600).
+  federation-interval: 15
+  # Backend servers that run MCDashboard, read by this proxy: off while the list is empty. Only these URLs are contacted
+  # (no redirects, 5 s timeout, 1 MiB at most). The backend must allow the proxy in its security.allowed-clients
+  # (MCDashboard-Proxy/.*). Then add `catalog: - expansion: backend` to placeholders.yml.
+  #   name: letters, digits, . and - (used in backend_<name>_<id>)
+  #   url:  https://lobby.example.com:1553
+  #   key:  optional bearer token sent to the backend; leave empty when it has security.require-authentication: false
+  #   pin:  SHA-256 fingerprint of the backend's self-signed certificate (its log prints it); empty = normal certificate check
+  backends: []
+  # - name: lobby
+  #   url: "https://lobby.example.com:1553"
+  #   key: ""
+  #   pin: ""

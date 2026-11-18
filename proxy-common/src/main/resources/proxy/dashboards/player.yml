@@ -1,0 +1,13 @@
+# Copyright (c) 2026 MVdW-Software
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Permission: mcdashboard.dashboard.player (everyone unless denied). See docs/dashboards.md.
+name: { en: Player, nl: Speler, fr: Joueur, de: Spieler, es: Jugador }
+description: { en: Your connection to the network, nl: Jouw verbinding met het netwerk, fr: Votre connexion au réseau, de: Deine Verbindung zum Netzwerk, es: Tu conexión a la red }
+background: dirt
+order: 10
+items:
+  - { placeholder: player-name, widget: text, title: { en: Player, nl: Speler, fr: Joueur, de: Spieler, es: Jugador }, column: 0, row: 0, width: 2, height: 1 }
+  - { placeholder: player-server, widget: text, title: { en: Server, nl: Server, fr: Serveur, de: Server, es: Servidor }, column: 2, row: 0, width: 2, height: 1 }
+  - { placeholder: player-ping, widget: number, title: { en: Ping, nl: Ping, fr: Ping, de: Ping, es: Ping }, icon: fa6-solid:signal, column: 0, row: 1, width: 2, height: 1 }
+  - { placeholder: online, widget: number, title: { en: Players online, nl: Spelers online, fr: Joueurs en ligne, de: Spieler online, es: Jugadores en línea }, column: 2, row: 1, width: 2, height: 1 }

@@ -41,6 +41,8 @@ public final class DeviceStore {
     /** How long the previous refresh token stays valid after a rotation, so a response lost on the way does not unpair the device. */
     private static final long ROTATION_GRACE_MS = 30_000;
     private final List<Consumer<Device>> removalListeners = new CopyOnWriteArrayList<>();
+    /** The number of paired devices, readable without taking the store's lock (which is held while it writes the file). */
+    private volatile int count;
     private final Path file;
     private final SecureRandom random = new SecureRandom();
 
@@ -62,6 +64,7 @@ public final class DeviceStore {
         String id = HexFormat.of().formatHex(raw);
         Device d = new Device(id, playerUuid, playerName, label == null ? "Device" : label, 1, System.currentTimeMillis(), client);
         devices.put(id, d);
+        count = devices.size();
         save();
         return Optional.of(d);
     }
@@ -74,6 +77,18 @@ public final class DeviceStore {
     /** When the device was last seen (epoch ms), or empty when it has not been since it paired (or before the plugin recorded it). */
     public Optional<Long> lastSeen(String id) {
         return Optional.ofNullable(seen.get(id));
+    }
+
+    /** How many devices are paired. Lock free and in memory: safe on any thread, including the server's main thread. */
+    public int count() {
+        return count;
+    }
+
+    /** How many paired devices made a request at or after {@code sinceMs} (epoch ms). Lock free and in memory. */
+    public long countSeenSince(long sinceMs) {
+        long n = 0;
+        for (long t : seen.values()) if (t >= sinceMs) n++;
+        return n;
     }
 
     public synchronized Optional<Device> get(String id) {
@@ -109,6 +124,7 @@ public final class DeviceStore {
         if (d == null) return false;
         seen.remove(id);
         rotated.remove(id);
+        count = devices.size();
         save();
         for (var l : removalListeners) {
             try {
@@ -139,6 +155,7 @@ public final class DeviceStore {
                 devices.put(d.id(), d);
                 if (m.get("seen") instanceof Number n) seen.put(d.id(), n.longValue());
             }
+            count = devices.size();
         } catch (IOException | RuntimeException e) {
             throw new IllegalStateException("Could not read " + file + ": " + e.getMessage(), e);
         }

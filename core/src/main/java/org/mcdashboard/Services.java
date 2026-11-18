@@ -26,6 +26,7 @@ import org.mcdashboard.placeholder.PlaceholderService;
 import org.mcdashboard.platform.Log;
 import org.mcdashboard.platform.Permissions;
 import org.mcdashboard.platform.Platform;
+import org.mcdashboard.stats.PluginStats;
 import org.mcdashboard.tls.TlsSupport;
 import org.mcdashboard.tunnel.TunnelClient;
 import org.mcdashboard.util.Threads;
@@ -69,8 +70,11 @@ final class Services {
     private WebhookDispatcher webhooks;
     private HistoryService history;
     private ScheduledExecutorService sampler;
+    private final PluginStats stats;
+    private volatile int dashboardCount;
 
-    Services(Platform platform, Settings settings, DataFolder files, DashboardStore dashboards, BooleanSupplier developerMode) {
+    Services(Platform platform, Settings settings, DataFolder files, DashboardStore dashboards, BooleanSupplier developerMode, PluginStats stats) {
+        this.stats = stats;
         this.platform = platform;
         this.log = platform.log();
         this.settings = settings;
@@ -92,8 +96,9 @@ final class Services {
 
             var yaml = files.placeholders();
             HistorySettings historySettings = settings.history();
-            List<PlaceholderDefinition> defs = historySettings.apply(PlaceholderDefinition.parseAll(yaml.getMapList("placeholders"),
+            List<PlaceholderDefinition> parsed = historySettings.apply(PlaceholderDefinition.parseAll(yaml.getMapList("placeholders"),
                     msg -> log.warning("placeholders.yml: " + msg)));
+            List<PlaceholderDefinition> defs = offeredDefinitions(parsed);
             Path images = files.resolve("images");
             Files.createDirectories(images);
             Permissions permissions = platform.permissions(dashboards);
@@ -103,6 +108,10 @@ final class Services {
 
             history = new HistoryService(clock, defs, historySettings, historyStore(historySettings), log::warning);
             history.start();
+            stats.historyStorage(historySettings.storage().type()).placeholders(defs::size)
+                    .devices(devices::count, () -> devices.countSeenSince(clock.millis() - PluginStats.ONLINE_MINUTES * 60_000L))
+                    .historySamples(history::samplesWritten).dashboards(() -> dashboardCount);
+            refreshDashboardCount();
             permissions.start(defs);
             permissions.addPermissions(settings.minIntervalOverrides().permissions());
             List<ExpansionCatalog.Entry> catalog = ExpansionCatalog.parseAll(yaml.getMapList("catalog"),
@@ -130,7 +139,7 @@ final class Services {
             tlsFingerprint = tls == null ? null : tls.fingerprint();
             clients.background(new RateLimiter(clock, settings.backgroundRequestsPerMinute(), 60_000));
             ClientAssertions assertions = clientAssertions();
-            http = new HttpApi(ctx, clients);
+            http = new HttpApi(ctx, clients).stats(stats);
             http.background(settings.backgroundEnabled());
             if (assertions != null) http.verifyClients(assertions);
             if (tls != null) http.tls(tls.selfSigned() ? tls.fingerprint() : null);
@@ -139,6 +148,7 @@ final class Services {
             log.info("REST API listening on port " + http.port() + (tls == null ? " (plain HTTP)" : " (HTTPS)"));
             if (settings.websocketPort() > 0) {
                 live = new LiveServer(ctx, settings.maxLiveConnections(), clients);
+                stats.liveClients(this::liveConnections);
                 if (assertions != null) live.verifyClients(assertions);
                 live.start(settings.host(), settings.websocketPort(), tls == null ? null : tls.context());
                 log.info("Live feed listening on port " + live.port() + (tls == null ? " (plain)" : " (TLS)"));
@@ -212,7 +222,7 @@ final class Services {
     /** Plain listeners on 127.0.0.1 for the tunnel client only, on free ports. */
     private void startLoopback(ApiContext ctx, ClientPolicy clients) throws IOException {
         ClientAssertions assertions = clientAssertions();
-        loopbackHttp = new HttpApi(ctx, clients);
+        loopbackHttp = new HttpApi(ctx, clients).stats(stats);
         loopbackHttp.background(settings.backgroundEnabled());
         if (assertions != null) loopbackHttp.verifyClients(assertions);
         loopbackHttp.start("127.0.0.1", 0, null);
@@ -220,6 +230,30 @@ final class Services {
             loopbackLive = new LiveServer(ctx, settings.maxLiveConnections(), clients);
             if (assertions != null) loopbackLive.verifyClients(assertions);
             loopbackLive.start("127.0.0.1", 0);
+        }
+    }
+
+    /** Without {@code stats.offer-to-app} the {@code MCDashboard} group (values {@code %mcdashboard_*%}) is not offered to the app. */
+    private List<PlaceholderDefinition> offeredDefinitions(List<PlaceholderDefinition> defs) {
+        if (settings.offerStatsToApp()) return defs;
+        return defs.stream().filter(d -> !isStatsEntry(d)).toList();
+    }
+
+    static boolean isStatsEntry(PlaceholderDefinition d) {
+        return "MCDashboard".equals(d.group()) && d.value() != null && d.value().startsWith("%mcdashboard_");
+    }
+
+    /** Live-feed connections on the public and the loopback listener. */
+    private int liveConnections() {
+        return (live == null ? 0 : live.connections()) + (loopbackLive == null ? 0 : loopbackLive.connections());
+    }
+
+    /** Reads the dashboard folder, so it runs on the sampler thread (and once at start), never when a placeholder is read. */
+    private void refreshDashboardCount() {
+        try {
+            dashboardCount = dashboards.all().size();
+        } catch (RuntimeException ignored) {
+            // keep the last count
         }
     }
 
@@ -259,6 +293,7 @@ final class Services {
     private void startSampler(PlaceholderService placeholders) {
         sampler = Executors.newSingleThreadScheduledExecutor(Threads.daemon("MCDashboard-history"));
         sampler.scheduleWithFixedDelay(() -> {
+            refreshDashboardCount();
             for (String id : history.trackedIds()) {
                 placeholders.definition(id).ifPresent(d -> placeholders.read(id, null)
                         .ifPresent(v -> history.record(id, v.value(), history.stepMs(d, placeholders.intervalMs(d)))));

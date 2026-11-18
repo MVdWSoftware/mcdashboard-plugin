@@ -28,8 +28,11 @@ final class DataFolder {
     private final Consumer<String> warn;
     private final String defaults;
 
-    DataFolder(Path dir, YamlCodec yaml, String defaultsFolder, Consumer<String> warn) {
+    private final java.util.List<String> dashboards;
+
+    DataFolder(Path dir, YamlCodec yaml, String defaultsFolder, java.util.List<String> dashboards, Consumer<String> warn) {
         this.dir = dir;
+        this.dashboards = dashboards;
         this.defaults = defaultsFolder;
         this.yaml = yaml;
         this.warn = warn;
@@ -46,11 +49,13 @@ final class DataFolder {
     /** Writes the default files that are missing. The preset dashboards only on the very first start, so a deleted preset stays deleted. */
     void exportDefaults() throws IOException {
         Files.createDirectories(dir);
-        exportIfMissing("config.yml");
+        if (!Files.exists(resolve("config.yml"))) {
+            export("config.yml");
+            appendPlatformConfig();
+        }
         exportIfMissing("placeholders.yml");
         if (!Files.exists(resolve("dashboards"))) {
-            export("dashboards/player.yml");
-            export("dashboards/server.yml");
+            for (String name : dashboards) export("dashboards/" + name + ".yml");
         }
     }
 
@@ -125,6 +130,16 @@ final class DataFolder {
         } catch (IOException | RuntimeException e) {
             warn.accept("Could not read the bundled " + name + ": " + e.getMessage());
             return Map.of();
+        }
+    }
+
+    /** A platform's own settings ({@code config-append.yml} in its defaults folder) go below the shared ones in a new config.yml. */
+    private void appendPlatformConfig() throws IOException {
+        InputStream in = defaults.isEmpty() ? null : DataFolder.class.getResourceAsStream("/" + defaults + "config-append.yml");
+        if (in == null) return;
+        try (in) {
+            Files.writeString(resolve("config.yml"), "\n" + new String(in.readAllBytes(), StandardCharsets.UTF_8),
+                    StandardCharsets.UTF_8, StandardOpenOption.APPEND);
         }
     }
 

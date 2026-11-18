@@ -1,0 +1,85 @@
+# Copyright (c) 2026 MVdW-Software
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Only placeholders listed here can ever be read by the app. Every key is explained in docs/placeholders.md; the proxy
+# placeholders are in docs/proxy-platforms.md. A proxy has no PlaceholderAPI: the %proxy_...% values are built in.
+# access: PUBLIC (anyone who can reach the server) or PLAYER (a paired device, resolved for that player).
+
+placeholders:
+  - id: online
+    name: Players online
+    group: Network
+    description: Players connected to the proxy
+    value: '%proxy_online%'
+    type: INTEGER
+    access: PUBLIC
+    max-from: max-players
+    min-interval: 5
+    history: 120
+    history-interval: 15
+  - id: max-players
+    name: Max players
+    group: Network
+    value: '%proxy_max%'
+    type: INTEGER
+    access: PUBLIC
+  - id: servers
+    name: Backend servers
+    group: Network
+    description: Servers registered with the proxy
+    value: '%proxy_servers%'
+    type: INTEGER
+    access: PUBLIC
+  - id: uptime
+    name: Proxy uptime
+    group: Network
+    value: '%proxy_uptime%'
+    type: INTEGER
+    unit: s
+    access: PUBLIC
+    min-interval: 5
+  - id: version
+    name: Proxy version
+    group: Network
+    value: '%proxy_version%'
+    type: STRING
+    access: PUBLIC
+  - id: platform
+    name: Proxy software
+    group: Network
+    value: '%proxy_platform%'
+    type: STRING
+    access: PUBLIC
+  - id: player-name
+    name: Player
+    group: Player
+    value: '%proxy_player_name%'
+    type: STRING
+    access: PLAYER
+  - id: player-ping
+    name: Your ping to the proxy
+    group: Player
+    value: '%proxy_player_ping%'
+    type: INTEGER
+    unit: ms
+    access: PLAYER
+    min-interval: 5
+  - id: player-server
+    name: Your current server
+    group: Player
+    value: '%proxy_player_server%'
+    type: STRING
+    access: PLAYER
+
+# Catalog: adds proxy_server_<name>_online and proxy_server_<name>_up for every backend server the proxy has at startup
+# (names with characters other than letters, digits, _ . - are skipped). Restart or /mcdashboard reload after adding a server.
+catalog:
+  - expansion: proxy
+    group: Network
+    access: PUBLIC
+
+# Federation (see docs/proxy-platforms.md): configure network.backends in config.yml, then enable this entry to expose the
+# PUBLIC placeholders of those backend servers as backend_<name>_<id>.
+#  - expansion: backend
+#    group: Backends
+#    access: PUBLIC

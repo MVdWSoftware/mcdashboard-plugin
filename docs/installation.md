@@ -1,5 +1,7 @@
 # Installation
 
+On a Velocity or BungeeCord proxy there is no PlaceholderAPI: follow [proxy-platforms.md](proxy-platforms.md) instead of step 1.
+
 1. Install [PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.6245/) and any
    expansions you want to expose, then copy `MCDashboard.jar` to `plugins/`.
 2. Start the server once, edit `plugins/MCDashboard/config.yml` and set `server.enabled: true`.

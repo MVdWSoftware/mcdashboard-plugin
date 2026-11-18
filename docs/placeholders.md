@@ -3,6 +3,9 @@
 `plugins/MCDashboard/placeholders.yml` is the allowlist of what the app may read. Players never send a `%placeholder%`
 template; they pick from this list, so nothing outside it is ever evaluated.
 
+The plugin also provides placeholders of its own, `%mcdashboard_...%` (paired devices, API requests, uptime, ...), listed in
+[placeholders-api.md](placeholders-api.md).
+
 ## Keys
 
 | Key | Meaning |

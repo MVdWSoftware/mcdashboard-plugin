@@ -131,6 +131,11 @@ public final class LiveServer {
         }
     }
 
+    /** Open live-feed connections right now. */
+    public int connections() {
+        return connections.get();
+    }
+
     private final class Connection implements AutoCloseable {
         private final Socket sock;
         private final InputStream in;

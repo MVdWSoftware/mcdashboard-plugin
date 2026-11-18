@@ -12,12 +12,25 @@ and the project uses [Semantic Versioning](https://semver.org/).
   fingerprint (`pin=`) and `/v1/info` publishes it (`tlsFingerprint`, `websocketTls`).
 
 ### Added
+- Network variant: plugins for Velocity (`velocity/`, `MCDashboard-Velocity.jar`) and BungeeCord/Waterfall (`bungee/`,
+  `MCDashboard-Bungee.jar`) around a shared `proxy-common/` module. Built-in network placeholders replace PlaceholderAPI
+  (`proxy_online`, `proxy_max`, `proxy_server_<name>_online`/`_up`, `proxy_uptime`, `proxy_version`, and for the paired player
+  `proxy_player_ping`), a default Network dashboard, permissions from the proxy's own check (LuckPerms backs it), and
+  `/mcdashboard link|devices|revoke|reload|developer|tunnel|about`. Optional, off by default federation (`network.backends`)
+  exposes the PUBLIC placeholders of backend servers as `backend_<name>_<id>`. See [docs/proxy-platforms.md](docs/proxy-platforms.md).
+- `Platform.defaultDashboards()` and a platform's `config-append.yml` let a platform choose its preset dashboards and add its own
+  settings to a new `config.yml`.
 - `security.client-verification`: require a client assertion from the MVdW attestation service (ES256, verified offline, bound to the
   host) so only genuine clients connect; the same for the app and other clients ([docs/client-verification.md](docs/client-verification.md)).
 - `security.background`: owners can switch off background updates (notifications, home-screen widgets) and limit them per device;
   clients mark such requests with `X-MCDashboard-Purpose: background`, and `features` lists `background` while they are allowed.
 - `/v1/info` reports `features`, and the protocol and client versioning rules are in [docs/versioning.md](docs/versioning.md).
   `ClientPolicy.BUILT_IN_MIN_CLIENT` lets a release require a newer app.
+- Spigot: the plugin registers its own PlaceholderAPI expansion `%mcdashboard_...%` (paired and online devices, licence state, API
+  requests, rate limited requests, live clients, history samples and storage, placeholders, dashboards, uptime, version), fed by the
+  new thread safe `PluginStats` in core (memory reads only, never blocks the main thread). The shipped `placeholders.yml` lists them in
+  the `MCDashboard` group, offered to the app only with `stats.offer-to-app: true` (default `false`). See
+  [docs/placeholders-api.md](docs/placeholders-api.md).
 
 ### Fixed
 - The previous refresh token works for 30 seconds after a rotation, so a response lost on the way no longer unpairs the device.

@@ -10,6 +10,7 @@ import org.mcdashboard.config.YamlCodec;
 import org.mcdashboard.dashboard.DashboardStore;
 import org.mcdashboard.platform.Log;
 import org.mcdashboard.platform.Platform;
+import org.mcdashboard.stats.PluginStats;
 import org.mcdashboard.tunnel.TunnelClient;
 
 import java.io.IOException;
@@ -28,13 +29,14 @@ public final class MCDashboardCore {
     private Settings settings;
     private Services services;
     private volatile boolean developerMode;
+    private final PluginStats stats = new PluginStats(java.time.Clock.systemUTC());
 
     /** {@code dataDir} is {@code plugins/MCDashboard/}: the configuration, the signing key, the dashboards and the history live there. */
     public MCDashboardCore(Platform platform, YamlCodec yaml, Path dataDir) {
         this.platform = platform;
         this.log = platform.log();
         this.yaml = yaml;
-        this.files = new DataFolder(dataDir, yaml, platform.defaultsFolder(), log::warning);
+        this.files = new DataFolder(dataDir, yaml, platform.defaultsFolder(), platform.defaultDashboards(), log::warning);
     }
 
     /** Writes the missing default files, reads the configuration and starts the services when {@code server.enabled} is on. */
@@ -47,17 +49,23 @@ public final class MCDashboardCore {
         }
         settings = Settings.load(files.config(), log::warning);
         developerMode = files.developerMode(settings.developerMode());
+        stats.version(platform.pluginVersion()).licensed(settings.licenseId() != null);
         if (!settings.enabled()) {
             log.warning("The web server is disabled. Set server.enabled to true in config.yml and restart.");
             return;
         }
         DashboardStore dashboards = new DashboardStore(files.resolve("dashboards"), yaml, log::warning);
-        services = new Services(platform, settings, files, dashboards, this::developerMode);
+        services = new Services(platform, settings, files, dashboards, this::developerMode, stats);
         services.start();
     }
 
     public void stop() {
         if (services != null) services.stop();
+    }
+
+    /** The plugin's own counters, for the platform's {@code %mcdashboard_*%} placeholders. Never null; reads memory only. */
+    public PluginStats stats() {
+        return stats;
     }
 
     /** The version of the plugin, as the platform reports it. */

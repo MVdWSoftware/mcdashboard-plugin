@@ -8,6 +8,6 @@ build:
   image: maven:3-eclipse-temurin-21
   script:
     - mvn -B verify
-    - for jar in spigot/target/MCDashboard.jar nukkit/target/MCDashboard-Nukkit.jar; do jar tf "$jar" | grep -vE '^(org/mcdashboard/|META-INF/|dashboards/|lang/|nukkit/|[a-z]+\.yml|org/$|dashboards/$|lang/$|nukkit/$)' && exit 1 || true; done  # nothing shaded
+    - for jar in spigot/target/MCDashboard.jar nukkit/target/MCDashboard-Nukkit.jar velocity/target/MCDashboard-Velocity.jar bungee/target/MCDashboard-Bungee.jar; do jar tf "$jar" | grep -vE '^(org/mcdashboard/|META-INF/|dashboards/|lang/|nukkit/|proxy/|[a-z-]+\.(yml|json)|org/$|dashboards/$|lang/$|nukkit/$|proxy/$)' && exit 1 || true; done  # nothing shaded (Velocity's SnakeYAML is relocated under org/mcdashboard/libs/)
   artifacts:
-    paths: [spigot/target/MCDashboard.jar, nukkit/target/MCDashboard-Nukkit.jar]
+    paths: [spigot/target/MCDashboard.jar, nukkit/target/MCDashboard-Nukkit.jar, velocity/target/MCDashboard-Velocity.jar, bungee/target/MCDashboard-Bungee.jar]

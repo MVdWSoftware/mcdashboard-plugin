@@ -29,14 +29,22 @@ Only placeholders you list in `placeholders.yml` are ever resolved, and nothing 
 [PlaceholderAPI for PowerNukkitX](https://powernukkitx.org/plugins/PowerNukkitX-Bundle.PlaceholderAPI). Install both jars,
 then follow the steps above. Differences: [docs/bedrock.md](docs/bedrock.md).
 
+## Network (Velocity / BungeeCord)
+
+`MCDashboard-Velocity.jar` and `MCDashboard-Bungee.jar` put one dashboard on the whole network. Proxies have no
+PlaceholderAPI, so they publish built-in network placeholders (players online, per server online and up/down, uptime, version, the
+paired player's ping) and can optionally read the values of backend servers that run MCDashboard. Details and limits:
+[docs/proxy-platforms.md](docs/proxy-platforms.md).
+
 ## Build
 
 ```sh
-mvn -B verify    # spigot/target/MCDashboard.jar, nukkit/target/MCDashboard-Nukkit.jar
+mvn -B verify    # spigot/target/MCDashboard.jar, nukkit/target/MCDashboard-Nukkit.jar,
+                 # velocity/target/MCDashboard-Velocity.jar, bungee/target/MCDashboard-Bungee.jar
 ```
 
 `core/` holds everything that does not depend on a server platform (the API, authentication, history, tunnel and
-dashboards; JDK only). `spigot/` and `nukkit/` are the Spigot/Paper and PowerNukkitX plugins around it; each shades `core/` into its jar.
+dashboards; JDK only). `spigot/` and `nukkit/` are the Spigot/Paper and PowerNukkitX plugins around it; `velocity/` and `bungee/` are the proxy plugins, sharing `proxy-common/`. Each shades `core/` into its jar.
 
 ## Documentation
 

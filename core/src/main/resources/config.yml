@@ -134,6 +134,11 @@ events:
 developer:
   enabled: false
 
+# The %mcdashboard_*% counters (devices, requests, ...) always exist in PlaceholderAPI. true also offers the "MCDashboard"
+# group of placeholders.yml to every paired app as PUBLIC placeholders (counts only, no player data).
+stats:
+  offer-to-app: false
+
 # Public licence id from the MVdW portal; only valid for the address registered there.
 license:
   id: ""

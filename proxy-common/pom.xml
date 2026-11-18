@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright (c) 2026 MVdW-Software, SPDX-License-Identifier: AGPL-3.0-or-later -->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.mcdashboard</groupId>
+    <artifactId>MCDashboard-parent</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>MCDashboard-proxy-common</artifactId>
+  <name>MCDashboard proxy common</name>
+  <description>What the Velocity and BungeeCord plugins share: built-in network placeholders, optional federation of backend servers, proxy permissions and commands. No proxy API.</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.mcdashboard</groupId>
+      <artifactId>MCDashboard-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <!-- The YAML library is the proxy's (BungeeCord) or shaded and relocated (Velocity). -->
+    <dependency>
+      <groupId>org.yaml</groupId>
+      <artifactId>snakeyaml</artifactId>
+      <version>2.2</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>5.11.4</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+</project>

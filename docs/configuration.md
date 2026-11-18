@@ -84,3 +84,19 @@ this setting ([dashboards.md](dashboards.md#developer-mode-build-a-dashboard-in-
 address. Apps ask the portal whether the id is valid for the address they connected to; if so, players get every
 widget on this server and it does not count toward their free server limit. The id is public
 and only works for the registered address.
+
+## `stats`
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `stats.offer-to-app` | `false` | Offers the `MCDashboard` group of `placeholders.yml` (the entries whose value is a `%mcdashboard_...%` placeholder) to the app. They are PUBLIC, so any paired client (anyone, with `security.require-authentication: false`) can read these counts and their charts. Off, the entries are ignored. The `%mcdashboard_...%` placeholders themselves are always registered in PlaceholderAPI. See [placeholders-api.md](placeholders-api.md). |
+
+## `network` (Velocity and BungeeCord only)
+
+Written to a new `config.yml` by the proxy plugins; see [proxy-platforms.md](proxy-platforms.md).
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `network.ping-interval` | `15` | Seconds between the up/down checks of the backend servers (5 to 3600). |
+| `network.federation-interval` | `15` | Seconds between reads of the backend servers (5 to 3600). |
+| `network.backends` | `[]` | Backend servers running MCDashboard: `name`, `url`, optional `key` and `pin`. Empty = federation off. |

@@ -48,6 +48,9 @@
     <module>core</module>
     <module>spigot</module>
     <module>nukkit</module>
+    <module>proxy-common</module>
+    <module>velocity</module>
+    <module>bungee</module>
   </modules>
 
   <build>

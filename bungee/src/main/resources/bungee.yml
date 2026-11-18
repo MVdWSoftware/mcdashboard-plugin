@@ -1,0 +1,7 @@
+# Copyright (c) 2026 MVdW-Software
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: MCDashboard
+main: org.mcdashboard.bungee.MCDashboardBungee
+version: ${project.version}
+author: MVdW-Software
+description: One MinecraftDashboard for the whole network: built-in network placeholders for the mobile app.

@@ -2,6 +2,7 @@
 
 - [Installation](installation.md)
 - [Bedrock servers (PowerNukkitX)](bedrock.md)
+- [Networks: Velocity and BungeeCord](proxy-platforms.md)
 - [Configuration reference](configuration.md)
 - [Security model](security.md)
 - [Reverse proxy, TLS and caching](reverse-proxy.md)

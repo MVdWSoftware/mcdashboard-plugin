@@ -25,6 +25,14 @@ public interface Platform {
         return "";
     }
 
+    /**
+     * The preset dashboards written on the very first start (file names without {@code .yml}, read from the
+     * {@linkplain #defaultsFolder() defaults folder} first). Keep at most 2 so a free install is not over the app's limit.
+     */
+    default java.util.List<String> defaultDashboards() {
+        return java.util.List.of("player", "server");
+    }
+
     /** Whether the placeholder engine can list what it offers; without that, {@code catalog:} entries cannot be expanded. */
     default boolean supportsCatalog() {
         return true;

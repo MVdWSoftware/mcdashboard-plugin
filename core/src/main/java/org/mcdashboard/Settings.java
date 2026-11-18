@@ -30,7 +30,7 @@ record Settings(boolean enabled, String name, String defaultLanguage, String pub
                 boolean tunnelAllowInsecure, String eventsToken, List<WebhookDispatcher.Hook> webhooks,
                 boolean developerMode, String licenseId, org.mcdashboard.tls.TlsSupport.Settings tls,
                 boolean verifyClients, boolean verifyDeviceOnly, List<String> verifyKinds, List<String> verifyHosts,
-                List<Map<String, Object>> verifyKeys, boolean backgroundEnabled, int backgroundRequestsPerMinute) {
+                List<Map<String, Object>> verifyKeys, boolean backgroundEnabled, int backgroundRequestsPerMinute, boolean offerStatsToApp) {
 
     /** Reads the configuration; problems are reported through {@code warn} and replaced by a safe default. */
     static Settings load(ConfigView cfg, Consumer<String> warn) {
@@ -93,7 +93,8 @@ record Settings(boolean enabled, String name, String defaultLanguage, String pub
                 cfg.getStringList("security.client-verification.hosts"),
                 cfg.getMapList("security.client-verification.keys").stream().map(Settings::stringKeys).toList(),
                 cfg.getBoolean("security.background.enabled", true),
-                Math.max(1, cfg.getInt("security.background.requests-per-minute", 30)));
+                Math.max(1, cfg.getInt("security.background.requests-per-minute", 30)),
+                cfg.getBoolean("stats.offer-to-app", false));
     }
 
     @SuppressWarnings("unchecked")

@@ -56,6 +56,7 @@ public final class HttpApi implements HttpHandler {
     private boolean tls;
     private ClientAssertions assertions;
     private boolean background = true;
+    private org.mcdashboard.stats.PluginStats stats;
 
     /** An API that accepts only the official app's User-Agent, with the default limits. */
     public HttpApi(ApiContext ctx) {
@@ -68,6 +69,16 @@ public final class HttpApi implements HttpHandler {
         this.auth = new AuthRoutes(ctx);
         this.placeholders = new PlaceholderRoutes(ctx);
         this.dashboards = new DashboardRoutes(ctx);
+    }
+
+    /** Counts the requests this API serves and the ones it refuses for exceeding a rate limit. */
+    public HttpApi stats(org.mcdashboard.stats.PluginStats stats) {
+        this.stats = stats;
+        return this;
+    }
+
+    private void limited() {
+        if (stats != null) stats.rateLimited();
     }
 
     /** Starts listening; pass an {@link SSLContext} to serve HTTPS directly. Port 0 picks a free port. */
@@ -129,6 +140,7 @@ public final class HttpApi implements HttpHandler {
     public void handle(HttpExchange ex) throws IOException {
         // A local, not an exchange attribute: the JDK server shares attributes between all exchanges of a context.
         boolean keepOpen = false;
+        if (stats != null) stats.apiRequest();
         try {
             Exchanges.cors(ex);
             String method = ex.getRequestMethod();
@@ -184,6 +196,7 @@ public final class HttpApi implements HttpHandler {
     /** Server-sent device events for a service (the proxy), authenticated by {@code events.token} instead of a device. */
     private boolean eventStream(HttpExchange ex) throws IOException {
         if (!ctx.authLimiter().allow(Exchanges.remote(ex, ctx.trustedProxies()))) {
+            limited();
             error(ex, 429, "too many attempts");
             return false;
         }
@@ -217,6 +230,7 @@ public final class HttpApi implements HttpHandler {
                 : clients.allowAddress(Exchanges.remote(ex, ctx.trustedProxies()));
         if (!allowed) {
             ex.getResponseHeaders().set("Retry-After", "60");
+            limited();
             error(ex, 429, "too many requests");
             return;
         }
@@ -227,6 +241,7 @@ public final class HttpApi implements HttpHandler {
         }
         if (isBackground && !clients.allowBackground(who.isPresent() ? who.get().deviceId() : Exchanges.remote(ex, ctx.trustedProxies()))) {
             ex.getResponseHeaders().set("Retry-After", "60");
+            limited();
             error(ex, 429, "too many background requests");
             return;
         }
