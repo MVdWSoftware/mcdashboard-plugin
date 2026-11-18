@@ -12,6 +12,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
   fingerprint (`pin=`) and `/v1/info` publishes it (`tlsFingerprint`, `websocketTls`).
 
 ### Added
+- `limits.max-dashboards` and `limits.max-tiles` (default `0` = no cap): the owner can cap dashboards per server and tiles per
+  dashboard to protect performance, whatever the app unlock or licence. Published in `GET /v1/info` as `limits`; developer
+  uploads above them are rejected with `422` (`tiles-limit`, `dashboards-limit`). See [docs/configuration.md](docs/configuration.md#limits).
 - Network variant: plugins for Velocity (`velocity/`, `MCDashboard-Velocity.jar`) and BungeeCord/Waterfall (`bungee/`,
   `MCDashboard-Bungee.jar`) around a shared `proxy-common/` module. Built-in network placeholders replace PlaceholderAPI
   (`proxy_online`, `proxy_max`, `proxy_server_<name>_online`/`_up`, `proxy_uptime`, `proxy_version`, and for the paired player
@@ -50,6 +53,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - The API has 16 worker threads and 30 second request/response timeouts; rate limiters no longer grow without bound.
 
 ### Changed
+- The product is called MCDashboard everywhere users see it (docs, command output, plugin descriptions); technical ids are unchanged.
+- Client verification docs speak of server-side clients in general instead of naming a specific one.
+- The App unlock now also lifts the app's dashboard and tile limits (history stays 24 h unless the server is licensed).
 - Relicensed from the MIT licence to the GNU AGPL v3 licence ([LICENSE](LICENSE)).
 - The project is a Maven multi-module build: `core/` (the API, authentication, history, tunnel and dashboards, JDK only,
   no server platform) and `spigot/` (the Bukkit plugin, which shades `core/`). The jar is now

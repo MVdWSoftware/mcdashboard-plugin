@@ -19,7 +19,7 @@ import org.mcdashboard.platform.Log;
 import org.mcdashboard.proxy.ProxyRuntime;
 import org.mcdashboard.proxy.ProxyYaml;
 
-/** The network dashboard for the MinecraftDashboard app, on BungeeCord (and Waterfall). */
+/** The network dashboard for the MCDashboard app, on BungeeCord (and Waterfall). */
 public final class MCDashboardBungee extends Plugin implements Listener {
     private ProxyRuntime runtime;
 

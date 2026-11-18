@@ -96,7 +96,7 @@ public final class DashboardCommands {
         String code = core.otps().create(targetUuid, targetName);
         boolean self = targetUuid.equals(sender.playerUuid());
         sender.send((self ? "Your pairing code is " : "The pairing code for " + targetName + " is ") + OtpService.display(code)
-                + ". Enter it in the MinecraftDashboard app.");
+                + ". Enter it in the MCDashboard app.");
         String link = connectLink(code);
         if (link != null) sender.send("Or open: " + link);
         return code;

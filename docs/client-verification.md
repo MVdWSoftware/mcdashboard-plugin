@@ -10,7 +10,7 @@ client is:
 1. A client proves itself to the service. The proof depends on the kind of client:
    - an Android or iOS app: the platform's own attestation (Play Integrity, App Attest), which says that this is an unmodified build
      signed by MVdW, on a genuine device. Level `device`.
-   - a server-side client such as a WordPress plugin: a secret that the site registered with MVdW. Level `registered`. This proves who
+   - a server-side client (a website or another service): a secret that the site registered with MVdW. Level `registered`. This proves who
      registered, not that the code is unmodified; for code that runs on a machine its operator controls that is all a secret can prove.
 2. The service answers with a **client assertion**: an ES256 token that names the kind of client, its version and the host of your
    server, and lives for one hour.
@@ -19,12 +19,12 @@ client is:
    the service, and the service never sees your players.
 
 A modified app cannot get an assertion, because the platform no longer vouches for it, so it cannot talk to a server that requires
-one. Because the token format is the same for every client, a WordPress plugin or any future client is protected by the same rule
+one. Because the token format is the same for every client, any other client is protected by the same rule
 without new code in the plugin.
 
 ### Assertions for one licensed server (`lid`)
 
-The service issues assertions to server-side clients (a WordPress site, ...) only for hosts of licensed servers, and then adds a `lid`
+The service issues assertions to server-side clients (a website or another service) only for hosts of licensed servers, and then adds a `lid`
 claim: the licence id of that server. With `mode: required` the plugin accepts an assertion that carries `lid` only when it equals this
 server's own `license.id`; a server without `license.id` accepts none of them. Assertions without `lid`, such as those issued to the
 official app, stay valid as before. The comparison is offline, nothing is sent anywhere. It stops a client that is vouched for on one

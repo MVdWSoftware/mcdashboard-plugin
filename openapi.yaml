@@ -119,6 +119,19 @@ paths:
         '400': { description: Invalid dashboard (unknown placeholder or widget, no items, a value out of range) }
         '401': { description: Not paired }
         '403': { description: Developer mode is off, or the caller lacks mcdashboard.developer }
+        '422':
+          description: >-
+            The dashboard is valid but above a cap the server owner set (`limits.max-tiles`: more tiles than allowed;
+            `limits.max-dashboards`: a new dashboard would exceed the number of dashboards; replacing the caller's own is
+            always allowed). Buying the app or a licence does not lift it.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error, code]
+                properties:
+                  error: { type: string }
+                  code: { type: string, enum: [tiles-limit, dashboards-limit] }
   /dashboards/{id}:
     get:
       summary: One preset, filtered to the placeholders the caller may read
@@ -264,6 +277,15 @@ components:
         gamePort: { type: integer }
         licenseId: { type: string, description: public id of the server's premium subscription }
         minClientVersion: { type: string, pattern: '^\d+\.\d+\.\d+$', description: 'oldest app version the server accepts; older apps get 426' }
+        limits:
+          type: object
+          description: >-
+            Caps the owner set (`limits.max-dashboards`, `limits.max-tiles`) to protect the server's performance. Absent, or a
+            member absent or 0, means no cap. A cap applies whatever the app unlock or licence, so clients show at most
+            min(their own limit, the cap) and must not offer a purchase to lift it. Absent on older plugins.
+          properties:
+            maxDashboards: { type: integer, minimum: 1, description: 'dashboards (presets) the app shows for this server' }
+            maxTiles: { type: integer, minimum: 1, description: 'tiles the app shows on one dashboard' }
     AuthRequest:
       type: object
       required: [otp]

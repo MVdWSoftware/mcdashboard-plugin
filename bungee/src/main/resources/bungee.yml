@@ -4,4 +4,4 @@ name: MCDashboard
 main: org.mcdashboard.bungee.MCDashboardBungee
 version: ${project.version}
 author: MVdW-Software
-description: "One MinecraftDashboard for the whole network, with built-in network placeholders for the mobile app."
+description: "One MCDashboard for the whole network, with built-in network placeholders for the mobile app."

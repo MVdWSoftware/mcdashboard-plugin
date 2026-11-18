@@ -4,7 +4,7 @@ name: MCDashboard
 main: org.mcdashboard.MCDashboard
 version: ${project.version}
 author: MVdW-Software
-description: Exposes PlaceholderAPI placeholders to the MinecraftDashboard mobile app.
+description: Exposes PlaceholderAPI placeholders to the MCDashboard mobile app.
 api-version: "1.18"
 website: https://mcdashboard.org
 load: POSTWORLD
@@ -13,7 +13,7 @@ softdepend:
 
 commands:
   mcdashboard:
-    description: Link devices to the MinecraftDashboard app
+    description: Link devices to the MCDashboard app
     aliases: [dashboard]
     usage: /<command> <link|qr|devices|revoke|developer|tunnel|about>
 

@@ -115,7 +115,7 @@ final class NukkitPlatform implements Platform {
     @Override
     public void notifyLinked(DeviceStore.Device device) {
         runSync(() -> plugin.getServer().getPlayer(UUID.fromString(device.playerUuid())).ifPresent(p -> {
-            p.sendMessage("§aA device (§f" + device.label() + "§a) was linked to your account for MinecraftDashboard.");
+            p.sendMessage("§aA device (§f" + device.label() + "§a) was linked to your account for MCDashboard.");
             p.sendMessage("§7Not you? Run §f/mcdashboard revoke " + device.id() + "§7 to remove it.");
         }));
     }

@@ -30,7 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Verifies client assertions: short-lived ES256 tokens that the MVdW attestation service issues to a client after it
- * proved what it is (an unmodified app on a genuine device, a registered WordPress site, ...). The plugin checks them
+ * proved what it is (an unmodified app on a genuine device, a registered server-side client, ...). The plugin checks them
  * offline with the service's public keys, so one rule covers every kind of client and nothing is sent to the service.
  *
  * <p>What this proves is that the service vouched for this client for this server within the last hour; it does not make

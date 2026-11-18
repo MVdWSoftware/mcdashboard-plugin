@@ -102,7 +102,7 @@ public final class DashboardStore {
         }
         document.put("items", items);
         String safeUploader = uploader == null ? null : uploader.replaceAll("[^A-Za-z0-9-]", "");
-        String header = (safeUploader == null ? "# Saved by the MCDashboard plugin." : "# Uploaded from the MinecraftDashboard app by " + safeUploader + ".")
+        String header = (safeUploader == null ? "# Saved by the MCDashboard plugin." : "# Uploaded from the MCDashboard app by " + safeUploader + ".")
                 + "\n# Permission: " + dashboard.permission() + " (derived from this file name).\n";
         Path target = directory.resolve(dashboard.id() + ".yml");
         Path temporary = directory.resolve(dashboard.id() + ".yml.tmp");

@@ -65,6 +65,15 @@ public final class TestContexts {
                 c.discoveryOnly(), c.polling(), stats);
     }
 
+    /** The same context with the owner's caps ({@code limits.max-dashboards}, {@code limits.max-tiles}). */
+    public static ApiContext withLimits(ApiContext c, int maxDashboards, int maxTiles) {
+        return new ApiContext(c.serverName(), c.pluginVersion(), c.status(), c.requireAuthentication(), c.maxDevices(),
+                c.accessTokenSeconds(), c.refreshTokenSeconds(), c.websocketPort(), c.placeholders(), c.tokens(), c.devices(),
+                c.otps(), c.authLimiter(), c.dashboards(), c.trustedProxies(), c.history(), c.licenseId(), c.onLinked(),
+                c.permissions(), c.defaultLanguage(), c.developerMode(), c.onDashboardsChanged(), c.endpoints(),
+                c.discoveryOnly(), c.polling(), c.stats(), maxDashboards, maxTiles);
+    }
+
     /** A permission cache in which everybody holds every node. */
     public static PermissionCache allowAll() {
         return new PermissionCache() {

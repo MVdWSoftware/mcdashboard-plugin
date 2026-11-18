@@ -97,6 +97,17 @@ final class DashboardRoutes {
         Dashboard draft = DashboardUpload.parse(body(ex), ctx.placeholders());
         String clean = player.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
         String id = "dev-" + (clean + "000000000000").substring(0, 12);
+        int maxTiles = ctx.maxTiles();
+        if (maxTiles > 0 && draft.items().size() > maxTiles) {
+            limit(ex, "tiles-limit", "this server allows at most " + maxTiles + " tiles per dashboard");
+            return;
+        }
+        int maxDashboards = ctx.maxDashboards();
+        if (maxDashboards > 0 && ctx.dashboards().all().stream().noneMatch(d -> d.id().equals(id))
+                && ctx.dashboards().all().size() >= maxDashboards) {
+            limit(ex, "dashboards-limit", "this server allows at most " + maxDashboards + " dashboards");
+            return;
+        }
         Dashboard saved = new Dashboard(id, draft.name(), draft.description(), 900, draft.background(), draft.backgroundImage(), draft.items());
         try {
             ctx.dashboards().save(saved, player);
@@ -107,6 +118,11 @@ final class DashboardRoutes {
         ctx.onDashboardsChanged().run();
         ex.getResponseHeaders().set("Cache-Control", "no-store");
         respond(ex, 200, saved.toJson(languages(ex), ctx.defaultLanguage()));
+    }
+
+    /** 422: the upload is valid but above a cap the server owner set ({@code limits.*}); the app must not offer a purchase. */
+    private static void limit(HttpExchange ex, String code, String message) throws IOException {
+        respond(ex, 422, Map.of("error", message, "code", code));
     }
 
     /**

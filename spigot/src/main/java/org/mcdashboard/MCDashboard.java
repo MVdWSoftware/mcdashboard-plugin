@@ -14,7 +14,7 @@ import org.mcdashboard.placeholder.McDashboardExpansion;
 import org.mcdashboard.qr.QrMapGuard;
 import org.mcdashboard.tunnel.TunnelClient;
 
-/** Publishes an allowlist of PlaceholderAPI placeholders to the MinecraftDashboard app over REST and a live feed. */
+/** Publishes an allowlist of PlaceholderAPI placeholders to the MCDashboard app over REST and a live feed. */
 public final class MCDashboard extends JavaPlugin {
     private MCDashboardCore core;
     private McDashboardExpansion expansion;

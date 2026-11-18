@@ -129,7 +129,8 @@ final class Services {
                     new RateLimiter(clock, settings.authAttemptsPerMinute(), 60_000), dashboards,
                     settings.trustedProxies(), history, settings.licenseId(), platform::notifyLinked, permissions.cache(),
                     settings.defaultLanguage(), developerMode, permissions::dashboardsChanged,
-                    settings.endpoints(), settings.discoveryOnly(), settings.polling(), stats);
+                    settings.endpoints(), settings.discoveryOnly(), settings.polling(), stats,
+                    settings.maxDashboards(), settings.maxTiles());
             ClientPolicy clients = ClientPolicy.of(clock, settings.allowedClients(), settings.minClientVersion(),
                     settings.requestsPerMinute(), settings.anonymousRequestsPerMinute(), log::warning);
             // Slow or idle connections must not hold the API's worker threads: the JDK server has no timeouts unless told.

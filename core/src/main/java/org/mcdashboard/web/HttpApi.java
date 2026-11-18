@@ -312,6 +312,12 @@ public final class HttpApi implements HttpHandler {
         if (tlsFingerprint != null) o.put("tlsFingerprint", tlsFingerprint);
         if (ctx.licenseId() != null) o.put("licenseId", ctx.licenseId());
         if (clients.minVersion() != null) o.put("minClientVersion", clients.minVersion());
+        if (ctx.maxDashboards() > 0 || ctx.maxTiles() > 0) {
+            Map<String, Object> limits = new LinkedHashMap<>();
+            if (ctx.maxDashboards() > 0) limits.put("maxDashboards", ctx.maxDashboards());
+            if (ctx.maxTiles() > 0) limits.put("maxTiles", ctx.maxTiles());
+            o.put("limits", limits);
+        }
         return o;
     }
 }

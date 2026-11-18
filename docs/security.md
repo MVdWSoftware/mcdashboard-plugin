@@ -81,7 +81,7 @@ allow, refuse or limit anything, and the live feed (a browser WebSocket cannot s
 
 The `User-Agent` is not proof. With `security.client-verification.mode: required` a client must show a short-lived assertion issued by
 the MVdW attestation service, which the plugin verifies offline; a modified app cannot get one. It works the same for the app and for
-other clients such as a WordPress plugin. An assertion that names a licensed server (`lid` claim) is accepted only by the server whose `license.id` matches. What it proves and what it does not: [client-verification.md](client-verification.md).
+other server-side clients. An assertion that names a licensed server (`lid` claim) is accepted only by the server whose `license.id` matches. What it proves and what it does not: [client-verification.md](client-verification.md).
 
 ## Availability
 

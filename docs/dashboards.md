@@ -79,6 +79,11 @@ else, grant that derived permission, or rename the file and grant the new one (f
 `mcdashboard.dashboard.admin`). Turning developer mode off stops new uploads; the dashboard stays available to the
 players who hold its permission.
 
+Caps: with `limits.max-tiles` or `limits.max-dashboards` set ([configuration.md](configuration.md#limits)) an upload with more
+tiles than allowed, or one that would add a dashboard above the cap, is rejected with `422` and the code `tiles-limit` or
+`dashboards-limit`; replacing the developer's own dashboard never adds one. The same caps also limit what the app shows of your
+preset dashboards, whatever licence or App unlock a player has.
+
 ## Languages
 
 The app is available in English, Dutch, French, German and Spanish and sends its UI language to the plugin as

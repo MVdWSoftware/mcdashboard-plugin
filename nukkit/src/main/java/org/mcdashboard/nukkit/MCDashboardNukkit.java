@@ -13,7 +13,7 @@ import org.powernukkitx.plugin.PluginBase;
 
 import java.util.Locale;
 
-/** Publishes an allowlist of PlaceholderAPI placeholders to the MinecraftDashboard app, on PowerNukkitX. */
+/** Publishes an allowlist of PlaceholderAPI placeholders to the MCDashboard app, on PowerNukkitX. */
 public final class MCDashboardNukkit extends PluginBase {
     private MCDashboardCore core;
     private DashboardCommands commands;

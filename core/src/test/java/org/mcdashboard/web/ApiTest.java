@@ -443,6 +443,45 @@ class ApiTest {
         assertEquals(400, get("/v1/placeholders?ids=" + String.join(",", Collections.nCopies(101, "p1"))).statusCode());
     }
 
+    private int capDashboards;
+    private int capTiles;
+
+    @Test
+    void infoPublishesTheOwnersCapsOnlyWhenSet() throws Exception {
+        var none = Json.parseObject(get("/v1/info").body());
+        assertFalse(none.containsKey("limits"), "no cap: nothing is published");
+        capDashboards = 3;
+        developerServer(new PermissionCache(), new AtomicBoolean(true));
+        assertEquals(Map.of("maxDashboards", 3L), normalise(Json.parseObject(get("/v1/info").body()).get("limits")));
+        capTiles = 5;
+        developerServer(new PermissionCache(), new AtomicBoolean(true));
+        assertEquals(Map.of("maxDashboards", 3L, "maxTiles", 5L), normalise(Json.parseObject(get("/v1/info").body()).get("limits")));
+    }
+
+    @Test
+    void uploadAboveTheOwnersCapsIsRejected() throws Exception {
+        PermissionCache perms = new PermissionCache();
+        String devUuid = "00000000-0000-0000-0000-000000000010";
+        String otherUuid = "11111111-0000-0000-0000-000000000011";
+        perms.update(UUID.fromString(devUuid), Set.of("mcdashboard.developer"));
+        perms.update(UUID.fromString(otherUuid), Set.of("mcdashboard.developer"));
+        capTiles = 1;
+        capDashboards = 1;
+        developerServer(perms, new AtomicBoolean(true));
+        String dev = pair(devUuid, "Dev");
+        String other = pair(otherUuid, "Other");
+        String tile = "{\"placeholder\":\"tps\",\"widget\":\"text\"}";
+        var tooMany = post("/v1/dashboards", "{\"name\":\"x\",\"items\":[" + tile + "," + tile + "]}", dev);
+        assertEquals(422, tooMany.statusCode());
+        assertEquals("tiles-limit", Json.parseObject(tooMany.body()).get("code"));
+        assertEquals(200, post("/v1/dashboards", "{\"name\":\"x\",\"items\":[" + tile + "]}", dev).statusCode());
+        assertEquals(200, post("/v1/dashboards", "{\"name\":\"y\",\"items\":[" + tile + "]}", dev).statusCode(),
+                "replacing the caller's own dashboard never adds one");
+        var second = post("/v1/dashboards", "{\"name\":\"z\",\"items\":[" + tile + "]}", other);
+        assertEquals(422, second.statusCode());
+        assertEquals("dashboards-limit", Json.parseObject(second.body()).get("code"));
+    }
+
     /** Starts a server whose dashboards are written to {@code temp} and whose developer mode is {@code mode}. */
     private DashboardStore developerServer(PermissionCache perms, AtomicBoolean mode) throws Exception {
         api.stop();
@@ -455,6 +494,7 @@ class ApiTest {
                 new PlaceholderService((t, u) -> "7", clock, 0, defs), new TokenService(new byte[48], clock),
                 new DeviceStore(Files.createTempFile("devices", ".json")), otps, new RateLimiter(clock, 100, 60000),
                 store, Set.of(), new HistoryService(clock, defs), null, d -> {}, perms, "en", mode::get, () -> {});
+        ctx = TestContexts.withLimits(ctx, capDashboards, capTiles);
         api = new HttpApi(ctx);
         api.start("127.0.0.1", 0, null);
         base = "http://127.0.0.1:" + api.port();

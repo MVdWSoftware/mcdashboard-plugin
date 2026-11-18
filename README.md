@@ -6,7 +6,7 @@
 
 A Spigot/Paper plugin that publishes an allowlist of [PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.6245/)
 values over HTTPS with a live feed, so the
-MinecraftDashboard mobile app can show live server stats.
+MCDashboard mobile app can show live server stats.
 Only placeholders you list in `placeholders.yml` are ever resolved, and nothing is exposed until you turn it on.
 
 - Java 17, Spigot or Paper 1.18+, PlaceholderAPI on the server (Bedrock: see below). No other runtime dependencies: the HTTP server,
@@ -54,7 +54,7 @@ report vulnerabilities as described in [SECURITY.md](SECURITY.md).
 
 ## Terms and privacy
 
-The plugin's source code is licensed under the GNU AGPL v3 ([LICENSE](LICENSE)). Using the MinecraftDashboard app and the MCDashboard
+The plugin's source code is licensed under the GNU AGPL v3 ([LICENSE](LICENSE)). Using the MCDashboard app and the MCDashboard
 licence service is governed by the [terms of service](https://mcdashboard.org/en/terms-of-service/) and the
 [privacy statement](https://mcdashboard.org/en/privacy-statement/).
 

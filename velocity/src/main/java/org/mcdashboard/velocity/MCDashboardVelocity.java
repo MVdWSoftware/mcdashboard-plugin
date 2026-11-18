@@ -26,7 +26,7 @@ import org.slf4j.Logger;
 import java.nio.file.Path;
 import java.util.List;
 
-/** The network dashboard for the MinecraftDashboard app, on Velocity. The descriptor is {@code velocity-plugin.json}. */
+/** The network dashboard for the MCDashboard app, on Velocity. The descriptor is {@code velocity-plugin.json}. */
 @Plugin(id = "mcdashboard", name = "MCDashboard", authors = "MVdW-Software")
 public final class MCDashboardVelocity {
     private final ProxyServer proxy;

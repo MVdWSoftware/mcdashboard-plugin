@@ -147,7 +147,7 @@ public final class ProxyPlatform implements Platform, AutoCloseable {
     @Override
     public void notifyLinked(DeviceStore.Device device) {
         adapter.message(UUID.fromString(device.playerUuid()), "§aA device (§f" + device.label()
-                + "§a) was linked to your account for MinecraftDashboard.\n§7Not you? Run §f/mcdashboard revoke " + device.id() + "§7 to remove it.");
+                + "§a) was linked to your account for MCDashboard.\n§7Not you? Run §f/mcdashboard revoke " + device.id() + "§7 to remove it.");
     }
 
     @Override

@@ -9,7 +9,7 @@
   <packaging>pom</packaging>
   <version>1.0.0-SNAPSHOT</version>
   <name>MCDashboard (parent)</name>
-  <description>Publishes placeholder values as SenML over REST and a live feed for the MinecraftDashboard app.</description>
+  <description>Publishes placeholder values as SenML over REST and a live feed for the MCDashboard app.</description>
   <url>https://mcdashboard.org</url>
   <inceptionYear>2026</inceptionYear>
 

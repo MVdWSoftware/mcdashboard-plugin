@@ -63,14 +63,14 @@ security:
     enabled: true
     # Per paired device, for requests that declare themselves background updates (on top of requests-per-minute).
     requests-per-minute: 30
-  # Prove that a client is genuine: the app, or another client such as a WordPress plugin, shows a short-lived assertion that
+  # Prove that a client is genuine: the app, or another server-side client, shows a short-lived assertion that
   # the MVdW attestation service issued for this server (docs/client-verification.md). The User-Agent below is not proof.
   client-verification:
     # off, or required (every request except GET /v1/info needs a valid assertion).
     mode: off
-    # registered: platform-attested apps and registered clients (e.g. a WordPress site). device: platform-attested apps only.
+    # registered: platform-attested apps and registered server-side clients. device: platform-attested apps only.
     min-level: registered
-    # Accepted kinds (android, ios, wordpress, ...); empty = all.
+    # Accepted kinds (android, ios, ...); empty = all.
     kinds: []
     # Host names the assertion may be for; empty = the host the client connected to (the Host header).
     hosts: []
@@ -129,6 +129,13 @@ events:
   # - url: "https://proxy.example.com:9191/hooks/mcdashboard"
   #   secret: "at-least-16-random-characters"
   webhooks: []
+
+# Caps that protect this server's performance. 0 = no cap (default). They apply to every app, also one with the App unlock or
+# a licence, and are published in /v1/info so the app shows at most this many (and says the server limits it). Developer
+# uploads above them are rejected. A negative or invalid value counts as 0.
+limits:
+  max-dashboards: 0   # dashboards (presets) per server
+  max-tiles: 0        # tiles per dashboard
 
 # /mcdashboard developer on|off overrides this at runtime.
 developer:

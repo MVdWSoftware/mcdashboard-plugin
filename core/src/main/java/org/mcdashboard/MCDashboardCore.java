@@ -36,7 +36,7 @@ public final class MCDashboardCore {
         this.platform = platform;
         this.log = platform.log();
         this.yaml = yaml;
-        this.files = new DataFolder(dataDir, yaml, platform.defaultsFolder(), platform.defaultDashboards(), log::warning);
+        this.files = new DataFolder(dataDir, yaml, platform.defaultsFolder(), platform.defaultDashboards(), log);
     }
 
     /** Writes the missing default files, reads the configuration and starts the services when {@code server.enabled} is on. */

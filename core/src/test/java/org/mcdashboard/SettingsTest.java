@@ -64,4 +64,23 @@ class SettingsTest {
         assertEquals(1, warnings.size(), warnings.toString());
         assertTrue(warnings.get(0).startsWith("security.min-interval-permissions:"), warnings.get(0));
     }
+
+    @Test
+    void serverCapsDefaultToNoneAndRejectNegativesAndGarbage() {
+        List<String> warnings = new ArrayList<>();
+        Settings none = Settings.load(ConfigView.of(Map.of()), warnings::add);
+        assertEquals(0, none.maxDashboards());
+        assertEquals(0, none.maxTiles());
+        assertTrue(warnings.isEmpty());
+
+        Settings set = Settings.load(ConfigView.of(Map.of("limits", Map.of("max-dashboards", 4, "max-tiles", "20"))), warnings::add);
+        assertEquals(4, set.maxDashboards());
+        assertEquals(20, set.maxTiles());
+        assertTrue(warnings.isEmpty());
+
+        Settings bad = Settings.load(ConfigView.of(Map.of("limits", Map.of("max-dashboards", -2, "max-tiles", "lots"))), warnings::add);
+        assertEquals(0, bad.maxDashboards());
+        assertEquals(0, bad.maxTiles());
+        assertEquals(2, warnings.size());
+    }
 }

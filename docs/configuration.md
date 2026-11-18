@@ -41,8 +41,8 @@ Every setting of `plugins/MCDashboard/config.yml`, with its default. Restart the
 | `background.enabled` | `true` | Allow requests that declare themselves background updates (notifications, home-screen widgets). `false`: they get `403` and the app hides those features for this server ([client-verification.md](client-verification.md)). |
 | `background.requests-per-minute` | `30` | Background requests per minute from one paired device, on top of `requests-per-minute`. |
 | `client-verification.mode` | `off` | `required`: every request except `GET /v1/info` needs a client assertion from the MVdW attestation service ([client-verification.md](client-verification.md)). |
-| `client-verification.min-level` | `registered` | `device`: only platform-attested apps; `registered` also accepts registered clients such as a WordPress site. |
-| `client-verification.kinds` | `[]` | Accepted client kinds (`android`, `ios`, `wordpress`, ...); empty accepts all. |
+| `client-verification.min-level` | `registered` | `device`: only platform-attested apps; `registered` also accepts registered server-side clients. |
+| `client-verification.kinds` | `[]` | Accepted client kinds (`android`, `ios`, ...); empty accepts all. |
 | `client-verification.hosts` | `[]` | Host names an assertion may be for; empty means the host the client connected to. Set it behind a proxy that rewrites `Host`. |
 | `client-verification.keys` | `[]` | Extra trusted public keys as JWKs (`kty: EC`, `crv: P-256`, `x`, `y`), besides the ones in this release. |
 
@@ -79,6 +79,18 @@ Both are described in [events.md](events.md). With the tunnel, the proxy receive
 `enabled` (default `false`) lets players with `mcdashboard.developer` upload a dashboard from the app.
 `/mcdashboard developer on|off` changes it at runtime and stores the choice in `developer.yml`, which then wins over
 this setting ([dashboards.md](dashboards.md#developer-mode-build-a-dashboard-in-the-app)).
+
+## `limits`
+
+Caps that keep the server fast. They apply to every app, also one with the App unlock or a licence, and `GET /v1/info` publishes
+them as `limits` so the app shows at most that many and tells the player the server limits it (buying cannot lift it).
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `max-dashboards` | `0` | Dashboards (presets) per server the app shows. `0` = no cap. Developer uploads that would add a dashboard above it get `422` (`dashboards-limit`). |
+| `max-tiles` | `0` | Tiles per dashboard the app shows. `0` = no cap. Developer uploads with more tiles get `422` (`tiles-limit`). |
+
+A negative or invalid value counts as `0` and logs a warning.
 
 ## `license`
 

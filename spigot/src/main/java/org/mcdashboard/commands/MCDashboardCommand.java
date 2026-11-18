@@ -86,7 +86,7 @@ public final class MCDashboardCommand implements CommandExecutor, TabCompleter {
             String code = plugin.otps().create(target.getUniqueId().toString(), name);
             boolean self = sender instanceof Player me && me.getUniqueId().equals(target.getUniqueId());
             sender.sendMessage((self ? "Your pairing code is " : "The pairing code for " + name + " is ") + OtpService.display(code)
-                    + ". Enter it in the MinecraftDashboard app.");
+                    + ". Enter it in the MCDashboard app.");
             String link = commands.connectLink(code);
             if (link != null) sender.sendMessage("Or open: " + link);
             if (sender instanceof Player p) {

@@ -30,7 +30,8 @@ record Settings(boolean enabled, String name, String defaultLanguage, String pub
                 boolean tunnelAllowInsecure, String eventsToken, List<WebhookDispatcher.Hook> webhooks,
                 boolean developerMode, String licenseId, org.mcdashboard.tls.TlsSupport.Settings tls,
                 boolean verifyClients, boolean verifyDeviceOnly, List<String> verifyKinds, List<String> verifyHosts,
-                List<Map<String, Object>> verifyKeys, boolean backgroundEnabled, int backgroundRequestsPerMinute, boolean offerStatsToApp) {
+                List<Map<String, Object>> verifyKeys, boolean backgroundEnabled, int backgroundRequestsPerMinute, boolean offerStatsToApp,
+                int maxDashboards, int maxTiles) {
 
     /** Reads the configuration; problems are reported through {@code warn} and replaced by a safe default. */
     static Settings load(ConfigView cfg, Consumer<String> warn) {
@@ -94,7 +95,27 @@ record Settings(boolean enabled, String name, String defaultLanguage, String pub
                 cfg.getMapList("security.client-verification.keys").stream().map(Settings::stringKeys).toList(),
                 cfg.getBoolean("security.background.enabled", true),
                 Math.max(1, cfg.getInt("security.background.requests-per-minute", 30)),
-                cfg.getBoolean("stats.offer-to-app", false));
+                cfg.getBoolean("stats.offer-to-app", false),
+                cap(cfg, "limits.max-dashboards", warn), cap(cfg, "limits.max-tiles", warn));
+    }
+
+    /** {@code limits.max-*}: a whole number of at least 1 caps, 0 (or absent) means no cap; negatives and garbage become 0. */
+    static int cap(ConfigView cfg, String key, Consumer<String> warn) {
+        Object value = cfg.get(key);
+        if (value == null) return 0;
+        int parsed;
+        try {
+            parsed = value instanceof Number n && n.doubleValue() == Math.rint(n.doubleValue()) ? n.intValue()
+                    : Integer.parseInt(value.toString().trim());
+        } catch (NumberFormatException e) {
+            warn.accept(key + " must be a whole number (0 = no cap), got '" + value + "'. No cap is applied.");
+            return 0;
+        }
+        if (parsed < 0) {
+            warn.accept(key + " must not be negative (0 = no cap), got " + parsed + ". No cap is applied.");
+            return 0;
+        }
+        return parsed;
     }
 
     @SuppressWarnings("unchecked")

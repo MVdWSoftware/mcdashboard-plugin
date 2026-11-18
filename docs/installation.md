@@ -13,7 +13,7 @@ On a Velocity or BungeeCord proxy there is no PlaceholderAPI: follow [proxy-plat
    certificate (`server.tls.mode: custom`). Behind a reverse proxy that terminates TLS, set `server.tls.mode: off`
    ([guide](reverse-proxy.md)).
 5. Restart. In game run `/mcdashboard link`, then enter the code and your server address in the
-   MinecraftDashboard app.
+   MCDashboard app.
 
 Every player pairs by default (`security.require-authentication: true`). To let players see PUBLIC placeholders without
 pairing, set it to `false`.

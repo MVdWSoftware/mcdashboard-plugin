@@ -15,6 +15,6 @@
 - [Versioning and compatibility](versioning.md)
 - [API](../openapi.yaml) (OpenAPI 3.1, SenML values)
 
-The plugin is licensed under the GNU AGPL v3; using the MinecraftDashboard app and the licence service is governed by the
+The plugin is licensed under the GNU AGPL v3; using the MCDashboard app and the licence service is governed by the
 [terms of service](https://mcdashboard.org/en/terms-of-service/) and the
 [privacy statement](https://mcdashboard.org/en/privacy-statement/).

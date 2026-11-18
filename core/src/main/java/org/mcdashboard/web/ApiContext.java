@@ -32,7 +32,25 @@ public record ApiContext(String serverName, String pluginVersion, Supplier<Serve
                          Consumer<DeviceStore.Device> onLinked, PermissionCache permissions, String defaultLanguage,
                          BooleanSupplier developerMode, Runnable onDashboardsChanged,
                          List<String> endpoints, boolean discoveryOnly, boolean polling,
-                         org.mcdashboard.stats.PluginStats stats) {
+                         org.mcdashboard.stats.PluginStats stats, int maxDashboards, int maxTiles) {
+    /** Without a server cap on dashboards or tiles. */
+    public ApiContext(String serverName, String pluginVersion, Supplier<ServerStatus> status,
+                      boolean requireAuthentication, int maxDevices,
+                      long accessTokenSeconds, long refreshTokenSeconds, int websocketPort,
+                      PlaceholderService placeholders, TokenService tokens, DeviceStore devices,
+                      OtpService otps, RateLimiter authLimiter, DashboardStore dashboards,
+                      Set<String> trustedProxies, HistoryService history, String licenseId,
+                      Consumer<DeviceStore.Device> onLinked, PermissionCache permissions, String defaultLanguage,
+                      BooleanSupplier developerMode, Runnable onDashboardsChanged,
+                      List<String> endpoints, boolean discoveryOnly, boolean polling,
+                      org.mcdashboard.stats.PluginStats stats) {
+        this(serverName, pluginVersion, status, requireAuthentication, maxDevices, accessTokenSeconds, refreshTokenSeconds,
+                websocketPort, placeholders, tokens, devices, otps, authLimiter, dashboards, trustedProxies, history, licenseId,
+                onLinked, permissions, defaultLanguage, developerMode, onDashboardsChanged, endpoints, discoveryOnly, polling,
+                stats, 0, 0);
+    }
+
+
     /** Counts a refused attempt in the {@code rate_limited} statistic; a no-op without stats (tests). */
     public void rateLimited() {
         if (stats != null) stats.rateLimited();
