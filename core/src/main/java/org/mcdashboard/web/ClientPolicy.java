@@ -25,6 +25,12 @@ public final class ClientPolicy {
     /** The official app: {@code MCDashboard/x.y.z (android|ios|dev)}, the version optionally with a {@code -suffix}. Same as the protocol package. */
     public static final Pattern OFFICIAL = Pattern.compile("MCDashboard/(\\d+\\.\\d+\\.\\d+)(?:-[\\w.]+)? \\((android|ios|dev)\\)");
     private static final int MAX_AGENT = 80;
+    /**
+     * The oldest app this plugin release works with, or null while every app does. Raise it in a release that needs a
+     * newer app (for example one that answers in a format old apps cannot read): the owner's
+     * {@code security.min-client-version} can only raise it further, never lower it.
+     */
+    public static final String BUILT_IN_MIN_CLIENT = null;
 
     /** An identified client. {@code version} and {@code platform} are null for a client the owner allowed explicitly. */
     public record Client(String agent, String version, String platform) {
@@ -35,6 +41,7 @@ public final class ClientPolicy {
     private final String minVersionText;
     private final RateLimiter devices;
     private final RateLimiter addresses;
+    private RateLimiter background;
 
     /**
      * {@code extra} are further allowed clients (matched against the whole header); {@code devices} limits paired
@@ -42,6 +49,7 @@ public final class ClientPolicy {
      */
     public ClientPolicy(List<Pattern> extra, String minVersion, RateLimiter devices, RateLimiter addresses) {
         this.extra = List.copyOf(extra);
+        minVersion = higher(minVersion, BUILT_IN_MIN_CLIENT);
         int[] parsed = minVersion == null || minVersion.isBlank() ? null : parse(minVersion.trim());
         if (minVersion != null && !minVersion.isBlank() && parsed == null) {
             throw new IllegalArgumentException("min-client-version must look like 1.2.3");
@@ -109,6 +117,17 @@ public final class ClientPolicy {
         return minVersionText;
     }
 
+    /** Limits requests that declare themselves background updates (notifications, home-screen widgets) separately and tighter. */
+    public ClientPolicy background(RateLimiter limiter) {
+        this.background = limiter;
+        return this;
+    }
+
+    /** Records a background request of a device or address; false when over the background limit. Always true without a limit. */
+    public boolean allowBackground(String key) {
+        return background == null || background.allow(key);
+    }
+
     /** Records a request of a paired device; false when it is over its limit. */
     public boolean allowDevice(String deviceId) {
         return devices.allow(deviceId);
@@ -117,6 +136,17 @@ public final class ClientPolicy {
     /** Records a request that is not authenticated; false when the address is over its limit. */
     public boolean allowAddress(String address) {
         return addresses.allow(address);
+    }
+
+    /** The newer of two optional {@code x.y.z} versions; an unreadable configured one is left for the caller to report. */
+    static String higher(String configured, String builtIn) {
+        if (builtIn == null) return configured;
+        int[] b = parse(builtIn);
+        if (configured == null || configured.isBlank()) return builtIn;
+        int[] c = parse(configured.trim());
+        if (c == null || b == null) return configured;
+        for (int i = 0; i < 3; i++) if (c[i] != b[i]) return c[i] > b[i] ? configured : builtIn;
+        return configured;
     }
 
     private static int[] parse(String version) {

@@ -5,6 +5,26 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security
+- **Breaking default:** `security.require-authentication` is now `true`; anonymous reading of PUBLIC placeholders is opt-in.
+- **Breaking default:** the API and the live feed serve HTTPS (`server.tls.mode: self-signed`). Behind a reverse proxy that terminates TLS, set
+  `server.tls.mode: off`. Your own certificate: `custom` with PEM files or a keystore. The pairing link carries the certificate's
+  fingerprint (`pin=`) and `/v1/info` publishes it (`tlsFingerprint`, `websocketTls`).
+
+### Added
+- `security.client-verification`: require a client assertion from the MVdW attestation service (ES256, verified offline, bound to the
+  host) so only genuine clients connect; the same for the app and other clients ([docs/client-verification.md](docs/client-verification.md)).
+- `security.background`: owners can switch off background updates (notifications, home-screen widgets) and limit them per device;
+  clients mark such requests with `X-MCDashboard-Purpose: background`, and `features` lists `background` while they are allowed.
+- `/v1/info` reports `features`, and the protocol and client versioning rules are in [docs/versioning.md](docs/versioning.md).
+  `ClientPolicy.BUILT_IN_MIN_CLIENT` lets a release require a newer app.
+
+### Fixed
+- The previous refresh token works for 30 seconds after a rotation, so a response lost on the way no longer unpairs the device.
+- Concurrent requests for one placeholder share a single main-thread resolution, a stuck server thread opens a circuit breaker, and
+  unresolvable values stop being served after a minute instead of looking live forever.
+- The API has 16 worker threads and 30 second request/response timeouts; rate limiters no longer grow without bound.
+
 ### Changed
 - Relicensed from the MIT licence to the GNU AGPL v3 licence ([LICENSE](LICENSE)).
 - The project is a Maven multi-module build: `core/` (the API, authentication, history, tunnel and dashboards, JDK only,

@@ -32,8 +32,18 @@ public record ApiContext(String serverName, String pluginVersion, Supplier<Serve
                          Consumer<DeviceStore.Device> onLinked, PermissionCache permissions, String defaultLanguage,
                          BooleanSupplier developerMode, Runnable onDashboardsChanged,
                          List<String> endpoints, boolean discoveryOnly, boolean polling) {
-    /** Protocol version reported by {@code /v1/info}; bump on breaking API changes. */
+    /**
+     * Major version of the API reported by {@code /v1/info}. Bump it only for a change that would break an older app
+     * (it then asks its player to update); additions are announced in {@link #FEATURES} instead and must keep working
+     * for apps and plugins that do not know them.
+     */
     public static final int PROTOCOL = 1;
+
+    /**
+     * Optional capabilities every plugin of this version has, reported as {@code features} in {@code /v1/info}. The app
+     * gates what needs the plugin on this list, so a newer app still works with an older plugin that lacks an entry.
+     */
+    public static final List<String> FEATURES = List.of("presets", "history-points", "upload");
 
     /** Every language a dashboard on this server uses, plus the default, sorted. */
     public List<String> languages() {

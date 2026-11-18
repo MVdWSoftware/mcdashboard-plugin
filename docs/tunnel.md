@@ -43,3 +43,8 @@ and reconnects with exponential backoff (1 s to 60 s, forever). The backoff rese
 (permission `mcdashboard.admin`) shows whether it is connected, the last error, the attempt number and the ping.
 
 Protocol and the proxy's settings: [MCDashboard-proxy `docs/tunnel.md`](https://git.mvdw-software.com/mcdashboard/mcdashboard-proxy).
+
+## With TLS
+
+When `server.tls` is on and the tunnel is enabled, the plugin also opens plain listeners on `127.0.0.1` on free ports for the tunnel
+client only; the proxy terminates TLS towards the app. Nothing outside the machine can reach them.

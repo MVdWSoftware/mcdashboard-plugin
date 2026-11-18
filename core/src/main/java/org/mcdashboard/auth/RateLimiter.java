@@ -16,6 +16,7 @@ public final class RateLimiter {
     private final Clock clock;
     private final int max;
     private final long windowMs;
+    private volatile long lastSweep;
 
     public RateLimiter(Clock clock, int max, long windowMs) {
         this.clock = clock;
@@ -26,6 +27,7 @@ public final class RateLimiter {
     /** Records an attempt; false when the key has exceeded the limit. */
     public boolean allow(String key) {
         long now = clock.millis();
+        if (now - lastSweep > windowMs && hits.size() > 1024) sweep(now);
         Deque<Long> q = hits.computeIfAbsent(key, k -> new ArrayDeque<>());
         synchronized (q) {
             while (!q.isEmpty() && q.peekFirst() < now - windowMs) q.pollFirst();
@@ -33,5 +35,16 @@ public final class RateLimiter {
             q.addLast(now);
             return true;
         }
+    }
+
+    /** Drops keys whose attempts have all left the window, so the map does not grow with every address ever seen. */
+    private void sweep(long now) {
+        lastSweep = now;
+        hits.entrySet().removeIf(e -> {
+            synchronized (e.getValue()) {
+                Long last = e.getValue().peekLast();
+                return last == null || last < now - windowMs;
+            }
+        });
     }
 }

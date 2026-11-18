@@ -48,7 +48,7 @@ class MCDashboardCoreTest {
     private int writeConfig(String extra) throws Exception {
         int port = freePort();
         Files.writeString(data.resolve("config.yml"), "server:\n  enabled: true\n  host: 127.0.0.1\n  port: " + port
-                + "\n  websocket:\n    enabled: false\n" + extra);
+                + "\n  tls:\n    mode: off\n  websocket:\n    enabled: false\n" + extra);
         return port;
     }
 
@@ -78,6 +78,16 @@ class MCDashboardCoreTest {
         assertNotNull(core.otps());
         assertNotNull(core.devices());
         assertNull(core.tunnel());
+    }
+
+    @Test
+    void permissionBasedRefreshOverridesAreWatchedByThePermissionCache() throws Exception {
+        writeConfig("security:\n  min-interval: 900\n  min-interval-permissions:\n    x.fast: 15\n");
+        FakePlatform platform = new FakePlatform();
+        core = new MCDashboardCore(platform, new SnakeYamlCodec(), data);
+        core.start();
+
+        assertTrue(platform.permissionCalls.contains("watch 1"), platform.permissionCalls.toString());
     }
 
     @Test

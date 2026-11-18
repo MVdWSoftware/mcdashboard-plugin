@@ -91,6 +91,11 @@ public final class FakePlatform implements Platform {
             }
 
             @Override
+            public void addPermissions(Collection<String> nodes) {
+                permissionCalls.add("watch " + nodes.size());
+            }
+
+            @Override
             public void dashboardsChanged() {
                 permissionCalls.add("changed");
             }

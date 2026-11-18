@@ -97,6 +97,11 @@ public final class MCDashboardCore {
         return settings.otpTimeoutSeconds();
     }
 
+    /** SHA-256 fingerprint of the self-signed certificate the API serves, or null (CA-signed, custom or no TLS): a client pins it. */
+    public String pinnedFingerprint() {
+        return services == null || !settings.tls().mode().equals("self-signed") ? null : services.tlsFingerprint();
+    }
+
     /** {@code server.public-url}, or null when it is not set. */
     public String publicUrl() {
         return settings.publicUrl();

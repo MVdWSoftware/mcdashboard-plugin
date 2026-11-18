@@ -10,6 +10,7 @@ import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsServer;
+import org.mcdashboard.auth.ClientAssertions;
 import org.mcdashboard.auth.TokenService;
 import org.mcdashboard.events.EventStream;
 import org.mcdashboard.util.Threads;
@@ -19,7 +20,9 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
@@ -34,6 +37,8 @@ import static org.mcdashboard.web.Exchanges.respond;
 public final class HttpApi implements HttpHandler {
     /** The permission that enables developer mode for one player. */
     public static final String DEVELOPER_PERMISSION = "mcdashboard.developer";
+    /** Sent by clients on requests made for notifications and home-screen widgets rather than for a screen the player is looking at. */
+    public static final String PURPOSE_HEADER = "X-MCDashboard-Purpose";
     private static final String PLACEHOLDER = "/v1/placeholders/";
     private static final String HISTORY = "/v1/history/";
     private static final String DASHBOARD = "/v1/dashboards/";
@@ -47,6 +52,10 @@ public final class HttpApi implements HttpHandler {
     private ExecutorService executor;
     private EventStream events;
     private byte[] eventsToken = new byte[0];
+    private String tlsFingerprint;
+    private boolean tls;
+    private ClientAssertions assertions;
+    private boolean background = true;
 
     /** An API that accepts only the official app's User-Agent, with the default limits. */
     public HttpApi(ApiContext ctx) {
@@ -71,7 +80,7 @@ public final class HttpApi implements HttpHandler {
         } else {
             server = HttpServer.create(addr, 0);
         }
-        executor = Executors.newFixedThreadPool(4, Threads.daemon("MCDashboard-http"));
+        executor = Executors.newFixedThreadPool(16, Threads.daemon("MCDashboard-http"));
         server.setExecutor(executor);
         server.createContext("/v1", this);
         server.start();
@@ -81,6 +90,25 @@ public final class HttpApi implements HttpHandler {
     public void events(EventStream stream, String token) {
         this.events = stream;
         this.eventsToken = token.getBytes(StandardCharsets.UTF_8);
+    }
+
+    /**
+     * This server terminates TLS itself, for the API and the live feed ({@code websocketTls} in {@code /v1/info}).
+     * {@code selfSignedFingerprint} is published as {@code tlsFingerprint} when the certificate is the plugin's own, else null.
+     */
+    public void tls(String selfSignedFingerprint) {
+        this.tls = true;
+        this.tlsFingerprint = selfSignedFingerprint;
+    }
+
+    /** Requires every request (but {@code /v1/info}) to carry a valid client assertion. */
+    public void verifyClients(ClientAssertions verifier) {
+        this.assertions = verifier;
+    }
+
+    /** Whether clients may poll in the background (notifications, home-screen widgets); published as the {@code background} feature. */
+    public void background(boolean enabled) {
+        this.background = enabled;
     }
 
     public int port() {
@@ -122,6 +150,12 @@ public final class HttpApi implements HttpHandler {
             } else {
                 Optional<ClientPolicy.Client> client = client(ex);
                 if (client.isEmpty()) return;
+                if (assertions != null && assertions.verify(ex.getRequestHeaders().getFirst(ClientAssertions.HEADER),
+                        ex.getRequestHeaders().getFirst("Host")).isEmpty()) {
+                    ex.getResponseHeaders().set("WWW-Authenticate", "MCDashboard-Attestation");
+                    error(ex, 403, "client verification required");
+                    return;
+                }
                 if (path.equals("/v1/auth") && method.equals("POST")) auth.pair(ex, client.get());
                 else if (path.equals("/v1/auth/refresh") && method.equals("POST")) auth.refresh(ex);
                 else authenticated(ex, path, method);
@@ -186,6 +220,16 @@ public final class HttpApi implements HttpHandler {
             error(ex, 429, "too many requests");
             return;
         }
+        boolean isBackground = "background".equalsIgnoreCase(ex.getRequestHeaders().getFirst(PURPOSE_HEADER));
+        if (isBackground && !background) {
+            error(ex, 403, "background updates are disabled on this server");
+            return;
+        }
+        if (isBackground && !clients.allowBackground(who.isPresent() ? who.get().deviceId() : Exchanges.remote(ex, ctx.trustedProxies()))) {
+            ex.getResponseHeaders().set("Retry-After", "60");
+            error(ex, 429, "too many background requests");
+            return;
+        }
         String player = who.map(TokenService.Claims::player).orElse(null);
         who.ifPresent(c -> ctx.devices().touch(c.deviceId()));
         boolean get = method.equals("GET");
@@ -225,6 +269,11 @@ public final class HttpApi implements HttpHandler {
         o.put("plugin", "MCDashboard");
         o.put("version", ctx.pluginVersion());
         o.put("protocol", ApiContext.PROTOCOL);
+        List<String> features = new ArrayList<>(ApiContext.FEATURES);
+        if (tls) features.add("tls");
+        if (background) features.add("background");
+        if (assertions != null) features.add("client-verification");
+        o.put("features", features);
         o.put("authRequired", ctx.requireAuthentication());
         if (!ctx.polling()) o.put("polling", false);
         o.put("defaultLanguage", ctx.defaultLanguage());
@@ -238,6 +287,8 @@ public final class HttpApi implements HttpHandler {
         o.put("gameVersion", st.gameVersion());
         if (st.gamePort() > 0) o.put("gamePort", st.gamePort());
         if (st.icon() != null) o.put("icon", st.icon());
+        if (tls && ctx.websocketPort() > 0 && !ctx.discoveryOnly()) o.put("websocketTls", true);
+        if (tlsFingerprint != null) o.put("tlsFingerprint", tlsFingerprint);
         if (ctx.licenseId() != null) o.put("licenseId", ctx.licenseId());
         if (clients.minVersion() != null) o.put("minClientVersion", clients.minVersion());
         return o;

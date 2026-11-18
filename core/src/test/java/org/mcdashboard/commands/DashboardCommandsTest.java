@@ -122,7 +122,8 @@ class DashboardCommandsTest {
         assertNotNull(code);
         assertTrue(steve.said.get(0).startsWith("Your pairing code is "), steve.said.get(0));
         assertTrue(steve.said.get(0).contains(org.mcdashboard.auth.OtpService.display(code)));
-        assertEquals("Or open: mcdashboard://connect?url=https%3A%2F%2Fmc.example.org&code=" + code, steve.said.get(1));
+        // The default is a self-signed certificate, so the link carries the fingerprint the app pins.
+        assertTrue(steve.said.get(1).matches("Or open: mcdashboard://connect\\?url=https%3A%2F%2Fmc.example.org&code=" + code + "&pin=[0-9a-f]{64}"), steve.said.get(1));
         c.expiryNote(steve);
         assertTrue(steve.said.get(2).contains("expires in 5 min"));
 

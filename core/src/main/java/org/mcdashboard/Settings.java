@@ -8,6 +8,7 @@ import org.mcdashboard.dashboard.Languages;
 import org.mcdashboard.events.WebhookDispatcher;
 import org.mcdashboard.history.HistorySettings;
 import org.mcdashboard.config.ConfigView;
+import org.mcdashboard.placeholder.IntervalOverrides;
 import org.mcdashboard.util.PrivateNetwork;
 
 import java.net.URI;
@@ -22,11 +23,14 @@ import java.util.function.Consumer;
 record Settings(boolean enabled, String name, String defaultLanguage, String publicUrl, List<String> endpoints,
                 boolean discoveryOnly, String host, int port, boolean polling, int websocketPort, int maxLiveConnections,
                 boolean requireAuthentication, int maxDevices, long otpTimeoutSeconds, long accessTokenSeconds,
-                long refreshTokenSeconds, int authAttemptsPerMinute, long minIntervalMs, List<String> allowedClients,
+                long refreshTokenSeconds, int authAttemptsPerMinute, long minIntervalMs,
+                IntervalOverrides minIntervalOverrides, List<String> allowedClients,
                 String minClientVersion, int requestsPerMinute, int anonymousRequestsPerMinute, Set<String> trustedProxies,
                 HistorySettings history, boolean tunnelEnabled, String tunnelUrl, String tunnelKey,
                 boolean tunnelAllowInsecure, String eventsToken, List<WebhookDispatcher.Hook> webhooks,
-                boolean developerMode, String licenseId) {
+                boolean developerMode, String licenseId, org.mcdashboard.tls.TlsSupport.Settings tls,
+                boolean verifyClients, boolean verifyDeviceOnly, List<String> verifyKinds, List<String> verifyHosts,
+                List<Map<String, Object>> verifyKeys, boolean backgroundEnabled, int backgroundRequestsPerMinute) {
 
     /** Reads the configuration; problems are reported through {@code warn} and replaced by a safe default. */
     static Settings load(ConfigView cfg, Consumer<String> warn) {
@@ -56,13 +60,14 @@ record Settings(boolean enabled, String name, String defaultLanguage, String pub
                 polling,
                 websocketPort,
                 cfg.getInt("server.websocket.max-connections", 200),
-                cfg.getBoolean("security.require-authentication", false),
+                cfg.getBoolean("security.require-authentication", true),
                 cfg.getInt("security.max-devices", 5),
                 cfg.getLong("security.otp-timeout", 300),
                 cfg.getLong("security.access-token-timeout", 900),
                 cfg.getLong("security.refresh-token-timeout", 31_536_000),
                 Math.max(1, cfg.getInt("security.auth-attempts-per-minute", 10)),
                 cfg.getLong("security.min-interval", 1) * 1000,
+                minIntervalOverrides(cfg, warn),
                 cfg.getStringList("security.allowed-clients"),
                 cfg.getString("security.min-client-version", ""),
                 cfg.getInt("security.requests-per-minute", 120),
@@ -77,7 +82,23 @@ record Settings(boolean enabled, String name, String defaultLanguage, String pub
                 eventsToken,
                 webhooks(cfg.getMapList("events.webhooks"), warn),
                 cfg.getBoolean("developer.enabled", false),
-                blankToNull(cfg.getString("license.id", "")));
+                blankToNull(cfg.getString("license.id", "")),
+                new org.mcdashboard.tls.TlsSupport.Settings(tlsMode(cfg),
+                        cfg.getString("server.tls.certificate", ""), cfg.getString("server.tls.key", ""),
+                        cfg.getString("server.tls.keystore", ""), cfg.getString("server.tls.keystore-password", ""),
+                        cfg.getStringList("server.tls.names")),
+                "required".equalsIgnoreCase(cfg.getString("security.client-verification.mode", "off")),
+                "device".equalsIgnoreCase(cfg.getString("security.client-verification.min-level", "registered")),
+                cfg.getStringList("security.client-verification.kinds"),
+                cfg.getStringList("security.client-verification.hosts"),
+                cfg.getMapList("security.client-verification.keys").stream().map(Settings::stringKeys).toList(),
+                cfg.getBoolean("security.background.enabled", true),
+                Math.max(1, cfg.getInt("security.background.requests-per-minute", 30)));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> stringKeys(Map<?, ?> m) {
+        return (Map<String, Object>) m;
     }
 
     /** {@code server.name}, or {@code fallback} when it is not set. */
@@ -92,6 +113,21 @@ record Settings(boolean enabled, String name, String defaultLanguage, String pub
 
     private static String localHost(String host) {
         return host == null || host.isBlank() || host.equals("0.0.0.0") || host.equals("::") ? "127.0.0.1" : host;
+    }
+
+    /** {@code server.tls.mode}; a bare {@code off} is read by YAML 1.1 as the boolean false, so that means off too. */
+    private static String tlsMode(ConfigView cfg) {
+        Object value = cfg.get("server.tls.mode");
+        if (value instanceof Boolean b) return b ? "self-signed" : "off";
+        if (value == null) return "self-signed";
+        String mode = value.toString().trim().toLowerCase(java.util.Locale.ROOT);
+        return mode.isEmpty() ? "self-signed" : mode;
+    }
+
+    /** {@code security.min-interval-permissions}: permission nodes that may refresh faster or slower than the default. */
+    private static IntervalOverrides minIntervalOverrides(ConfigView cfg, Consumer<String> warn) {
+        return IntervalOverrides.parse(cfg.getSection("security.min-interval-permissions"),
+                msg -> warn.accept("security.min-interval-permissions: " + msg));
     }
 
     private static List<WebhookDispatcher.Hook> webhooks(List<Map<?, ?>> entries, Consumer<String> warn) {

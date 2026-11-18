@@ -23,6 +23,9 @@ public interface Permissions {
     /** Main thread: also watches the nodes of these (catalog) placeholders. */
     void addPlaceholders(Collection<PlaceholderDefinition> placeholders);
 
+    /** Main thread: also watches these nodes, such as the ones in {@code security.min-interval-permissions}. */
+    void addPermissions(Collection<String> nodes);
+
     /** A dashboard was written by the app: register its permission and refresh the online players' snapshots. */
     void dashboardsChanged();
 }

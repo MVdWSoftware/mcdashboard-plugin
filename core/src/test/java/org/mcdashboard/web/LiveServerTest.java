@@ -59,6 +59,48 @@ class LiveServerTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void theLiveFeedNeedsAClientAssertionInItsAuthMessageWhenRequired() throws Exception {
+        Clock clock = Clock.systemUTC();
+        var defs = PlaceholderDefinition.parseAll(List.of(Map.of("id", "tps", "value", "%server_tps%", "type", "DECIMAL")), m -> fail(m));
+        var ctx = TestContexts.context("T", "1", () -> ServerStatus.EMPTY, false, 5, 900, 900, 0,
+                new PlaceholderService((t, u) -> "19.5", clock, 0, defs), new TokenService(new byte[48], clock),
+                new DeviceStore(Files.createTempFile("d", ".json")), new OtpService(clock, 60), new RateLimiter(clock, 5, 1000), List.of(), Set.of(), new HistoryService(clock, defs), null, d -> {}, TestContexts.allowAll(), "en");
+        Map<String, Object> fixture;
+        try (var in = LiveServerTest.class.getResourceAsStream("/client-assertion-fixture.json")) {
+            fixture = Json.parseObject(new String(in.readAllBytes(), StandardCharsets.UTF_8));
+        }
+        var verifier = new ClientAssertions(List.of((Map<String, Object>) fixture.get("jwk")),
+                Clock.fixed(java.time.Instant.ofEpochSecond(1_800_000_010L), java.time.ZoneOffset.UTC), Set.of(), Set.of(), false);
+        LiveServer live = new LiveServer(ctx, 5);
+        live.verifyClients(verifier);
+        live.start("127.0.0.1", 0);
+        try {
+            for (boolean attested : new boolean[]{false, true}) {
+                try (Socket s = new Socket("127.0.0.1", live.port())) {
+                    s.setSoTimeout(5000);
+                    s.getOutputStream().write(("GET /v1/live HTTP/1.1\r\nHost: mc.example.com:1554\r\nUser-Agent: MCDashboard/1.0.0 (ios)\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
+                            + "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n").getBytes(StandardCharsets.ISO_8859_1));
+                    InputStream in = s.getInputStream();
+                    assertTrue(readHead(in).startsWith("HTTP/1.1 101"));
+                    if (!attested) {
+                        s.getOutputStream().write(WebSocketFramesTest.masked(0x81, "{\"type\":\"subscribe\",\"ids\":[\"tps\"]}".getBytes()));
+                        assertTrue(readServerText(in).contains("authentication required"));
+                    } else {
+                        String auth = "{\"type\":\"auth\",\"attestation\":\"" + fixture.get("registered") + "\"}";
+                        s.getOutputStream().write(WebSocketFramesTest.masked(0x81, auth.getBytes()));
+                        assertTrue(readServerText(in).contains("authenticated"));
+                        s.getOutputStream().write(WebSocketFramesTest.masked(0x81, "{\"type\":\"subscribe\",\"ids\":[\"tps\"]}".getBytes()));
+                        assertTrue(readServerText(in).contains("subscribed"));
+                    }
+                }
+            }
+        } finally {
+            live.stop();
+        }
+    }
+
+    @Test
     void handshakeNeedsTheOfficialClient() throws Exception {
         Clock clock = Clock.systemUTC();
         var defs = PlaceholderDefinition.parseAll(List.of(Map.of("id", "tps", "value", "%server_tps%", "type", "DECIMAL")), m -> fail(m));

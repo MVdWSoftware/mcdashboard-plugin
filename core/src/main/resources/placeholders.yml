@@ -5,6 +5,7 @@
 # access: PUBLIC (anyone who can reach the server) or PLAYER (a paired device, resolved for that player).
 # type: STRING, INTEGER, DECIMAL, BOOLEAN, PERCENTAGE, AUTO (decided per value) or IMAGE.
 # permission: optional node the paired player must hold. history: minutes kept for charts (PUBLIC only).
+# min-interval-permissions: optional map of permission node -> seconds for a faster interval, e.g. {mcdashboard.admin: 2}.
 placeholders:
   - id: online
     name: Players online

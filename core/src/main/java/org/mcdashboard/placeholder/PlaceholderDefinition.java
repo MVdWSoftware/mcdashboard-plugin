@@ -19,7 +19,8 @@ import java.util.function.Consumer;
  * {@code placeholders.yml} are ever resolved; clients refer to them by {@code id}.
  */
 public record PlaceholderDefinition(String id, String name, String value, Type type, Access access,
-                                    long minIntervalMs, Double min, Double max, String unit, int historyMinutes,
+                                    long minIntervalMs, IntervalOverrides minIntervalOverrides,
+                                    Double min, Double max, String unit, int historyMinutes,
                                     long historyIntervalMs, String permission, String maxFrom, String group, String description,
                                     String source) {
     /** AUTO infers number, boolean or string from each value; IMAGE serves a picture from {@code source}. */
@@ -51,10 +52,12 @@ public record PlaceholderDefinition(String id, String name, String value, Type t
         String name = str(m.get("name"));
         Object interval = m.get("min-interval");
         long ms = interval instanceof Number n && n.longValue() > 0 ? n.longValue() * 1000 : 0;
+        IntervalOverrides intervalOverrides = IntervalOverrides.parse(m.get("min-interval-permissions"),
+                msg -> { throw new IllegalArgumentException("placeholder '" + id + "': " + msg); });
         String group = blankToNull(str(m.get("group")));
         return new PlaceholderDefinition(id, name == null ? id : name, value, type,
                 Access.valueOf(String.valueOf(or(m.get("access"), "PUBLIC")).toUpperCase(Locale.ROOT)),
-                ms, num(m.get("min-value")), num(m.get("max-value")), str(m.get("unit")),
+                ms, intervalOverrides, num(m.get("min-value")), num(m.get("max-value")), str(m.get("unit")),
                 type != Type.IMAGE && m.get("history") instanceof Number h ? Math.max(0, Math.min(h.intValue(), 525_600)) : 0,
                 m.get("history-interval") instanceof Number hi && hi.longValue() > 0 ? hi.longValue() * 1000 : 0,
                 blankToNull(str(m.get("permission"))), blankToNull(str(m.get("max-from"))),
@@ -63,7 +66,7 @@ public record PlaceholderDefinition(String id, String name, String value, Type t
 
     /** A copy with another history window (minutes); used when {@code history.include} / {@code exclude} decide what is recorded. */
     public PlaceholderDefinition withHistoryMinutes(int minutes) {
-        return new PlaceholderDefinition(id, name, value, type, access, minIntervalMs, min, max, unit, minutes,
+        return new PlaceholderDefinition(id, name, value, type, access, minIntervalMs, minIntervalOverrides, min, max, unit, minutes,
                 historyIntervalMs, permission, maxFrom, group, description, source);
     }
 
@@ -78,6 +81,11 @@ public record PlaceholderDefinition(String id, String name, String value, Type t
 
     /** JSON view sent to clients. The raw {@code %placeholder%} template is never exposed. */
     public Map<String, Object> toJson() {
+        return toJson(minIntervalMs);
+    }
+
+    /** JSON view with the interval that applies to this caller instead of the placeholder's configured one. */
+    public Map<String, Object> toJson(long effectiveMinIntervalMs) {
         Map<String, Object> o = new LinkedHashMap<>();
         o.put("id", id);
         o.put("name", name);
@@ -85,7 +93,7 @@ public record PlaceholderDefinition(String id, String name, String value, Type t
         o.put("access", access.name());
         o.put("group", group);
         if (description != null) o.put("description", description);
-        o.put("minInterval", minIntervalMs / 1000);
+        o.put("minInterval", Math.max(0, effectiveMinIntervalMs) / 1000);
         if (min != null) o.put("min", min);
         if (max != null) o.put("max", max);
         if (unit != null) o.put("unit", unit);

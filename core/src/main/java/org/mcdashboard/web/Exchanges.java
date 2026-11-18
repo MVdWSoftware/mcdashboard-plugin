@@ -41,7 +41,7 @@ final class Exchanges {
     static void cors(HttpExchange ex) {
         Headers h = ex.getResponseHeaders();
         h.set("Access-Control-Allow-Origin", "*");
-        h.set("Access-Control-Allow-Headers", "Authorization, Content-Type");
+        h.set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-MCDashboard-Attestation, X-MCDashboard-Purpose");
         h.set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
         h.set("Cache-Control", "no-store");
     }

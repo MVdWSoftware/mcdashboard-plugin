@@ -33,6 +33,7 @@ import static org.mcdashboard.web.Exchanges.respond;
 /** The placeholder catalog, their values (SenML) and their history. */
 final class PlaceholderRoutes {
     private static final int MAX_IDS = 100;
+    private static final long VALUES_BUDGET_MS = 4_000;
 
     private final ApiContext ctx;
 
@@ -55,7 +56,9 @@ final class PlaceholderRoutes {
             Set<String> seen = new HashSet<>();
             for (String id : ids) {
                 Optional<PlaceholderDefinition> d = ctx.placeholders().definition(id.trim());
-                if (d.isPresent() && visible(d.get(), player) && seen.add(d.get().id())) list.add(d.get().toJson());
+                if (d.isPresent() && visible(d.get(), player) && seen.add(d.get().id())) {
+                    list.add(d.get().toJson(ctx.placeholders().intervalMs(d.get(), player)));
+                }
             }
             total = list.size();
         } else {
@@ -66,7 +69,9 @@ final class PlaceholderRoutes {
             String group = q.get("group");
             PlaceholderService.Page page = ctx.placeholders().search(d -> visible(d, player), q.get("q"),
                     group == null || group.isEmpty() ? null : group, limit, offset);
-            for (PlaceholderDefinition d : page.items()) list.add(d.toJson());
+            for (PlaceholderDefinition d : page.items()) {
+                list.add(d.toJson(ctx.placeholders().intervalMs(d, player)));
+            }
             for (PlaceholderService.Group g : page.groups()) groups.add(Map.of("name", g.name(), "count", g.count()));
             total = page.total();
         }
@@ -96,7 +101,7 @@ final class PlaceholderRoutes {
             error(ex, 503, "value unavailable");
             return;
         }
-        cacheable(ex, List.of(SenMl.record(def.get(), v.get())), List.of(def.get()), player != null);
+        cacheable(ex, List.of(SenMl.record(def.get(), v.get())), List.of(def.get()), player != null, player);
     }
 
     /** {@code GET /v1/values?ids=a,b}: the readable ones, sorted so the ETag and a proxy's cache key are stable. */
@@ -107,15 +112,18 @@ final class PlaceholderRoutes {
         Arrays.sort(ids);
         List<Object> records = new ArrayList<>();
         List<PlaceholderDefinition> used = new ArrayList<>();
+        long budgetEnd = System.currentTimeMillis() + VALUES_BUDGET_MS;
         for (String id : ids) {
             Optional<PlaceholderDefinition> d = ctx.placeholders().definition(id);
             if (d.isEmpty() || !visible(d.get(), player)) continue;
+            // A slow server thread must not hold this request (and its worker) for 100 x 2 s: answer with what is ready.
+            if (System.currentTimeMillis() > budgetEnd) break;
             ctx.placeholders().read(id, player).ifPresent(val -> {
                 records.add(SenMl.record(d.get(), val));
                 used.add(d.get());
             });
         }
-        cacheable(ex, records, used, player != null);
+        cacheable(ex, records, used, player != null, player);
     }
 
     /** {@code GET /v1/history/{id}?since=<unix seconds>&points=<n>}. */
@@ -134,7 +142,7 @@ final class PlaceholderRoutes {
         for (HistoryService.Point p : ctx.history().since(id, since, points)) {
             records.add(SenMl.record(def.get(), new PlaceholderService.Value(id, p.value(), p.timeMs())));
         }
-        cacheable(ex, records, List.of(def.get()), false);
+        cacheable(ex, records, List.of(def.get()), false, player);
     }
 
     private boolean visible(PlaceholderDefinition d, String player) {
@@ -142,15 +150,16 @@ final class PlaceholderRoutes {
     }
 
     /**
-     * A SenML pack with standard HTTP caching: {@code max-age} is the shortest refresh interval of the placeholders and
-     * an ETag allows 304s. Only anonymous answers without PLAYER values are {@code public}, so a shared cache in front
-     * can never hand one player's data to another.
+     * A SenML pack with standard HTTP caching: {@code max-age} is the shortest effective refresh interval of the
+     * placeholders for this caller and an ETag allows 304s. Only anonymous answers without PLAYER values are
+     * {@code public}, so a shared cache in front can never hand one player's data to another.
      */
-    private void cacheable(HttpExchange ex, List<?> records, List<PlaceholderDefinition> defs, boolean authenticated) throws IOException {
+    private void cacheable(HttpExchange ex, List<?> records, List<PlaceholderDefinition> defs, boolean authenticated,
+                           String player) throws IOException {
         long maxAge = Long.MAX_VALUE;
         boolean anyPlayer = false;
         for (PlaceholderDefinition d : defs) {
-            maxAge = Math.min(maxAge, ctx.placeholders().intervalMs(d) / 1000);
+            maxAge = Math.min(maxAge, ctx.placeholders().intervalMs(d, player) / 1000);
             anyPlayer |= d.access() == PlaceholderDefinition.Access.PLAYER;
         }
         if (maxAge == Long.MAX_VALUE) maxAge = 0;

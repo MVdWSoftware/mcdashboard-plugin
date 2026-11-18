@@ -7,9 +7,15 @@
    `dashboards/player.yml` or a dashboard file of your own. The file name becomes its permission, so
    `dashboards/admin.yml` needs `mcdashboard.dashboard.admin`; the bundled `player.yml` is public and `server.yml`
    is for operators.
-4. Put a reverse proxy with TLS in front ([guide](reverse-proxy.md)).
+4. The plugin serves HTTPS itself with a self-signed certificate it generates (`server.tls`), or with your own
+   certificate (`server.tls.mode: custom`). Behind a reverse proxy that terminates TLS, set `server.tls.mode: off`
+   ([guide](reverse-proxy.md)).
 5. Restart. In game run `/mcdashboard link`, then enter the code and your server address in the
    MinecraftDashboard app.
 
-Players who do not want to pair can still see PUBLIC placeholders, unless you enable
-`security.require-authentication`.
+Every player pairs by default (`security.require-authentication: true`). To let players see PUBLIC placeholders without
+pairing, set it to `false`.
+
+With the default self-signed certificate, `/mcdashboard link` and the QR map (which need `server.public-url`) carry the
+certificate's fingerprint as `pin=`, and `/v1/info` publishes it as `tlsFingerprint`: a client pins that fingerprint
+instead of trusting a certificate authority. Read it from the startup log too, to compare it by hand.

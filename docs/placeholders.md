@@ -13,7 +13,8 @@ template; they pick from this list, so nothing outside it is ever evaluated.
 | `type` | `STRING`, `INTEGER`, `DECIMAL`, `BOOLEAN`, `PERCENTAGE`, `AUTO` (decided per value) or `IMAGE` (see below). |
 | `access` | `PUBLIC`: anyone who can reach the server. `PLAYER`: a paired device, resolved for that player. |
 | `permission` | Optional node the paired player must hold for any request. |
-| `min-interval` | Seconds; the value is resolved at most this often (never below `security.min-interval`). |
+| `min-interval` | Seconds; the value is resolved at most this often (never below the caller's `security.min-interval`; `min-interval-permissions` can change it). |
+| `min-interval-permissions` | Optional map of permission node to seconds for this placeholder. A paired player holding a node uses that interval instead of `min-interval`; the fastest held node wins. |
 | `min-value`, `max-value`, `unit` | Scale and unit for gauges and charts. |
 | `max-from` | Another placeholder whose value is this one's maximum, e.g. `max-players` for `online`. |
 | `history` | Minutes of samples kept for charts (PUBLIC only; up to a year with a database, see [history.md](history.md)). |
@@ -75,3 +76,25 @@ placeholders:
 A placeholder with `permission:` is refused (403) for everyone without it on every route. A dashboard's permission is
 derived from its file name (`admin.yml` -> `mcdashboard.dashboard.admin`) and only offered to players who hold it; see
 [dashboards.md](dashboards.md).
+
+`min-interval-permissions` never grants access by itself: the player must also be able to read the placeholder. It only
+changes how often their requests may force a fresh value. The effective interval is the larger of the player's global
+interval (`security.min-interval-permissions`, falling back to `security.min-interval`) and this placeholder's
+interval. Values are cached per placeholder, so a fast caller can keep the value fresh for everyone; a slower caller
+never forces a resolution more often than their own interval.
+
+```yaml
+# config.yml: everyone refreshes every 15 minutes, admins every 15 seconds
+security:
+  min-interval: 900
+  min-interval-permissions:
+    mcdashboard.admin: 15
+
+# placeholders.yml: this expensive value stays at 30 minutes for everyone else, admins may read it every 15 seconds
+placeholders:
+  - id: player-health
+    value: '%player_health%'
+    min-interval: 1800
+    min-interval-permissions:
+      mcdashboard.admin: 15
+```

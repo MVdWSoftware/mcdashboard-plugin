@@ -11,7 +11,7 @@ Only placeholders you list in `placeholders.yml` are ever resolved, and nothing 
 
 - Java 17, Spigot or Paper 1.18+, PlaceholderAPI on the server (Bedrock: see below). No other runtime dependencies: the HTTP server,
   WebSocket and JSON are the JDK's own.
-- Pairing with one-time codes and QR maps, signed tokens, per-device revocation, rate limits.
+- HTTPS built in (self-signed or your own certificate), pairing with one-time codes and QR maps, signed tokens, per-device revocation, rate limits.
 - Optional history for charts, in memory or in SQLite, MySQL/MariaDB or PostgreSQL with a SOSA/SSN schema ([docs/history.md](docs/history.md)).
 - Optional reverse tunnel and caching proxy support ([MCDashboard-proxy](https://git.mvdw-software.com/mcdashboard/mcdashboard-proxy)).
 
@@ -21,7 +21,7 @@ Only placeholders you list in `placeholders.yml` are ever resolved, and nothing 
 2. Download `MCDashboard.jar` and put it in `plugins/`, or build it yourself (below).
 3. Start the server once, review `plugins/MCDashboard/config.yml` ([reference](docs/configuration.md)) and
    `placeholders.yml`, set `server.enabled: true`.
-4. Put a reverse proxy with TLS in front. Full guide: [docs/installation.md](docs/installation.md).
+4. The plugin serves HTTPS itself (a self-signed certificate it generates, or your own); behind a TLS-terminating reverse proxy set `server.tls.mode: off`. Full guide: [docs/installation.md](docs/installation.md).
 
 ## Bedrock (PowerNukkitX)
 
@@ -92,10 +92,12 @@ permissions.
 - `server.polling.enabled` and `server.websocket.enabled` choose how values reach the app: either, or both (the app
   polls only while the live feed is down). With polling off, value requests are refused and the server reports
   `polling: false`; if both are off, polling stays on.
-- `security.require-authentication` rejects unauthenticated requests, and live-feed connections that do not
+- `security.require-authentication` (on by default) rejects unauthenticated requests, and live-feed connections that do not
   authenticate within 10 seconds. A live connection whose device is revoked is closed within a second.
 - `security.min-interval` is the global floor for every placeholder; `min-interval` in `placeholders.yml` sets it per
   placeholder (the larger of the two wins, for polling, the live feed and caching headers).
+  `security.min-interval-permissions` (and `min-interval-permissions` per placeholder) lets players with a permission
+  node refresh faster; the fastest node they hold wins.
 
 ## Clients and limits
 

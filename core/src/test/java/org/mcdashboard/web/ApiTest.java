@@ -30,6 +30,7 @@ import org.mcdashboard.SnakeYamlCodec;
 import org.mcdashboard.auth.*;
 import org.mcdashboard.dashboard.Dashboard;
 import org.mcdashboard.dashboard.DashboardStore;
+import org.mcdashboard.image.ImageCache;
 import org.mcdashboard.json.Json;
 import org.mcdashboard.placeholder.*;
 import org.mcdashboard.web.ServerStatus;
@@ -100,6 +101,39 @@ class ApiTest {
     }
 
     @Test
+    void permissionOverridesChangeTheAdvertisedIntervalAndCacheLifetime() throws Exception {
+        api.stop();
+        Clock clock = Clock.systemUTC();
+        var defs = PlaceholderDefinition.parseAll(List.of(Map.of("id", "tps", "value", "%server_tps%")), m -> fail(m));
+        PermissionCache perms = new PermissionCache();
+        var service = new PlaceholderService((t, u) -> "19.9", clock, 900_000,
+                IntervalOverrides.parse(Map.of("x.fast", 15), m -> fail(m)), perms, defs,
+                temp.resolve("images"), new ImageCache(clock));
+        ctx = TestContexts.context("Test", "1.0", () -> ServerStatus.EMPTY, false, 2, 900, 3600, 0,
+                service, new TokenService(new byte[48], clock),
+                new DeviceStore(Files.createTempFile("devices", ".json")), otps, new RateLimiter(clock, 100, 60000), List.of(), Set.of(),
+                new HistoryService(clock, defs), null, d -> {}, perms, "en");
+        api = new HttpApi(ctx);
+        api.start("127.0.0.1", 0, null);
+        base = "http://127.0.0.1:" + api.port();
+
+        var anonymous = get("/v1/placeholders/tps");
+        assertEquals("public, max-age=900", anonymous.headers().firstValue("Cache-Control").orElseThrow());
+        var anonymousItem = (Map<?, ?>) ((List<?>) ((Map<?, ?>) Json.parse(get("/v1/placeholders").body())).get("placeholders")).get(0);
+        assertEquals(900L, ((Number) anonymousItem.get("minInterval")).longValue());
+
+        String uuid = "00000000-0000-0000-0000-00000000000a";
+        String admin = pair(uuid, "Admin");
+        perms.update(UUID.fromString(uuid), Set.of("x.fast"));
+
+        var adminValue = get("/v1/placeholders/tps", "Authorization", "Bearer " + admin);
+        assertEquals("private, max-age=15", adminValue.headers().firstValue("Cache-Control").orElseThrow());
+        var adminItems = (Map<?, ?>) Json.parse(get("/v1/placeholders", "Authorization", "Bearer " + admin).body());
+        var adminItem = (Map<?, ?>) ((List<?>) adminItems.get("placeholders")).get(0);
+        assertEquals(15L, ((Number) adminItem.get("minInterval")).longValue());
+    }
+
+    @Test
     void bulkValuesAndUnknownIds() throws Exception {
         var r = get("/v1/values?ids=tps,online,nope,me");
         var list = (List<?>) Json.parse(r.body());
@@ -126,6 +160,12 @@ class ApiTest {
         String r1 = (String) auth.get("refreshToken");
         var second = post("/v1/auth/refresh", "{\"refreshToken\":\"" + r1 + "\"}");
         assertEquals(200, second.statusCode());
+        // A lost answer: the old token still works once for a short grace period...
+        var retry = post("/v1/auth/refresh", "{\"refreshToken\":\"" + r1 + "\"}");
+        assertEquals(200, retry.statusCode());
+        // ...but not after the next rotation, which the client only does once it holds the newer token.
+        String r2 = (String) Json.parseObject(second.body()).get("refreshToken");
+        assertEquals(200, post("/v1/auth/refresh", "{\"refreshToken\":\"" + r2 + "\"}").statusCode());
         assertEquals(401, post("/v1/auth/refresh", "{\"refreshToken\":\"" + r1 + "\"}").statusCode());
     }
 
@@ -566,5 +606,106 @@ class ApiTest {
         pair("Pixel");
         var device = ctx.devices().devicesOf("uuid-Pixel").get(0);
         assertEquals(APP, device.client());
+    }
+
+    @Test
+    void infoStatesTheProtocolAndTheFeaturesOfThisPlugin() throws Exception {
+        var info = Json.parseObject(get("/v1/info").body());
+        assertEquals((long) ApiContext.PROTOCOL, ((Number) info.get("protocol")).longValue());
+        assertTrue(((List<?>) info.get("features")).containsAll(ApiContext.FEATURES));
+    }
+
+    @Test
+    void theBuiltInMinimumClientVersionCanOnlyBeRaisedByTheOwner() {
+        assertEquals("1.4.0", ClientPolicy.higher("1.4.0", null));
+        assertEquals("2.0.0", ClientPolicy.higher("1.4.0", "2.0.0"));
+        assertEquals("2.1.0", ClientPolicy.higher("2.1.0", "2.0.0"));
+        assertEquals("2.0.0", ClientPolicy.higher("", "2.0.0"));
+    }
+
+    /** Tokens signed by the portal's Node service (fixture generated with the service's own signer), key and all. */
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> fixture() throws Exception {
+        try (var in = ApiTest.class.getResourceAsStream("/client-assertion-fixture.json")) {
+            return Json.parseObject(new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
+        }
+    }
+
+    /** The clock the fixture's tokens are valid at (issued 1_800_000_000 s, one hour). */
+    private static Clock fixtureClock(long offsetSeconds) {
+        return Clock.fixed(java.time.Instant.ofEpochSecond(1_800_000_000L + offsetSeconds), java.time.ZoneOffset.UTC);
+    }
+
+    @SuppressWarnings("unchecked")
+    private ClientAssertions verifier(boolean deviceOnly, long offsetSeconds) throws Exception {
+        return new ClientAssertions(List.of((Map<String, Object>) fixture().get("jwk")), fixtureClock(offsetSeconds), Set.of(), Set.of("mc.example.com"), deviceOnly);
+    }
+
+    @Test
+    void verifiedClientsOnlyWhenTheOwnerRequiresIt() throws Exception {
+        api.verifyClients(verifier(false, 10));
+        String registered = (String) fixture().get("registered");
+        assertEquals(200, get("/v1/info").statusCode(), "discovery stays open");
+        assertEquals(403, get("/v1/values?ids=tps").statusCode());
+        assertEquals(403, get("/v1/values?ids=tps", ClientAssertions.HEADER, "garbage").statusCode());
+        assertEquals(200, get("/v1/values?ids=tps", ClientAssertions.HEADER, registered).statusCode());
+        assertEquals(403, post("/v1/auth", "{\"otp\":\"x\"}").statusCode(), "pairing needs it too");
+        assertTrue(get("/v1/info").body().contains("client-verification"));
+    }
+
+    @Test
+    void anAssertionHasToBeCurrentAndOfTheRequiredLevel() throws Exception {
+        String registered = (String) fixture().get("registered");
+        String device = (String) fixture().get("device");
+        api.verifyClients(verifier(true, 10));
+        assertEquals(403, get("/v1/values?ids=tps", ClientAssertions.HEADER, registered).statusCode(), "device level only");
+        assertEquals(200, get("/v1/values?ids=tps", ClientAssertions.HEADER, device).statusCode());
+        api.verifyClients(verifier(false, 3600 + 10));
+        assertEquals(403, get("/v1/values?ids=tps", ClientAssertions.HEADER, device).statusCode(), "expired");
+        api.verifyClients(verifier(false, -3600));
+        assertEquals(403, get("/v1/values?ids=tps", ClientAssertions.HEADER, device).statusCode(), "issued in the future");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void anAssertionIsOnlyGoodForItsHostAndOnlyFromTheServicesKey() throws Exception {
+        String device = (String) fixture().get("device");
+        var other = new ClientAssertions(List.of((Map<String, Object>) fixture().get("jwk")), fixtureClock(10), Set.of(), Set.of("another.example.com"), false);
+        assertTrue(other.verify(device, null).isEmpty(), "issued for mc.example.com");
+        var byHost = new ClientAssertions(List.of((Map<String, Object>) fixture().get("jwk")), fixtureClock(10), Set.of(), Set.of(), false);
+        assertTrue(byHost.verify(device, "MC.example.com:1553").isPresent(), "the host the client connected to");
+        assertTrue(byHost.verify(device, "evil.example.com").isEmpty());
+        var wrongKey = new ClientAssertions(List.of(Map.of("kty", "EC", "crv", "P-256",
+                "x", "f83OJ3D2xF1Bg8vub9tLe1gHMzV76e8Tus9uPHvRVEU", "y", "x_FEzRu9m36HLN_tue659LNpXW6pCyStikYjKIWI5a0")),
+                fixtureClock(10), Set.of(), Set.of("mc.example.com"), false);
+        assertTrue(wrongKey.verify(device, null).isEmpty());
+        var tampered = device.substring(0, device.length() - 4) + (device.endsWith("AAAA") ? "BBBB" : "AAAA");
+        assertTrue(byHost.verify(tampered, "mc.example.com").isEmpty());
+        assertTrue(new ClientAssertions(List.of(), fixtureClock(10), Set.of(), Set.of(), false).verify(device, "mc.example.com").isEmpty(),
+                "no trusted key: nothing verifies");
+    }
+
+    @Test
+    void theOwnerCanSwitchBackgroundUpdatesOff() throws Exception {
+        assertEquals(200, get("/v1/values?ids=tps", HttpApi.PURPOSE_HEADER, "background").statusCode());
+        assertTrue(get("/v1/info").body().contains("background"));
+        api.background(false);
+        assertEquals(403, get("/v1/values?ids=tps", HttpApi.PURPOSE_HEADER, "background").statusCode());
+        assertEquals(200, get("/v1/values?ids=tps").statusCode(), "foreground requests are not affected");
+        assertFalse(get("/v1/info").body().contains("\"background\""));
+    }
+
+    @Test
+    void backgroundRequestsHaveTheirOwnLimit() throws Exception {
+        api.stop();
+        Clock clock = Clock.systemUTC();
+        var policy = ClientPolicy.defaults(clock).background(new RateLimiter(clock, 2, 60_000));
+        api = new HttpApi(ctx, policy);
+        api.start("127.0.0.1", 0, null);
+        base = "http://127.0.0.1:" + api.port();
+        assertEquals(200, get("/v1/values?ids=tps", HttpApi.PURPOSE_HEADER, "background").statusCode());
+        assertEquals(200, get("/v1/values?ids=tps", HttpApi.PURPOSE_HEADER, "background").statusCode());
+        assertEquals(429, get("/v1/values?ids=tps", HttpApi.PURPOSE_HEADER, "background").statusCode());
+        assertEquals(200, get("/v1/values?ids=tps").statusCode(), "a screen the player looks at is not limited by it");
     }
 }

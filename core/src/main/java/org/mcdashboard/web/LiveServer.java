@@ -4,6 +4,7 @@
  */
 package org.mcdashboard.web;
 
+import org.mcdashboard.auth.ClientAssertions;
 import org.mcdashboard.auth.TokenService;
 import org.mcdashboard.json.Json;
 import org.mcdashboard.placeholder.PlaceholderDefinition;
@@ -56,6 +57,7 @@ public final class LiveServer {
     private final ApiContext ctx;
     private final ClientPolicy clients;
     private final int maxConnections;
+    private volatile ClientAssertions assertions;
     private final AtomicInteger connections = new AtomicInteger();
     private ServerSocket socket;
     private ExecutorService acceptors;
@@ -72,8 +74,18 @@ public final class LiveServer {
         this.clients = clients;
     }
 
+    /** Requires every connection to present a valid client assertion in its {@code auth} message. */
+    public void verifyClients(ClientAssertions verifier) {
+        this.assertions = verifier;
+    }
+
     public void start(String host, int port) throws IOException {
-        socket = new ServerSocket();
+        start(host, port, null);
+    }
+
+    /** Serves TLS ({@code wss://}) when {@code ssl} is given. */
+    public void start(String host, int port, javax.net.ssl.SSLContext ssl) throws IOException {
+        socket = ssl == null ? new ServerSocket() : ssl.getServerSocketFactory().createServerSocket();
         socket.setReuseAddress(true);
         socket.bind(host == null || host.isBlank() ? new InetSocketAddress(port) : new InetSocketAddress(host, port));
         acceptors = Executors.newCachedThreadPool(Threads.daemon("MCDashboard-live"));
@@ -128,6 +140,8 @@ public final class LiveServer {
         private List<String> subscribed = List.of();
         private volatile String player;
         private volatile String deviceId;
+        private volatile String hostHeader;
+        private volatile boolean verified;
         private ScheduledFuture<?> task;
 
         Connection(Socket sock) throws IOException {
@@ -140,17 +154,17 @@ public final class LiveServer {
 
         void run() throws IOException {
             if (!handshake()) return;
-            boolean mustAuthenticate = ctx.requireAuthentication();
+            boolean mustAuthenticate = ctx.requireAuthentication() || assertions != null;
             long deadline = System.currentTimeMillis() + AUTH_TIMEOUT_MS;
             sock.setSoTimeout(mustAuthenticate ? AUTH_TIMEOUT_MS : IDLE_TIMEOUT_MS);
             task = ticker.scheduleWithFixedDelay(this::tick, 1, 1, TimeUnit.SECONDS);
             while (true) {
-                if (mustAuthenticate && deviceId == null && System.currentTimeMillis() > deadline) return;
+                if (mustAuthenticate && deviceId == null && !verified && System.currentTimeMillis() > deadline) return;
                 WebSocketFrames.Frame f;
                 try {
                     f = WebSocketFrames.read(in, MAX_FRAME);
                 } catch (SocketTimeoutException e) {
-                    if (mustAuthenticate && deviceId == null) return;
+                    if (mustAuthenticate && deviceId == null && !verified) return;
                     send(WebSocketFrames.PING, new byte[0]);
                     continue;
                 } catch (EOFException e) {
@@ -184,6 +198,7 @@ public final class LiveServer {
                 int c = line.indexOf(':');
                 if (c > 0) headers.put(line.substring(0, c).trim().toLowerCase(Locale.ROOT), line.substring(c + 1).trim());
             }
+            hostHeader = headers.get("host");
             String key = headers.get("sec-websocket-key");
             if (key == null || !"websocket".equalsIgnoreCase(headers.get("upgrade"))) {
                 reject("400 Bad Request");
@@ -241,6 +256,18 @@ public final class LiveServer {
             }
             Object type = m.get("type");
             if ("auth".equals(type)) {
+                ClientAssertions verifier = assertions;
+                if (verifier != null) {
+                    verified = verifier.verify(m.get("attestation") instanceof String a ? a : null, hostHeader).isPresent();
+                    if (!verified) {
+                        sendJson(Map.of("type", "error", "error", "client verification failed"));
+                        return false;
+                    }
+                    if (m.get("token") == null && !ctx.requireAuthentication()) {
+                        sendJson(Map.of("type", "authenticated"));
+                        return true;
+                    }
+                }
                 Optional<TokenService.Claims> c = HttpApi.authenticate(ctx, String.valueOf(m.get("token")));
                 if (c.isEmpty()) {
                     sendJson(Map.of("type", "error", "error", "authentication failed"));
@@ -251,7 +278,7 @@ public final class LiveServer {
                 sock.setSoTimeout(IDLE_TIMEOUT_MS);
                 sendJson(Map.of("type", "authenticated"));
             } else if ("subscribe".equals(type) && m.get("ids") instanceof List<?> ids) {
-                if (ctx.requireAuthentication() && deviceId == null) {
+                if ((ctx.requireAuthentication() && deviceId == null) || (assertions != null && !verified)) {
                     sendJson(Map.of("type", "error", "error", "authentication required"));
                     return false;
                 }
@@ -292,7 +319,7 @@ public final class LiveServer {
                 synchronized (this) {
                     last = lastSent.get(id);
                 }
-                if (last != null && now - last < Math.max(1000, ctx.placeholders().intervalMs(d))) continue;
+                if (last != null && now - last < Math.max(1000, ctx.placeholders().intervalMs(d, player))) continue;
                 Optional<PlaceholderService.Value> v = ctx.placeholders().read(id, player);
                 synchronized (this) {
                     lastSent.put(id, now);

@@ -56,7 +56,17 @@ final class NukkitPermissions implements Listener, Permissions {
     @Override
     public void addPlaceholders(Collection<PlaceholderDefinition> placeholders) {
         Set<String> next = new HashSet<>(nodes);
-        for (PlaceholderDefinition d : placeholders) if (d.permission() != null) next.add(d.permission());
+        for (PlaceholderDefinition d : placeholders) {
+            if (d.permission() != null) next.add(d.permission());
+            next.addAll(d.minIntervalOverrides().permissions());
+        }
+        nodes = next;
+    }
+
+    @Override
+    public void addPermissions(Collection<String> watch) {
+        Set<String> next = new HashSet<>(nodes);
+        next.addAll(watch);
         nodes = next;
     }
 

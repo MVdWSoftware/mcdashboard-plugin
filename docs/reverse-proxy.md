@@ -1,13 +1,15 @@
 # Reverse proxy, TLS and caching
 
-The plugin serves plain HTTP on `server.port` (1553) and the live feed on `server.websocket.port`
-(1554). Put a reverse proxy in front for TLS and, optionally, a cache. The API is designed for
-this, using only standard HTTP:
+By default the plugin serves HTTPS itself on `server.port` (1553) and the live feed on `server.websocket.port` (1554),
+with a self-signed or your own certificate (`server.tls`). A reverse proxy adds a trusted certificate (Let's Encrypt), port
+443 and, optionally, a cache. When the proxy terminates TLS and talks to the plugin on the same machine, set
+`server.tls.mode: off` and `server.host: 127.0.0.1`, so plain HTTP never leaves the machine. The API is designed for this,
+using only standard HTTP:
 
 | Mechanism | Standard | What it gives a proxy |
 | --- | --- | --- |
 | Sensor data as SenML | RFC 8428, `application/senml+json` | Readable with standard HTTP tooling |
-| `Cache-Control: public, max-age=N` | RFC 9111 | N is the placeholder's `min-interval`, so a cached copy is never older than allowed |
+| `Cache-Control: public, max-age=N` | RFC 9111 | N is the caller's effective `min-interval` (including permission overrides), so a cached copy is never older than allowed |
 | `ETag` + `If-None-Match` | RFC 9110 | Cheap revalidation (`304`) |
 | `Vary: Authorization` | RFC 9110 | Per-player answers are `private` and never shared between players |
 | JWT bearer tokens | RFC 7519 / 6750 | Access tokens are stateless |

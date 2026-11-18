@@ -4,6 +4,7 @@
  */
 package org.mcdashboard;
 
+import org.mcdashboard.auth.ClientAssertions;
 import org.mcdashboard.auth.DeviceStore;
 import org.mcdashboard.auth.OtpService;
 import org.mcdashboard.auth.RateLimiter;
@@ -25,6 +26,7 @@ import org.mcdashboard.placeholder.PlaceholderService;
 import org.mcdashboard.platform.Log;
 import org.mcdashboard.platform.Permissions;
 import org.mcdashboard.platform.Platform;
+import org.mcdashboard.tls.TlsSupport;
 import org.mcdashboard.tunnel.TunnelClient;
 import org.mcdashboard.util.Threads;
 import org.mcdashboard.web.ApiContext;
@@ -38,6 +40,7 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -59,6 +62,9 @@ final class Services {
     private HttpApi http;
     private LiveServer live;
     private TunnelClient tunnel;
+    private HttpApi loopbackHttp;
+    private LiveServer loopbackLive;
+    private String tlsFingerprint;
     private EventStream eventStream;
     private WebhookDispatcher webhooks;
     private HistoryService history;
@@ -90,13 +96,15 @@ final class Services {
                     msg -> log.warning("placeholders.yml: " + msg)));
             Path images = files.resolve("images");
             Files.createDirectories(images);
+            Permissions permissions = platform.permissions(dashboards);
             PlaceholderService placeholders = new PlaceholderService(platform.values(), clock,
-                    settings.minIntervalMs(), defs, images, new ImageCache(clock));
+                    settings.minIntervalMs(), settings.minIntervalOverrides(), permissions.cache(),
+                    defs, images, new ImageCache(clock));
 
             history = new HistoryService(clock, defs, historySettings, historyStore(historySettings), log::warning);
             history.start();
-            Permissions permissions = platform.permissions(dashboards);
             permissions.start(defs);
+            permissions.addPermissions(settings.minIntervalOverrides().permissions());
             List<ExpansionCatalog.Entry> catalog = ExpansionCatalog.parseAll(yaml.getMapList("catalog"),
                     msg -> log.warning("placeholders.yml: " + msg));
             new CatalogLoader(platform, placeholders, history, historySettings, permissions, defs, catalog).start();
@@ -114,23 +122,114 @@ final class Services {
                     settings.endpoints(), settings.discoveryOnly(), settings.polling());
             ClientPolicy clients = ClientPolicy.of(clock, settings.allowedClients(), settings.minClientVersion(),
                     settings.requestsPerMinute(), settings.anonymousRequestsPerMinute(), log::warning);
+            // Slow or idle connections must not hold the API's worker threads: the JDK server has no timeouts unless told.
+            System.getProperties().putIfAbsent("sun.net.httpserver.maxReqTime", "30");
+            System.getProperties().putIfAbsent("sun.net.httpserver.maxRspTime", "30");
+            TlsSupport.Identity tls = settings.tls().enabled() ? loadTls() : null;
+            if (settings.tls().enabled() && tls == null) return; // reported; never fall back to serving in the clear
+            tlsFingerprint = tls == null ? null : tls.fingerprint();
+            clients.background(new RateLimiter(clock, settings.backgroundRequestsPerMinute(), 60_000));
+            ClientAssertions assertions = clientAssertions();
             http = new HttpApi(ctx, clients);
+            http.background(settings.backgroundEnabled());
+            if (assertions != null) http.verifyClients(assertions);
+            if (tls != null) http.tls(tls.selfSigned() ? tls.fingerprint() : null);
             EventBus bus = startEvents();
-            http.start(settings.host(), settings.port(), null);
-            log.info("REST API listening on port " + http.port());
+            http.start(settings.host(), settings.port(), tls == null ? null : tls.context());
+            log.info("REST API listening on port " + http.port() + (tls == null ? " (plain HTTP)" : " (HTTPS)"));
             if (settings.websocketPort() > 0) {
                 live = new LiveServer(ctx, settings.maxLiveConnections(), clients);
-                live.start(settings.host(), settings.websocketPort());
-                log.info("Live feed listening on port " + live.port());
+                if (assertions != null) live.verifyClients(assertions);
+                live.start(settings.host(), settings.websocketPort(), tls == null ? null : tls.context());
+                log.info("Live feed listening on port " + live.port() + (tls == null ? " (plain)" : " (TLS)"));
             }
+            if (tls != null && settings.tunnelEnabled()) startLoopback(ctx, clients);
             startTunnel(name, bus);
             log.info(defs.size() + " placeholder(s) exposed.");
+            if (!settings.requireAuthentication()) {
+                log.warning("security.require-authentication is off: anyone who can reach this server can read its PUBLIC placeholders without pairing.");
+            }
         } catch (IOException | RuntimeException e) {
             log.severe("Could not start MCDashboard: " + e.getMessage());
         }
     }
 
+    /**
+     * The client verifier when {@code security.client-verification.mode} is {@code required}, else null. The service's public
+     * keys are the ones shipped in {@code vendor-keys.json} plus the owner's {@code keys}; with none, every request is refused
+     * and the log says why, rather than quietly accepting everybody.
+     */
+    private ClientAssertions clientAssertions() {
+        if (!settings.verifyClients()) return null;
+        List<java.util.Map<String, Object>> keys = new ArrayList<>(vendorKeys());
+        keys.addAll(settings.verifyKeys());
+        ClientAssertions v;
+        try {
+            v = new ClientAssertions(keys, clock, new java.util.HashSet<>(settings.verifyKinds()),
+                    new java.util.HashSet<>(settings.verifyHosts().stream().map(h -> h.toLowerCase(java.util.Locale.ROOT)).toList()), settings.verifyDeviceOnly());
+        } catch (IllegalArgumentException e) {
+            log.severe("security.client-verification.keys: " + e.getMessage() + ". Every client is refused until this is fixed.");
+            v = new ClientAssertions(List.of(), clock, java.util.Set.of(), java.util.Set.of(), true);
+        }
+        if (!v.hasKeys()) log.severe("security.client-verification is required but no public key is trusted: every client is refused. Add the verification service's key to security.client-verification.keys.");
+        else log.info("Client verification is required (" + (settings.verifyDeviceOnly() ? "platform-attested apps only" : "attested apps and registered clients") + ").");
+        return v;
+    }
+
+    /** The public keys of the MVdW attestation service that this release trusts ({@code vendor-keys.json}, a JSON array of JWKs). */
+    @SuppressWarnings("unchecked")
+    private List<java.util.Map<String, Object>> vendorKeys() {
+        try (var in = Services.class.getResourceAsStream("/vendor-keys.json")) {
+            if (in == null) return List.of();
+            Object parsed = org.mcdashboard.json.Json.parse(new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
+            return parsed instanceof List<?> l ? (List<java.util.Map<String, Object>>) l : List.of();
+        } catch (IOException | RuntimeException e) {
+            return List.of();
+        }
+    }
+
+    /** The certificate (or null without TLS); a failure is reported with what to change. */
+    private TlsSupport.Identity loadTls() {
+        try {
+            List<String> names = new ArrayList<>();
+            if (settings.publicUrl() != null) {
+                try {
+                    names.add(URI.create(settings.publicUrl()).getHost());
+                } catch (IllegalArgumentException ignored) {
+                    // a bad public-url is reported elsewhere
+                }
+            }
+            if (!settings.host().isBlank() && !settings.host().equals("0.0.0.0") && !settings.host().equals("::")) names.add(settings.host());
+            TlsSupport.Identity id = TlsSupport.load(files.dir(), settings.tls(), names, settings.nameOr(platform.serverName()), log::info);
+            log.info("TLS certificate " + (id.selfSigned() ? "(self-signed) " : "") + "SHA-256 fingerprint: " + id.fingerprint());
+            return id;
+        } catch (IOException e) {
+            log.severe("Could not start HTTPS: " + e.getMessage() + " (set server.tls.mode: off only behind a TLS-terminating proxy).");
+            return null;
+        }
+    }
+
+    /** Plain listeners on 127.0.0.1 for the tunnel client only, on free ports. */
+    private void startLoopback(ApiContext ctx, ClientPolicy clients) throws IOException {
+        ClientAssertions assertions = clientAssertions();
+        loopbackHttp = new HttpApi(ctx, clients);
+        loopbackHttp.background(settings.backgroundEnabled());
+        if (assertions != null) loopbackHttp.verifyClients(assertions);
+        loopbackHttp.start("127.0.0.1", 0, null);
+        if (settings.websocketPort() > 0) {
+            loopbackLive = new LiveServer(ctx, settings.maxLiveConnections(), clients);
+            if (assertions != null) loopbackLive.verifyClients(assertions);
+            loopbackLive.start("127.0.0.1", 0);
+        }
+    }
+
+    String tlsFingerprint() {
+        return tlsFingerprint;
+    }
+
     void stop() {
+        if (loopbackHttp != null) loopbackHttp.stop();
+        if (loopbackLive != null) loopbackLive.stop();
         if (tunnel != null) tunnel.stop();
         if (webhooks != null) webhooks.stop();
         if (eventStream != null) eventStream.close();
@@ -201,7 +300,10 @@ final class Services {
         if (!settings.tunnelEnabled()) return;
         try {
             URI uri = TunnelClient.validate(settings.tunnelUrl(), settings.tunnelKey(), settings.tunnelAllowInsecure());
-            tunnel = new TunnelClient(uri, settings.tunnelKey(), settings.localHost(), http.port(), live == null ? 0 : live.port(),
+            // With TLS on, the tunnel talks to the loopback-only plain listeners: the proxy terminates TLS towards the app.
+            HttpApi api = loopbackHttp != null ? loopbackHttp : http;
+            LiveServer feed = loopbackLive != null ? loopbackLive : live;
+            tunnel = new TunnelClient(uri, settings.tunnelKey(), settings.localHost(), api.port(), feed == null ? 0 : feed.port(),
                     name, platform.pluginVersion(), bus, log::info, log::warning);
             tunnel.start();
         } catch (IllegalArgumentException e) {

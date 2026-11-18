@@ -220,11 +220,18 @@ components:
         name: { type: string }
         plugin: { const: MCDashboard }
         version: { type: string }
-        protocol: { type: integer, const: 1 }
+        protocol: { type: integer, description: 'major API version; bumped only for a change that would break an older app, which then asks its player to update. Clients that do not know a higher value ask for an update; clients treat a missing value as 1' }
+        features:
+          x-known: [presets, history-points, upload, tls, background, client-verification]
+          type: array
+          items: { type: string }
+          description: 'optional capabilities of this plugin (for example presets, history-points, upload, tls). Absent on older plugins. A client gates features that need the plugin on this list and works without them'
         authRequired: { type: boolean }
         defaultLanguage: { type: string, enum: [en, nl, fr, de, es], description: 'language used when the app asks for one a dashboard does not provide' }
         languages: { type: array, items: { type: string, enum: [en, nl, fr, de, es] }, description: 'languages the server publishes dashboards in, sorted' }
         websocketPort: { type: integer }
+        websocketTls: { type: boolean, description: 'the live feed on websocketPort is TLS (wss://host:port/v1/live); the plugin terminates TLS itself' }
+        tlsFingerprint: { type: string, pattern: '^[0-9a-f]{64}$', description: 'SHA-256 of the plugin''s own self-signed certificate; clients pin it (also carried as pin= in the pairing link). Absent with a CA-signed certificate' }
         polling: { type: boolean, description: 'false when values are only served over the live feed (GET /v1/values and /v1/placeholders/{id} answer 403); absent means polling works' }
         endpoints:
           type: array
@@ -272,7 +279,7 @@ components:
         description: { type: string }
         type: { enum: [STRING, INTEGER, DECIMAL, BOOLEAN, PERCENTAGE, AUTO, IMAGE], description: 'AUTO values are typed per value; IMAGE values arrive as vd' }
         access: { enum: [PUBLIC, PLAYER] }
-        minInterval: { type: integer, description: seconds }
+        minInterval: { type: integer, description: 'seconds; the effective minimum refresh interval for this caller, including permission overrides' }
         min: { type: number }
         max: { type: number }
         unit: { type: string }

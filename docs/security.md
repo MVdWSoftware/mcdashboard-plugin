@@ -40,6 +40,10 @@
   `Retry-After`. They key on the device, not on the User-Agent or address, so a client that spoofs or rotates those gets no extra
   budget; getting more devices needs a pairing code from a player in game, bounded by `security.max-devices`. The discovery endpoint is not
   counted.
+- **Refresh limits.** `security.min-interval` (and `min-interval` per placeholder) caps how often PlaceholderAPI is
+  asked for a value. `security.min-interval-permissions` lets paired players with a node use a different interval, so
+  trusted staff can see fresher values without letting every caller do the same; the fastest node a player holds wins.
+  This changes the refresh rate only, never which placeholders they may read.
 - **Transport.** Use TLS via a reverse proxy ([reverse-proxy.md](reverse-proxy.md)). Tokens are
   bearer tokens: without TLS they can be stolen.
 - **Secret.** `plugins/MCDashboard/secret.key` signs tokens (HS256). Deleting it invalidates all
@@ -48,3 +52,28 @@
 - **Offline-mode servers.** On a server with `online-mode=false` anyone can join under any name, so the in-game proof is
   only as strong as the server's own login. Run the server in online mode (or behind an authenticating proxy) if
   player data matters.
+
+## Transport: TLS
+
+The API and the live feed are served over TLS by default (`server.tls.mode: self-signed`). The plugin generates an ECDSA P-256
+certificate once, keeps it in `plugins/MCDashboard/tls/` (private key readable by the server user only) and renews it only when it
+expires within 30 days or when a configured name is missing from it. A self-signed certificate is not vouched for by a
+certificate authority, so a client pins its SHA-256 fingerprint: the pairing link and QR code carry it (`pin=`), `/v1/info`
+publishes it (`tlsFingerprint`), and the startup log prints it. Verify the pin when you pair, as you would a Wi-Fi password; a
+fingerprint that arrives only over the connection being protected proves nothing. With `custom` the certificate is yours
+(for example from Let's Encrypt) and clients trust it the usual way. TLS is never silently switched off: when the certificate
+cannot be loaded the web server does not start.
+
+## Client verification
+
+The `User-Agent` is not proof. With `security.client-verification.mode: required` a client must show a short-lived assertion issued by
+the MVdW attestation service, which the plugin verifies offline; a modified app cannot get one. It works the same for the app and for
+other clients such as a WordPress plugin. What it proves and what it does not: [client-verification.md](client-verification.md).
+
+## Availability
+
+The API runs on 16 worker threads with 30 second request and response timeouts, so slow or idle connections cannot hold them.
+Placeholders are resolved on the server thread: concurrent requests for one value share a single resolution, a source that keeps
+failing pauses resolving for five seconds (the last values are served meanwhile), a value that cannot be resolved for a minute
+(or five refresh intervals) is no longer served, and `GET /v1/values` answers with what it has after four seconds. The rate
+limiters forget addresses that have been quiet for a minute.

@@ -5,6 +5,7 @@
 # access: PUBLIC (anyone who can reach the server) or PLAYER (a paired device, resolved for that player).
 # type: STRING, INTEGER, DECIMAL, BOOLEAN, PERCENTAGE, AUTO (decided per value) or IMAGE.
 # permission: optional node the paired player must hold. history: minutes kept for charts (PUBLIC only).
+# min-interval-permissions: optional map of permission node -> seconds for a faster interval, e.g. {mcdashboard.admin: 2}.
 # PowerNukkitX: placeholders come from the PlaceholderAPI plugin for PowerNukkitX. Names are %name%; parameters follow a
 # semicolon (%player_pos;x%). It cannot list what it has, so the catalog: section is not supported here.
 

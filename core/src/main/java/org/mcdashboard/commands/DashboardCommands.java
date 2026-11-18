@@ -135,7 +135,9 @@ public final class DashboardCommands {
     public String connectLink(String code) {
         String publicUrl = core.publicUrl();
         if (publicUrl == null) return null;
-        return "mcdashboard://connect?url=" + URLEncoder.encode(publicUrl, StandardCharsets.UTF_8) + "&code=" + code;
+        String pin = core.pinnedFingerprint();
+        return "mcdashboard://connect?url=" + URLEncoder.encode(publicUrl, StandardCharsets.UTF_8) + "&code=" + code
+                + (pin == null ? "" : "&pin=" + pin);
     }
 
     /** "5 min ago", "2 h ago", "3 days ago". */

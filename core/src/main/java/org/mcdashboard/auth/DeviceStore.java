@@ -36,6 +36,10 @@ public final class DeviceStore {
     private final Map<String, Device> devices = new LinkedHashMap<>();
     /** When each device last made an authenticated request. Kept in memory and written with the next save, not on every request. */
     private final Map<String, Long> seen = new ConcurrentHashMap<>();
+    /** The refresh generation each device had just before its last rotation, and when it rotated. */
+    private final Map<String, long[]> rotated = new ConcurrentHashMap<>();
+    /** How long the previous refresh token stays valid after a rotation, so a response lost on the way does not unpair the device. */
+    private static final long ROTATION_GRACE_MS = 30_000;
     private final List<Consumer<Device>> removalListeners = new CopyOnWriteArrayList<>();
     private final Path file;
     private final SecureRandom random = new SecureRandom();
@@ -76,10 +80,19 @@ public final class DeviceStore {
         return Optional.ofNullable(devices.get(id));
     }
 
-    /** Rotates the refresh token generation; the previous refresh token stops working. */
+    /**
+     * Rotates the refresh token generation; the previous refresh token stops working after a short grace period, so a
+     * client whose answer got lost can retry with the token it still has.
+     */
     public synchronized Optional<Device> rotate(String id, long expectedSerial) {
         Device d = devices.get(id);
-        if (d == null || d.serial() != expectedSerial) return Optional.empty();
+        if (d == null) return Optional.empty();
+        if (d.serial() != expectedSerial) {
+            long[] prev = rotated.get(id);
+            boolean retry = prev != null && prev[0] == expectedSerial && System.currentTimeMillis() - prev[1] <= ROTATION_GRACE_MS;
+            return retry ? Optional.of(d) : Optional.empty();
+        }
+        rotated.put(id, new long[]{expectedSerial, System.currentTimeMillis()});
         Device n = new Device(d.id(), d.playerUuid(), d.playerName(), d.label(), d.serial() + 1, d.createdMs(), d.client());
         devices.put(id, n);
         save();
@@ -95,6 +108,7 @@ public final class DeviceStore {
         Device d = devices.remove(id);
         if (d == null) return false;
         seen.remove(id);
+        rotated.remove(id);
         save();
         for (var l : removalListeners) {
             try {

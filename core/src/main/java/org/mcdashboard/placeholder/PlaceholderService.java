@@ -4,6 +4,7 @@
  */
 package org.mcdashboard.placeholder;
 
+import org.mcdashboard.auth.PermissionCache;
 import org.mcdashboard.image.ImageCache;
 import org.mcdashboard.image.ImageSource;
 
@@ -24,7 +25,8 @@ import java.util.function.Predicate;
 
 /**
  * Allowlist plus cache in front of a {@link ValueSource}. Each (placeholder, player) pair is
- * resolved at most once per {@code min-interval}, so many clients cannot load the main thread.
+ * resolved at most once per its effective {@code min-interval}, so many clients cannot load the main thread.
+ * Permission overrides can make that interval shorter (or longer) for a caller.
  * Lookups are by id; the catalog search uses a lowercase haystack computed once per definition.
  */
 public final class PlaceholderService {
@@ -55,23 +57,36 @@ public final class PlaceholderService {
             .thenComparing(e -> e.def().id());
 
     private volatile Snapshot snapshot = new Snapshot(Map.of(), List.of());
+    /** A value that can no longer be resolved is dropped after this long (or five refresh intervals when that is longer). */
+    static final long STALE_AFTER_MS = 60_000;
     private final Map<String, Value> cache = new ConcurrentHashMap<>();
     private final ValueSource source;
     private final Clock clock;
     private final long globalMinIntervalMs;
+    private final IntervalOverrides globalIntervalOverrides;
+    private final PermissionCache permissions;
     private final Path imagesDir;
     private final ImageCache images;
 
     public PlaceholderService(ValueSource source, Clock clock, long globalMinIntervalMs,
                               Collection<PlaceholderDefinition> defs) {
-        this(source, clock, globalMinIntervalMs, defs, Path.of("images"), new ImageCache(clock));
+        this(source, clock, globalMinIntervalMs, IntervalOverrides.empty(), new PermissionCache(), defs,
+                Path.of("images"), new ImageCache(clock));
     }
 
     public PlaceholderService(ValueSource source, Clock clock, long globalMinIntervalMs,
                               Collection<PlaceholderDefinition> defs, Path imagesDir, ImageCache images) {
+        this(source, clock, globalMinIntervalMs, IntervalOverrides.empty(), new PermissionCache(), defs, imagesDir, images);
+    }
+
+    public PlaceholderService(ValueSource source, Clock clock, long globalMinIntervalMs,
+                              IntervalOverrides globalIntervalOverrides, PermissionCache permissions,
+                              Collection<PlaceholderDefinition> defs, Path imagesDir, ImageCache images) {
         this.source = source;
         this.clock = clock;
         this.globalMinIntervalMs = Math.max(0, globalMinIntervalMs);
+        this.globalIntervalOverrides = globalIntervalOverrides == null ? IntervalOverrides.empty() : globalIntervalOverrides;
+        this.permissions = permissions == null ? new PermissionCache() : permissions;
         this.imagesDir = imagesDir;
         this.images = images;
         setDefinitions(defs);
@@ -128,11 +143,63 @@ public final class PlaceholderService {
         return new Page(items, total, counts);
     }
 
-    /** Effective refresh interval for a placeholder, in milliseconds. */
+    /** Effective refresh interval for a placeholder, in milliseconds, without a player's permission overrides. */
     public long intervalMs(PlaceholderDefinition d) {
-        long ms = Math.max(d.minIntervalMs(), globalMinIntervalMs);
+        return intervalMs(d, null);
+    }
+
+    /**
+     * Effective refresh interval for this caller, in milliseconds. A permission override replaces the configured
+     * interval (the fastest node the player holds wins); the global and the placeholder interval are combined by
+     * taking the larger, so a placeholder can stay slower than the global default.
+     */
+    public long intervalMs(PlaceholderDefinition d, String playerUuid) {
+        long global = globalIntervalOverrides.select(globalMinIntervalMs, playerUuid, permissions);
+        long own = d.minIntervalOverrides().select(d.minIntervalMs(), playerUuid, permissions);
+        long ms = Math.max(own, global);
         if (d.type() == PlaceholderDefinition.Type.IMAGE) ms = Math.max(ms, d.source().startsWith("url:") ? IMAGE_URL_MIN_TTL_MS : 30_000);
         return ms;
+    }
+
+    /** Resolutions in flight, so many callers of one value (every connected app) cost the server thread one call. */
+    private final Map<String, java.util.concurrent.CompletableFuture<String>> inflight = new ConcurrentHashMap<>();
+    private final java.util.concurrent.atomic.AtomicInteger failures = new java.util.concurrent.atomic.AtomicInteger();
+    private volatile long breakerUntilMs;
+    /** After this many resolutions in a row that got no answer, resolving pauses for {@link #BREAKER_PAUSE_MS}. */
+    static final int BREAKER_FAILURES = 3;
+    static final long BREAKER_PAUSE_MS = 5_000;
+
+    /**
+     * One resolution per key at a time; other callers wait for its answer. A source that keeps failing (the main
+     * thread is stuck or very slow) opens a circuit breaker so API threads stop queueing behind it, and the last
+     * values keep being served until they go stale.
+     */
+    private String resolveOnce(String key, String template, String ctx, long now) {
+        var mine = new java.util.concurrent.CompletableFuture<String>();
+        var running = inflight.putIfAbsent(key, mine);
+        if (running != null) {
+            try {
+                return running.get(3, java.util.concurrent.TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+        String resolved = null;
+        try {
+            resolved = source.resolve(template, ctx);
+            return resolved;
+        } finally {
+            if (resolved == null) {
+                if (failures.incrementAndGet() >= BREAKER_FAILURES) breakerUntilMs = clock.millis() + BREAKER_PAUSE_MS;
+            } else {
+                failures.set(0);
+            }
+            mine.complete(resolved);
+            inflight.remove(key);
+        }
     }
 
     /**
@@ -152,9 +219,16 @@ public final class PlaceholderService {
         String key = id + '|' + (ctx == null ? "" : ctx);
         long now = clock.millis();
         Value cached = cache.get(key);
-        if (cached != null && now - cached.updatedMs() < intervalMs(d)) return Optional.of(cached);
-        String resolved = source.resolve(d.value(), ctx);
-        if (resolved == null || resolved.equals(d.value())) return Optional.ofNullable(cached); // unresolved: keep stale value
+        if (cached != null && now - cached.updatedMs() < intervalMs(d, playerUuid)) return Optional.of(cached);
+        if (now < breakerUntilMs) return Optional.ofNullable(cached); // the server thread is not answering: do not pile up behind it
+        String resolved = resolveOnce(key, d.value(), ctx, now);
+        if (resolved == null || resolved.equals(d.value())) {
+            // Unresolved: a short outage keeps the last value, but a dead value must not look live for ever.
+            long keep = Math.max(STALE_AFTER_MS, 5 * intervalMs(d, playerUuid));
+            if (cached != null && now - cached.updatedMs() > keep) cache.remove(key);
+            else return Optional.ofNullable(cached);
+            return Optional.empty();
+        }
         Value fresh = new Value(id, resolved, now);
         cache.put(key, fresh);
         return Optional.of(fresh);
