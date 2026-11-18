@@ -39,6 +39,8 @@ public final class HttpApi implements HttpHandler {
     public static final String DEVELOPER_PERMISSION = "mcdashboard.developer";
     /** Sent by clients on requests made for notifications and home-screen widgets rather than for a screen the player is looking at. */
     public static final String PURPOSE_HEADER = "X-MCDashboard-Purpose";
+    /** Header on authenticated requests in which the app says what it runs under: {@code server}, {@code app} or {@code free}. Informational only. */
+    public static final String ENTITLEMENT_HEADER = "X-MCDashboard-Entitlement";
     private static final String PLACEHOLDER = "/v1/placeholders/";
     private static final String HISTORY = "/v1/history/";
     private static final String DASHBOARD = "/v1/dashboards/";
@@ -246,7 +248,11 @@ public final class HttpApi implements HttpHandler {
             return;
         }
         String player = who.map(TokenService.Claims::player).orElse(null);
-        who.ifPresent(c -> ctx.devices().touch(c.deviceId()));
+        who.ifPresent(c -> {
+            ctx.devices().touch(c.deviceId());
+            String entitlement = ex.getRequestHeaders().getFirst(ENTITLEMENT_HEADER);
+            if (entitlement != null) ctx.devices().entitle(c.deviceId(), entitlement);
+        });
         boolean get = method.equals("GET");
         if (!ctx.polling() && get && (path.equals("/v1/values") || (path.startsWith(PLACEHOLDER) && path.length() > PLACEHOLDER.length()))) {
             error(ex, 403, "polling is disabled on this server, use the live feed");

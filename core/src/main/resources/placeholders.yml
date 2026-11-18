@@ -71,6 +71,30 @@ placeholders:
     access: PUBLIC
     min-interval: 15
     history: 120
+  - id: mcdashboard-devices-server
+    name: Devices on your licence
+    group: MCDashboard
+    description: Devices that say they use this server's licence (self-reported)
+    value: '%mcdashboard_devices_server%'
+    type: INTEGER
+    access: PUBLIC
+    min-interval: 60
+  - id: mcdashboard-devices-app
+    name: Devices on app unlock
+    group: MCDashboard
+    description: Devices that say they use the App unlock (self-reported)
+    value: '%mcdashboard_devices_app%'
+    type: INTEGER
+    access: PUBLIC
+    min-interval: 60
+  - id: mcdashboard-devices-free
+    name: Free devices
+    group: MCDashboard
+    description: Devices that say they use the free app (self-reported)
+    value: '%mcdashboard_devices_free%'
+    type: INTEGER
+    access: PUBLIC
+    min-interval: 60
   - id: mcdashboard-licensed
     name: Licensed
     group: MCDashboard
@@ -82,7 +106,7 @@ placeholders:
   - id: mcdashboard-license-state
     name: Licence state
     group: MCDashboard
-    description: licensed or free
+    description: licensed (licence id configured) or free
     value: '%mcdashboard_license_state%'
     type: STRING
     access: PUBLIC

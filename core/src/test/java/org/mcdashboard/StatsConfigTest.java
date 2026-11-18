@@ -65,7 +65,7 @@ class StatsConfigTest {
         String on = placeholders("stats:\n  offer-to-app: true\n");
         assertTrue(on.contains("mcdashboard-devices-online"), on);
         assertTrue(on.contains("mcdashboard-api-requests-per-minute"), on);
-        assertEquals(hidden + 15, core.stats().placeholders());
+        assertEquals(hidden + 18, core.stats().placeholders());
         assertEquals("9.9.9", core.stats().version());
         assertEquals("off", core.stats().historyStorage());
         assertEquals(0, core.stats().devices());

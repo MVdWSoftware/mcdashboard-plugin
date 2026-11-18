@@ -19,6 +19,9 @@ The plugin is named `MCDashboard` and the command is `/mcdashboard` (alias `/das
   `%server_tps_1%` and `%player_name%` do not exist there. Its built-ins include `server_online`, `server_max_players`,
   `server_motd`, `server_tps`, `player`, `player_health`, `player_ping`, `player_level` and `time`; other plugins add
   more.
+- **`%mcdashboard_...%`.** The plugin registers its own counters (`mcdashboard_devices`, `mcdashboard_devices_server`, ...) with the
+  PowerNukkitX PlaceholderAPI under the same names as on Spigot ([placeholders-api.md](placeholders-api.md)); the `MCDashboard` group
+  of the default `placeholders.yml` offers them to the app with `stats.offer-to-app: true`.
 - **No `catalog:`.** The PlaceholderAPI for PowerNukkitX cannot list its placeholders, so the plugin cannot expand an
   expansion into entries. List each placeholder under `placeholders:`; a `catalog:` section is ignored with a warning.
 - **Player placeholders need the player online.** They read live player state, so a `PLAYER` placeholder has no value

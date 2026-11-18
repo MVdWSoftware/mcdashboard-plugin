@@ -26,7 +26,7 @@
   `ws://` unless the host is `localhost` or a private IP address (a host name never counts as private) and answers only
   the API routes it is meant to (not the events stream) over it.
 - **Device names** are shown in chat, so colour codes and control characters are removed from them when a device pairs.
-- **Device list.** `/mcdashboard devices` shows a player their devices (app, when linked, last seen) with a `[Revoke]` button.
+- **Device list.** `/mcdashboard devices` shows a player their devices (app, licence, when linked, last seen) with a `[Revoke]` button.
 - **Official client.** The app identifies itself with `User-Agent: MCDashboard/<x.y.z> (android|ios)`. Every route except
   the discovery endpoint (and the proxy's event stream, which has its own token) and the live feed refuse any other User-Agent with
   `403`; a nonmatching client the owner trusts is allowed with `security.allowed-clients` (regular expressions matched
@@ -64,11 +64,24 @@ fingerprint that arrives only over the connection being protected proves nothing
 (for example from Let's Encrypt) and clients trust it the usual way. TLS is never silently switched off: when the certificate
 cannot be loaded the web server does not start.
 
+## Device entitlement
+
+An authenticated request may carry `X-MCDashboard-Entitlement: server | app | free`: the app says whether the device runs under this
+server's licence it verified (`server`), under the App unlock the player bought (`app`) or neither (`free`). The plugin stores the last
+valid value on the device record (`devices.json`, `entitlement`) and ignores anything else, a missing header and unauthenticated
+requests. `/mcdashboard devices` shows it per device with a summary (`12 devices: 7 via your licence, 3 app unlock, 2 free`; devices that
+have not reported yet are counted last), and `%mcdashboard_devices_server%`, `%mcdashboard_devices_app%` and `%mcdashboard_devices_free%`
+count it for the whole server.
+
+It lets you check, without anything being sent to the MVdW service, that the devices of your players use your licence. It is **self-reported
+by a closed app on a device its user controls, so informational only**: a modified client can claim anything. The plugin never uses it to
+allow, refuse or limit anything, and the live feed (a browser WebSocket cannot set headers) does not carry it.
+
 ## Client verification
 
 The `User-Agent` is not proof. With `security.client-verification.mode: required` a client must show a short-lived assertion issued by
 the MVdW attestation service, which the plugin verifies offline; a modified app cannot get one. It works the same for the app and for
-other clients such as a WordPress plugin. What it proves and what it does not: [client-verification.md](client-verification.md).
+other clients such as a WordPress plugin. An assertion that names a licensed server (`lid` claim) is accepted only by the server whose `license.id` matches. What it proves and what it does not: [client-verification.md](client-verification.md).
 
 ## Availability
 

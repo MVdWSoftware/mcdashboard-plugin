@@ -31,11 +31,13 @@ class McDashboardExpansionTest {
 
     @Test
     void answersFromTheStatsForAnyPlayerOrNone() {
-        PluginStats stats = new PluginStats(Clock.systemUTC()).devices(() -> 4, () -> 1).licensed(true);
+        PluginStats stats = new PluginStats(Clock.systemUTC()).devices(() -> 4, () -> 1).devicesEntitled(x -> x.equals("app") ? 3 : 0).licensed(true);
         McDashboardExpansion e = expansion(stats);
         assertEquals("4", e.onRequest(null, "devices"));
         assertEquals("1", e.onRequest(null, "devices_online"));
         assertEquals("licensed", e.onRequest(null, "license_state"));
+        assertEquals("3", e.onRequest(null, "devices_app"));
+        assertEquals("0", e.onRequest(null, "devices_free"));
         for (String p : StatsPlaceholders.PARAMS) assertTrue(e.onRequest(null, p) != null, p);
     }
 
@@ -43,7 +45,7 @@ class McDashboardExpansionTest {
     void unknownParametersAreNullAndReadingIsInstant() {
         McDashboardExpansion e = expansion(new PluginStats(Clock.systemUTC()));
         assertNull(e.onRequest(null, "unknown"));
-        assertNull(e.onRequest(null, "devices_server"));
+        assertNull(e.onRequest(null, "devices_other"));
         assertNull(new McDashboardExpansion(() -> null, "x").onRequest(null, "devices"));
         assertTimeoutPreemptively(Duration.ofSeconds(1), () -> {
             for (int i = 0; i < 10_000; i++) e.onRequest(null, "api_requests_per_minute");

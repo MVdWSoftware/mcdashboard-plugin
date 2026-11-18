@@ -142,6 +142,21 @@ class DashboardCommandsTest {
     }
 
     @Test
+    void devicesShowWhichLicenceEachOneSaysItUses() throws Exception {
+        DashboardCommands c = start(true, "");
+        Who steve = new Who(STEVE);
+        var phone = core.devices().add(STEVE, "Steve", "Pixel", 5, "MCDashboard/1.0.0 (android)").orElseThrow();
+        var tablet = core.devices().add(STEVE, "Steve", "Tablet", 5, null).orElseThrow();
+        core.devices().add(STEVE, "Steve", "Old", 5, null);
+        core.devices().entitle(phone.id(), "server");
+        core.devices().entitle(tablet.id(), "app");
+        c.devices(steve, "mcdashboard", STEVE);
+        assertTrue(steve.said.get(0).contains("(3 devices: 1 via your licence, 1 app unlock, 0 free, 1 not reported)"), steve.said.get(0));
+        assertTrue(steve.said.get(1).contains("via your licence"), steve.said.get(1));
+        assertTrue(steve.said.get(2).contains("app unlock"), steve.said.get(2));
+    }
+
+    @Test
     void devicesAndRevokeOnlyTouchTheCallersOwnDevices() throws Exception {
         DashboardCommands c = start(true, "");
         Who steve = new Who(STEVE);
@@ -150,7 +165,8 @@ class DashboardCommandsTest {
 
         var device = core.devices().add(STEVE, "Steve", "Pixel", 5, "MCDashboard/1.0.0 (android)").orElseThrow();
         c.devices(steve, "mcdashboard", STEVE);
-        assertTrue(steve.said.get(1).contains("(1)"));
+        assertTrue(steve.said.get(1).contains("(1 device: 0 via your licence, 0 app unlock, 0 free, 1 not reported)"), steve.said.get(1));
+        assertTrue(steve.said.get(2).contains("licence not reported"), steve.said.get(2));
         assertTrue(steve.said.get(2).contains("Pixel") && steve.said.get(2).contains("revoke " + device.id()), steve.said.get(2));
 
         Who other = new Who("00000000-0000-0000-0000-000000000002");

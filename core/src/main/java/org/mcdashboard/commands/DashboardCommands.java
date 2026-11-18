@@ -114,12 +114,35 @@ public final class DashboardCommands {
             sender.send("No devices linked. Use /" + label + " link to link one.");
             return;
         }
-        sender.send("§6Devices with access to your data §7(" + list.size() + "):");
+        sender.send("§6Devices with access to your data §7(" + summary(list) + "):");
         for (DeviceStore.Device d : list) {
             String seen = core.devices().lastSeen(d.id()).map(t -> "last seen " + ago(t)).orElse("not seen since the server started");
-            sender.send("§e" + d.label() + " §7- " + (d.client() == null ? "unknown app" : d.client()) + ", linked " + ago(d.createdMs())
+            sender.send("§e" + d.label() + " §7- " + (d.client() == null ? "unknown app" : d.client()) + ", " + entitlementText(d.entitlement()) + ", linked " + ago(d.createdMs())
                     + ", " + seen + " §7(remove: /" + label + " revoke " + d.id() + ")");
         }
+    }
+
+    /** {@code 12 devices: 7 via your licence, 3 app unlock, 2 free}; devices that have not said yet are counted last. Self-reported by the app. */
+    static String summary(List<DeviceStore.Device> list) {
+        int server = 0, app = 0, free = 0;
+        for (DeviceStore.Device d : list) {
+            if ("server".equals(d.entitlement())) server++;
+            else if ("app".equals(d.entitlement())) app++;
+            else if ("free".equals(d.entitlement())) free++;
+        }
+        int unknown = list.size() - server - app - free;
+        return list.size() + (list.size() == 1 ? " device: " : " devices: ") + server + " via your licence, " + app + " app unlock, " + free + " free"
+                + (unknown > 0 ? ", " + unknown + " not reported" : "");
+    }
+
+    /** What a device says it runs under (self-reported, informational). */
+    static String entitlementText(String entitlement) {
+        if (entitlement == null) return "licence not reported";
+        return switch (entitlement) {
+            case "server" -> "via your licence";
+            case "app" -> "app unlock";
+            default -> "free";
+        };
     }
 
     public void revoke(Sender sender, String label, String[] args, String playerUuid) {

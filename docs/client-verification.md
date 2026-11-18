@@ -15,12 +15,20 @@ client is:
 2. The service answers with a **client assertion**: an ES256 token that names the kind of client, its version and the host of your
    server, and lives for one hour.
 3. The client shows the assertion to your plugin (header `X-MCDashboard-Attestation`; in the live feed's `auth` message, because a
-   browser WebSocket cannot set headers). The plugin checks the signature with the service's public key, offline. It never contacts
+   browser WebSocket cannot set headers). The plugin checks the signature (and, for an assertion with a `lid` claim, that it is for this server's `license.id`) with the service's public key, offline. It never contacts
    the service, and the service never sees your players.
 
 A modified app cannot get an assertion, because the platform no longer vouches for it, so it cannot talk to a server that requires
 one. Because the token format is the same for every client, a WordPress plugin or any future client is protected by the same rule
 without new code in the plugin.
+
+### Assertions for one licensed server (`lid`)
+
+The service issues assertions to server-side clients (a WordPress site, ...) only for hosts of licensed servers, and then adds a `lid`
+claim: the licence id of that server. With `mode: required` the plugin accepts an assertion that carries `lid` only when it equals this
+server's own `license.id`; a server without `license.id` accepts none of them. Assertions without `lid`, such as those issued to the
+official app, stay valid as before. The comparison is offline, nothing is sent anywhere. It stops a client that is vouched for on one
+licensed server from being shown to another server of the same host.
 
 What it does not do: an assertion can be replayed by whoever steals it until it expires (an hour), and only for your host. It is not
 bound to a key held by the client. It does not make a client harmless: the per-device rate limits still apply to verified clients.

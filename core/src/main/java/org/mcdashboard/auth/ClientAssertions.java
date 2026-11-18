@@ -8,6 +8,7 @@ import org.mcdashboard.json.Json;
 
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.AlgorithmParameters;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
@@ -45,8 +46,11 @@ public final class ClientAssertions {
     private static final int MAX_CACHE = 2048;
     private static final long SKEW_SECONDS = 120;
 
-    /** A verified assertion. {@code level} is {@code device} or {@code registered}. */
-    public record Verified(String instance, String kind, String version, String level, long expiresAtMs) {
+    /**
+     * A verified assertion. {@code level} is {@code device} or {@code registered}; {@code licenseId} is the {@code lid} claim
+     * (the licensed server the assertion was issued for, only for server-side clients) or null.
+     */
+    public record Verified(String instance, String kind, String version, String level, long expiresAtMs, String licenseId) {
     }
 
     private final List<PublicKey> keys;
@@ -54,6 +58,7 @@ public final class ClientAssertions {
     private final Set<String> kinds;
     private final Set<String> hosts;
     private final boolean deviceOnly;
+    private final String licenseId;
     private final Base64.Decoder b64 = Base64.getUrlDecoder();
     private final Map<String, Verified> cache = new ConcurrentHashMap<>();
 
@@ -64,6 +69,14 @@ public final class ClientAssertions {
      * @param deviceOnly accept only {@code device}-level assertions (platform-attested apps), not {@code registered} clients
      */
     public ClientAssertions(List<Map<String, Object>> keys, Clock clock, Set<String> kinds, Set<String> hosts, boolean deviceOnly) {
+        this(keys, clock, kinds, hosts, deviceOnly, null);
+    }
+
+    /**
+     * @param licenseId this server's {@code license.id}, or null. An assertion that carries a {@code lid} claim is accepted only
+     *                  when it equals this id, so a server without a licence id accepts none of them.
+     */
+    public ClientAssertions(List<Map<String, Object>> keys, Clock clock, Set<String> kinds, Set<String> hosts, boolean deviceOnly, String licenseId) {
         List<PublicKey> parsed = new ArrayList<>();
         for (Map<String, Object> jwk : keys) parsed.add(key(jwk));
         this.keys = List.copyOf(parsed);
@@ -71,6 +84,7 @@ public final class ClientAssertions {
         this.kinds = Set.copyOf(kinds);
         this.hosts = Set.copyOf(hosts);
         this.deviceOnly = deviceOnly;
+        this.licenseId = licenseId == null || licenseId.isBlank() ? null : licenseId;
     }
 
     /** Whether any key is trusted: without one nothing verifies, which is what an owner who forgot the key must see. */
@@ -107,7 +121,14 @@ public final class ClientAssertions {
             if (deviceOnly && !"device".equals(level)) return Optional.empty();
             String kind = String.valueOf(c.get("kind"));
             if (!kinds.isEmpty() && !kinds.contains(kind)) return Optional.empty();
-            Verified v = new Verified(String.valueOf(c.get("sub")), kind, String.valueOf(c.get("cver")), level, exp);
+            String lid = null;
+            if (c.containsKey("lid")) {
+                // Issued for one licensed server: valid here only when that is this server (offline comparison, nothing is sent).
+                if (!(c.get("lid") instanceof String s) || s.isEmpty() || licenseId == null || !MessageDigest.isEqual(
+                        s.getBytes(StandardCharsets.UTF_8), licenseId.getBytes(StandardCharsets.UTF_8))) return Optional.empty();
+                lid = s;
+            }
+            Verified v = new Verified(String.valueOf(c.get("sub")), kind, String.valueOf(c.get("cver")), level, exp, lid);
             String aud = String.valueOf(c.get("aud")).toLowerCase(Locale.ROOT);
             if (!audienceOk(aud, host)) return Optional.empty();
             if (cache.size() >= MAX_CACHE) cache.values().removeIf(x -> x.expiresAtMs() <= now);

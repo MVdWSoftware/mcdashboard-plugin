@@ -109,6 +109,7 @@ final class Services {
             history = new HistoryService(clock, defs, historySettings, historyStore(historySettings), log::warning);
             history.start();
             stats.historyStorage(historySettings.storage().type()).placeholders(defs::size)
+                    .devicesEntitled(devices::countEntitled)
                     .devices(devices::count, () -> devices.countSeenSince(clock.millis() - PluginStats.ONLINE_MINUTES * 60_000L))
                     .historySamples(history::samplesWritten).dashboards(() -> dashboardCount);
             refreshDashboardCount();
@@ -128,7 +129,7 @@ final class Services {
                     new RateLimiter(clock, settings.authAttemptsPerMinute(), 60_000), dashboards,
                     settings.trustedProxies(), history, settings.licenseId(), platform::notifyLinked, permissions.cache(),
                     settings.defaultLanguage(), developerMode, permissions::dashboardsChanged,
-                    settings.endpoints(), settings.discoveryOnly(), settings.polling());
+                    settings.endpoints(), settings.discoveryOnly(), settings.polling(), stats);
             ClientPolicy clients = ClientPolicy.of(clock, settings.allowedClients(), settings.minClientVersion(),
                     settings.requestsPerMinute(), settings.anonymousRequestsPerMinute(), log::warning);
             // Slow or idle connections must not hold the API's worker threads: the JDK server has no timeouts unless told.
@@ -176,7 +177,7 @@ final class Services {
         ClientAssertions v;
         try {
             v = new ClientAssertions(keys, clock, new java.util.HashSet<>(settings.verifyKinds()),
-                    new java.util.HashSet<>(settings.verifyHosts().stream().map(h -> h.toLowerCase(java.util.Locale.ROOT)).toList()), settings.verifyDeviceOnly());
+                    new java.util.HashSet<>(settings.verifyHosts().stream().map(h -> h.toLowerCase(java.util.Locale.ROOT)).toList()), settings.verifyDeviceOnly(), settings.licenseId());
         } catch (IllegalArgumentException e) {
             log.severe("security.client-verification.keys: " + e.getMessage() + ". Every client is refused until this is fixed.");
             v = new ClientAssertions(List.of(), clock, java.util.Set.of(), java.util.Set.of(), true);

@@ -194,12 +194,31 @@ class ApiTest {
                 new PlaceholderService((t, u) -> "1", clock, 0, defs), new TokenService(new byte[48], clock),
                 new DeviceStore(Files.createTempFile("devices", ".json")), otps, new RateLimiter(clock, 3, 60000), List.of(), Set.of(),
                 new HistoryService(clock, defs), null, d -> {}, TestContexts.allowAll(), "en");
-        api = new HttpApi(ctx);
+        var stats = new org.mcdashboard.stats.PluginStats(clock);
+        api = new HttpApi(TestContexts.withStats(ctx, stats));
         api.start("127.0.0.1", 0, null);
         base = "http://127.0.0.1:" + api.port();
         for (int i = 0; i < 3; i++) assertEquals(401, post("/v1/auth", "{\"otp\":\"AAAAAAAA\"}").statusCode());
+        assertEquals(0, stats.rateLimitedRequests());
         assertEquals(429, post("/v1/auth", "{\"otp\":\"AAAAAAAA\"}").statusCode());
         assertEquals(429, post("/v1/auth/refresh", "{\"refreshToken\":\"x\"}").statusCode(), "refresh shares the limit");
+        assertEquals(2, stats.rateLimitedRequests(), "refused pairing and refresh attempts count as rate limited");
+    }
+
+    @Test
+    void aDeviceReportsWhichLicenceItUsesAndOnlyKnownValuesCount() throws Exception {
+        String access = pair("Pixel");
+        String id = ctx.devices().devicesOf("uuid-Pixel").get(0).id();
+        assertNull(ctx.devices().get(id).orElseThrow().entitlement());
+        assertEquals(200, get("/v1/placeholders/tps", "Authorization", "Bearer " + access, HttpApi.ENTITLEMENT_HEADER, "app").statusCode());
+        assertEquals("app", ctx.devices().get(id).orElseThrow().entitlement());
+        get("/v1/placeholders/tps", "Authorization", "Bearer " + access, HttpApi.ENTITLEMENT_HEADER, "platinum");
+        assertEquals("app", ctx.devices().get(id).orElseThrow().entitlement(), "anything else is ignored");
+        get("/v1/placeholders/tps", "Authorization", "Bearer " + access, HttpApi.ENTITLEMENT_HEADER, "server");
+        assertEquals("server", ctx.devices().get(id).orElseThrow().entitlement());
+        get("/v1/placeholders/tps", HttpApi.ENTITLEMENT_HEADER, "free"); // not authenticated: nobody to attribute it to
+        assertEquals(1, ctx.devices().countEntitled("server"));
+        assertEquals(0, ctx.devices().countEntitled("free"));
     }
 
     /** A server with a permissioned overview, a staff-only dashboard, a player dashboard and a staff-only placeholder. */

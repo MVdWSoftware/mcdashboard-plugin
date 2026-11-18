@@ -30,6 +30,7 @@ public final class PluginStats {
     private volatile String historyStorage = "off";
     private volatile boolean licensed;
     private volatile IntSupplier devices = () -> 0;
+    private volatile java.util.function.ToIntFunction<String> devicesEntitled = e -> 0;
     private volatile LongSupplier devicesOnline = () -> 0;
     private volatile IntSupplier liveClients = () -> 0;
     private volatile LongSupplier historySamples = () -> 0;
@@ -87,6 +88,12 @@ public final class PluginStats {
         return this;
     }
 
+    /** How many devices reported each entitlement ({@code server}, {@code app}, {@code free}); self-reported, informational. */
+    public PluginStats devicesEntitled(java.util.function.ToIntFunction<String> counter) {
+        this.devicesEntitled = counter;
+        return this;
+    }
+
     public PluginStats liveClients(IntSupplier open) {
         this.liveClients = open;
         return this;
@@ -130,11 +137,21 @@ public final class PluginStats {
     }
 
     /**
-     * The license state. For now {@code licensed} when {@code license.id} is configured, else {@code free}. This is the hook a
-     * per-device entitlement feature refines later (then also {@code devices_server|app|free}).
+     * The license state: {@code licensed} when {@code license.id} is configured (config based, as the plugin cannot and does
+     * not ask the MVdW service), else {@code free}. This is the hook for refining it from what devices report, which is
+     * self-reported and informational: the per-entitlement device counts are {@link #devicesEntitled(String)}.
      */
     public String licenseState() {
         return licensed ? "licensed" : "free";
+    }
+
+    /** Devices that reported {@code entitlement} ({@code server}, {@code app} or {@code free}); 0 for anything else. */
+    public int devicesEntitled(String entitlement) {
+        try {
+            return devicesEntitled.applyAsInt(entitlement);
+        } catch (RuntimeException e) {
+            return 0;
+        }
     }
 
     public int devices() {

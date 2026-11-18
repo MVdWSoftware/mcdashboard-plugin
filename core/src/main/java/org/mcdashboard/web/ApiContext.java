@@ -31,7 +31,13 @@ public record ApiContext(String serverName, String pluginVersion, Supplier<Serve
                          Set<String> trustedProxies, HistoryService history, String licenseId,
                          Consumer<DeviceStore.Device> onLinked, PermissionCache permissions, String defaultLanguage,
                          BooleanSupplier developerMode, Runnable onDashboardsChanged,
-                         List<String> endpoints, boolean discoveryOnly, boolean polling) {
+                         List<String> endpoints, boolean discoveryOnly, boolean polling,
+                         org.mcdashboard.stats.PluginStats stats) {
+    /** Counts a refused attempt in the {@code rate_limited} statistic; a no-op without stats (tests). */
+    public void rateLimited() {
+        if (stats != null) stats.rateLimited();
+    }
+
     /**
      * Major version of the API reported by {@code /v1/info}. Bump it only for a change that would break an older app
      * (it then asks its player to update); additions are announced in {@link #FEATURES} instead and must keep working

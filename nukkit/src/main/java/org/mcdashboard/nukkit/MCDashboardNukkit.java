@@ -22,6 +22,8 @@ public final class MCDashboardNukkit extends PluginBase {
     public void onEnable() {
         core = new MCDashboardCore(new NukkitPlatform(this), new NukkitYaml(), getDataFolder().toPath());
         commands = new DashboardCommands(core);
+        var papi = org.powernukkitx.placeholderapi.PlaceholderAPI.get();
+        if (papi != null) NukkitStatsPlaceholders.register(papi::register, core::stats);
         core.start();
     }
 

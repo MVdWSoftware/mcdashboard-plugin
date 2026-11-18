@@ -39,7 +39,7 @@ public final class TestContexts {
                 refreshTokenSeconds, websocketPort, placeholders, tokens, devices, otps, authLimiter,
                 DashboardStore.inMemory(dashboards), trustedProxies, history, licenseId, onLinked, permissions,
                 defaultLanguage, () -> false, () -> {
-                }, List.of(), false, true);
+                }, List.of(), false, true, null);
     }
 
     /** No endpoints, polling on. */
@@ -53,7 +53,16 @@ public final class TestContexts {
         return new ApiContext(serverName, pluginVersion, status, requireAuthentication, maxDevices, accessTokenSeconds,
                 refreshTokenSeconds, websocketPort, placeholders, tokens, devices, otps, authLimiter, dashboards,
                 trustedProxies, history, licenseId, onLinked, permissions, defaultLanguage, developerMode,
-                onDashboardsChanged, List.of(), false, true);
+                onDashboardsChanged, List.of(), false, true, null);
+    }
+
+    /** The same context counting into {@code stats}. */
+    public static ApiContext withStats(ApiContext c, org.mcdashboard.stats.PluginStats stats) {
+        return new ApiContext(c.serverName(), c.pluginVersion(), c.status(), c.requireAuthentication(), c.maxDevices(),
+                c.accessTokenSeconds(), c.refreshTokenSeconds(), c.websocketPort(), c.placeholders(), c.tokens(), c.devices(),
+                c.otps(), c.authLimiter(), c.dashboards(), c.trustedProxies(), c.history(), c.licenseId(), c.onLinked(),
+                c.permissions(), c.defaultLanguage(), c.developerMode(), c.onDashboardsChanged(), c.endpoints(),
+                c.discoveryOnly(), c.polling(), stats);
     }
 
     /** A permission cache in which everybody holds every node. */

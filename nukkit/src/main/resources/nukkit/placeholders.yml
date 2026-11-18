@@ -55,6 +55,157 @@ placeholders:
     min-value: 0
     max-value: 20
 
+  # The MCDashboard group: the plugin's own counters (docs/placeholders-api.md). Only offered to the app with
+  # stats.offer-to-app: true in config.yml, because PUBLIC means any client can read these counts.
+  - id: mcdashboard-devices
+    name: Paired devices
+    group: MCDashboard
+    description: Devices paired with this server
+    value: '%mcdashboard_devices%'
+    type: INTEGER
+    access: PUBLIC
+    min-interval: 15
+  - id: mcdashboard-devices-online
+    name: Devices online
+    group: MCDashboard
+    description: Devices seen in the last 5 minutes
+    value: '%mcdashboard_devices_online%'
+    type: INTEGER
+    access: PUBLIC
+    min-interval: 15
+    history: 120
+  - id: mcdashboard-devices-server
+    name: Devices on your licence
+    group: MCDashboard
+    description: Devices that say they use this server's licence (self-reported)
+    value: '%mcdashboard_devices_server%'
+    type: INTEGER
+    access: PUBLIC
+    min-interval: 60
+  - id: mcdashboard-devices-app
+    name: Devices on app unlock
+    group: MCDashboard
+    description: Devices that say they use the App unlock (self-reported)
+    value: '%mcdashboard_devices_app%'
+    type: INTEGER
+    access: PUBLIC
+    min-interval: 60
+  - id: mcdashboard-devices-free
+    name: Free devices
+    group: MCDashboard
+    description: Devices that say they use the free app (self-reported)
+    value: '%mcdashboard_devices_free%'
+    type: INTEGER
+    access: PUBLIC
+    min-interval: 60
+  - id: mcdashboard-licensed
+    name: Licensed
+    group: MCDashboard
+    description: Whether a licence id is configured
+    value: '%mcdashboard_licensed%'
+    type: BOOLEAN
+    access: PUBLIC
+    min-interval: 60
+  - id: mcdashboard-license-state
+    name: Licence state
+    group: MCDashboard
+    description: licensed (licence id configured) or free
+    value: '%mcdashboard_license_state%'
+    type: STRING
+    access: PUBLIC
+    min-interval: 60
+  - id: mcdashboard-api-requests
+    name: API requests
+    group: MCDashboard
+    description: Requests served since the plugin started
+    value: '%mcdashboard_api_requests%'
+    type: INTEGER
+    access: PUBLIC
+    min-interval: 15
+  - id: mcdashboard-api-requests-per-minute
+    name: API requests per minute
+    group: MCDashboard
+    description: Requests in the last minute
+    value: '%mcdashboard_api_requests_per_minute%'
+    type: INTEGER
+    access: PUBLIC
+    min-interval: 15
+    unit: /min
+    history: 120
+  - id: mcdashboard-rate-limited
+    name: Rate limited
+    group: MCDashboard
+    description: Requests refused by a rate limit since start
+    value: '%mcdashboard_rate_limited%'
+    type: INTEGER
+    access: PUBLIC
+    min-interval: 15
+  - id: mcdashboard-live-clients
+    name: Live clients
+    group: MCDashboard
+    description: Open live feed connections
+    value: '%mcdashboard_live_clients%'
+    type: INTEGER
+    access: PUBLIC
+    min-interval: 15
+  - id: mcdashboard-history-samples
+    name: History samples
+    group: MCDashboard
+    description: Samples written to the history database since start
+    value: '%mcdashboard_history_samples%'
+    type: INTEGER
+    access: PUBLIC
+    min-interval: 30
+  - id: mcdashboard-history-storage
+    name: History storage
+    group: MCDashboard
+    description: sqlite, mysql, mariadb, postgresql or off
+    value: '%mcdashboard_history_storage%'
+    type: STRING
+    access: PUBLIC
+    min-interval: 60
+  - id: mcdashboard-placeholders
+    name: Placeholders offered
+    group: MCDashboard
+    description: Placeholders this server offers
+    value: '%mcdashboard_placeholders%'
+    type: INTEGER
+    access: PUBLIC
+    min-interval: 60
+  - id: mcdashboard-dashboards
+    name: Dashboards
+    group: MCDashboard
+    description: Dashboards defined on this server
+    value: '%mcdashboard_dashboards%'
+    type: INTEGER
+    access: PUBLIC
+    min-interval: 60
+  - id: mcdashboard-uptime
+    name: Plugin uptime
+    group: MCDashboard
+    description: Seconds since the plugin started
+    value: '%mcdashboard_uptime%'
+    type: INTEGER
+    access: PUBLIC
+    min-interval: 30
+    unit: s
+  - id: mcdashboard-uptime-formatted
+    name: Plugin uptime (text)
+    group: MCDashboard
+    description: Time since the plugin started
+    value: '%mcdashboard_uptime_formatted%'
+    type: STRING
+    access: PUBLIC
+    min-interval: 30
+  - id: mcdashboard-version
+    name: Plugin version
+    group: MCDashboard
+    description: MCDashboard version
+    value: '%mcdashboard_version%'
+    type: STRING
+    access: PUBLIC
+    min-interval: 300
+
 # IMAGE: source file:<path> (in plugins/MCDashboard/images/) or url:<template>; PNG, JPEG, GIF or WebP, max 256 KB.
 #  - id: server-logo
 #    name: Server logo

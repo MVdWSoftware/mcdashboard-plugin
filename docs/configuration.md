@@ -45,6 +45,8 @@ Every setting of `plugins/MCDashboard/config.yml`, with its default. Restart the
 | `client-verification.kinds` | `[]` | Accepted client kinds (`android`, `ios`, `wordpress`, ...); empty accepts all. |
 | `client-verification.hosts` | `[]` | Host names an assertion may be for; empty means the host the client connected to. Set it behind a proxy that rewrites `Host`. |
 | `client-verification.keys` | `[]` | Extra trusted public keys as JWKs (`kty: EC`, `crv: P-256`, `x`, `y`), besides the ones in this release. |
+
+An assertion with a `lid` claim (issued to a server-side client of one licensed server) is accepted only when `lid` equals this server's `license.id`; without `license.id` the server accepts none. Assertions without `lid` stay valid.
 | `requests-per-minute` | `120` | Requests per minute from one paired device. |
 | `anonymous-requests-per-minute` | `60` | Requests per minute from one address that is not paired. |
 | `trusted-proxies` | `["127.0.0.1", "0:0:0:0:0:0:0:1"]` | Peers whose `X-Forwarded-For` is believed (rate limits, discovery-only). Keep it to your reverse proxy. |
@@ -84,6 +86,16 @@ this setting ([dashboards.md](dashboards.md#developer-mode-build-a-dashboard-in-
 address. Apps ask the portal whether the id is valid for the address they connected to; if so, players get every
 widget on this server and it does not count toward their free server limit. The id is public
 and only works for the registered address.
+
+Devices tell the plugin which licence they use (the server's licence, the App unlock or none), which `/mcdashboard devices` and the
+`%mcdashboard_devices_server|app|free%` placeholders show ([security.md](security.md#device-entitlement)). That is informational: whether
+the id verifies is decided by the app and the portal, never by the plugin, and `license.id` alone sets `licensed`.
+
+Planned, not implemented: an in-game reminder when the server's trial is about to end. The plugin does not contact the portal, so it
+cannot know the trial. The licence token the portal issues carries only the server, the host and the plan (and expires after three
+days whatever the trial), so the app cannot learn the trial end from it either. A reminder needs a deliberate contract change first
+(for example a `trialEndsAt` claim in the token or a field in the check response, which the app would report with the entitlement
+header), designed together with the portal; until then the portal's own trial emails are the reminder.
 
 ## `stats`
 

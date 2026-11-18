@@ -31,6 +31,7 @@ final class AuthRoutes {
 
     void pair(HttpExchange ex, ClientPolicy.Client client) throws IOException {
         if (!ctx.authLimiter().allow(remote(ex, ctx.trustedProxies()))) {
+            ctx.rateLimited();
             error(ex, 429, "too many attempts");
             return;
         }
@@ -52,6 +53,7 @@ final class AuthRoutes {
 
     void refresh(HttpExchange ex) throws IOException {
         if (!ctx.authLimiter().allow(remote(ex, ctx.trustedProxies()))) {
+            ctx.rateLimited();
             error(ex, 429, "too many attempts");
             return;
         }

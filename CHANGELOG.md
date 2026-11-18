@@ -32,7 +32,18 @@ and the project uses [Semantic Versioning](https://semver.org/).
   the `MCDashboard` group, offered to the app only with `stats.offer-to-app: true` (default `false`). See
   [docs/placeholders-api.md](docs/placeholders-api.md).
 
+- `security.client-verification`: an assertion with a `lid` claim (issued to a server-side client of one licensed server) is accepted only
+  when `lid` equals this server's `license.id`; without `license.id` none is accepted. Assertions without `lid` are unchanged.
+- Devices may report which licence they use (`X-MCDashboard-Entitlement: server | app | free`, self-reported, informational only). It is
+  stored on the device record, shown by `/mcdashboard devices` with a summary line, and counted by `%mcdashboard_devices_server%`,
+  `%mcdashboard_devices_app%` and `%mcdashboard_devices_free%` (also offered in the `MCDashboard` group). See
+  [docs/security.md](docs/security.md#device-entitlement).
+- PowerNukkitX: the `%mcdashboard_...%` placeholders are registered with the PowerNukkitX PlaceholderAPI too, and the `MCDashboard`
+  group is in its default `placeholders.yml`.
+
 ### Fixed
+- BungeeCord: `bungee.yml` was invalid YAML (unquoted colon in the description), so the plugin was skipped; `%proxy_max%` is 0 instead of -1 when the proxy has no player limit; the federation warning no longer says `null`. Smoke-tested on real Velocity and BungeeCord (`scripts/proxy-smoke-test.sh`).
+- Refused pairing and refresh attempts (`429`) now count in `%mcdashboard_rate_limited%`.
 - The previous refresh token works for 30 seconds after a rotation, so a response lost on the way no longer unpairs the device.
 - Concurrent requests for one placeholder share a single main-thread resolution, a stuck server thread opens a circuit breaker, and
   unresolvable values stop being served after a minute instead of looking live forever.

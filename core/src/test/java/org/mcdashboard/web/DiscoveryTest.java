@@ -34,7 +34,7 @@ class DiscoveryTest {
                 new PlaceholderService((t, u) -> "7", clock, 1000, defs), new TokenService(new byte[48], clock),
                 new DeviceStore(Files.createTempFile("devices", ".json")), new OtpService(clock, 60), new RateLimiter(clock, 100, 60000),
                 DashboardStore.inMemory(List.of()), trusted, new HistoryService(clock, defs), null, d -> {}, TestContexts.allowAll(), "en",
-                () -> false, () -> {}, endpoints, discoveryOnly, polling);
+                () -> false, () -> {}, endpoints, discoveryOnly, polling, null);
         HttpApi api = new HttpApi(ctx);
         api.start("127.0.0.1", 0, null);
         return api;

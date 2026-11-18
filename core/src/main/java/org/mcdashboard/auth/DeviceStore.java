@@ -28,14 +28,28 @@ public final class DeviceStore {
     /**
      * A paired device. {@code serial} is the current refresh-token generation, {@code client} the User-Agent it paired
      * with (e.g. {@code MCDashboard/1.2.3 (android)}), null for devices paired before the plugin recorded it.
+     * {@code entitlement} is what the app says it runs under ({@link #ENTITLEMENTS}), null while it has not said. It is
+     * self-reported by the app, informational only and never used to decide anything.
      */
     public record Device(String id, String playerUuid, String playerName, String label, long serial, long createdMs,
-                         String client) {
+                         String client, String entitlement) {
+    }
+
+    /** The values a device may report: the server's licence, the app unlock bought on the device, or neither. */
+    public static final List<String> ENTITLEMENTS = List.of("server", "app", "free");
+
+    /** The value if it is one of {@link #ENTITLEMENTS} (case and surrounding space ignored), else null. */
+    public static String parseEntitlement(String raw) {
+        if (raw == null) return null;
+        String v = raw.trim().toLowerCase(java.util.Locale.ROOT);
+        return ENTITLEMENTS.contains(v) ? v : null;
     }
 
     private final Map<String, Device> devices = new LinkedHashMap<>();
     /** When each device last made an authenticated request. Kept in memory and written with the next save, not on every request. */
     private final Map<String, Long> seen = new ConcurrentHashMap<>();
+    /** The entitlement each device reported, mirrored here so counting needs no lock. */
+    private final Map<String, String> entitlements = new ConcurrentHashMap<>();
     /** The refresh generation each device had just before its last rotation, and when it rotated. */
     private final Map<String, long[]> rotated = new ConcurrentHashMap<>();
     /** How long the previous refresh token stays valid after a rotation, so a response lost on the way does not unpair the device. */
@@ -62,7 +76,7 @@ public final class DeviceStore {
         byte[] raw = new byte[12];
         random.nextBytes(raw);
         String id = HexFormat.of().formatHex(raw);
-        Device d = new Device(id, playerUuid, playerName, label == null ? "Device" : label, 1, System.currentTimeMillis(), client);
+        Device d = new Device(id, playerUuid, playerName, label == null ? "Device" : label, 1, System.currentTimeMillis(), client, null);
         devices.put(id, d);
         count = devices.size();
         save();
@@ -72,6 +86,29 @@ public final class DeviceStore {
     /** Records that the device just made an authenticated request. */
     public void touch(String id) {
         if (id != null) seen.put(id, System.currentTimeMillis());
+    }
+
+    /**
+     * Records what the device says it runs under. Anything but {@link #ENTITLEMENTS} is ignored. The file is written only
+     * when the value changed, which is rare, not on every request. Self-reported: informational, never a basis for a decision.
+     */
+    public void entitle(String id, String raw) {
+        String value = parseEntitlement(raw);
+        if (id == null || value == null || value.equals(entitlements.get(id))) return;
+        synchronized (this) {
+            Device d = devices.get(id);
+            if (d == null) return;
+            devices.put(id, new Device(d.id(), d.playerUuid(), d.playerName(), d.label(), d.serial(), d.createdMs(), d.client(), value));
+            entitlements.put(id, value);
+            save();
+        }
+    }
+
+    /** How many devices reported {@code entitlement} ({@code server}, {@code app} or {@code free}). Lock free and in memory. */
+    public int countEntitled(String entitlement) {
+        int n = 0;
+        for (String v : entitlements.values()) if (v.equals(entitlement)) n++;
+        return n;
     }
 
     /** When the device was last seen (epoch ms), or empty when it has not been since it paired (or before the plugin recorded it). */
@@ -108,7 +145,7 @@ public final class DeviceStore {
             return retry ? Optional.of(d) : Optional.empty();
         }
         rotated.put(id, new long[]{expectedSerial, System.currentTimeMillis()});
-        Device n = new Device(d.id(), d.playerUuid(), d.playerName(), d.label(), d.serial() + 1, d.createdMs(), d.client());
+        Device n = new Device(d.id(), d.playerUuid(), d.playerName(), d.label(), d.serial() + 1, d.createdMs(), d.client(), d.entitlement());
         devices.put(id, n);
         save();
         return Optional.of(n);
@@ -123,6 +160,7 @@ public final class DeviceStore {
         Device d = devices.remove(id);
         if (d == null) return false;
         seen.remove(id);
+        entitlements.remove(id);
         rotated.remove(id);
         count = devices.size();
         save();
@@ -151,8 +189,10 @@ public final class DeviceStore {
                 Map<String, Object> m = (Map<String, Object>) o;
                 Device d = new Device((String) m.get("id"), (String) m.get("player"), (String) m.get("name"),
                         (String) m.get("label"), ((Number) m.get("serial")).longValue(),
-                        ((Number) m.get("created")).longValue(), (String) m.get("client"));
+                        ((Number) m.get("created")).longValue(), (String) m.get("client"),
+                        parseEntitlement((String) m.get("entitlement")));
                 devices.put(d.id(), d);
+                if (d.entitlement() != null) entitlements.put(d.id(), d.entitlement());
                 if (m.get("seen") instanceof Number n) seen.put(d.id(), n.longValue());
             }
             count = devices.size();
@@ -172,6 +212,7 @@ public final class DeviceStore {
             m.put("serial", d.serial());
             m.put("created", d.createdMs());
             if (d.client() != null) m.put("client", d.client());
+            if (d.entitlement() != null) m.put("entitlement", d.entitlement());
             Long last = seen.get(d.id());
             if (last != null) m.put("seen", last);
             list.add(m);

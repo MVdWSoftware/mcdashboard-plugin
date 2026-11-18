@@ -15,6 +15,10 @@ info:
     Every route except `GET /info` requires the official app's `User-Agent`, `MCDashboard/<x.y.z> (<android|ios|dev>)`.
     Others get `403`; a version below the server's `minClientVersion` gets `426`. A server owner can allow more clients.
     The User-Agent identifies the client and its version; it is not a credential. Responses do not vary by it.
+
+    Any authenticated request may carry `X-MCDashboard-Entitlement: server | app | free` (see the `Entitlement` header
+    parameter): what the app says it runs under. It is self-reported and informational; the plugin stores the last valid value
+    on the device, shows it to the owner and never uses it to allow, refuse or limit anything.
 servers:
   - url: https://{host}/v1
     variables: { host: { default: mc.example.com } }
@@ -53,6 +57,7 @@ paths:
     get:
       summary: Placeholders the caller may read (metadata only), searchable and paged, sorted by group then name
       parameters:
+        - { $ref: '#/components/parameters/Entitlement' }
         - { name: q, in: query, required: false, schema: { type: string }, description: Case-insensitive substring of id, name, description or group }
         - { name: group, in: query, required: false, schema: { type: string }, description: Exact group name }
         - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
@@ -73,7 +78,9 @@ paths:
   /values:
     get:
       summary: Current values of up to 100 placeholders as one SenML pack
-      parameters: [ { name: ids, in: query, required: true, schema: { type: string }, description: Comma separated ids } ]
+      parameters:
+        - { name: ids, in: query, required: true, schema: { type: string }, description: Comma separated ids }
+        - { $ref: '#/components/parameters/Entitlement' }
       responses:
         '200': { $ref: '#/components/responses/Values' }
         '304': { description: Not modified }
@@ -182,6 +189,16 @@ components:
         The app's UI language (one of en, nl, fr, de, es; regions are ignored). Dashboard names,
         descriptions and tile titles are resolved in this language, then in the server's
         `server.default-language`, then in any language the dashboard provides.
+    Entitlement:
+      name: X-MCDashboard-Entitlement
+      in: header
+      required: false
+      schema: { type: string, enum: [server, app, free] }
+      description: |
+        Which licence the calling device uses: `server` (the server's own licence, verified by the app), `app` (the App unlock)
+        or `free`. Honoured on every authenticated route, not only where it is listed; ignored when the request is not
+        authenticated, when the value is not one of the three (the previous value stays), and on the live feed. Self-reported by the
+        app, informational only: the plugin never decides anything with it.
   securitySchemes:
     bearer: { type: http, scheme: bearer, bearerFormat: JWT }
     eventsToken: { type: http, scheme: bearer, description: The shared `events.token` from config.yml }

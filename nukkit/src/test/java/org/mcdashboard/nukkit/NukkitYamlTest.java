@@ -46,7 +46,12 @@ class NukkitYamlTest {
         List<String> problems = new java.util.ArrayList<>();
         List<PlaceholderDefinition> defs = PlaceholderDefinition.parseAll(view.getMapList("placeholders"), problems::add);
         assertEquals(List.of(), problems);
-        assertEquals(List.of("online", "tps", "max-players", "player-name", "player-health"), defs.stream().map(PlaceholderDefinition::id).toList());
+        assertEquals(List.of("online", "tps", "max-players", "player-name", "player-health"), defs.stream().limit(5).map(PlaceholderDefinition::id).toList());
+        for (var d : defs.subList(5, defs.size())) {
+            assertEquals("MCDashboard", d.group(), d.id());
+            String param = d.value().substring("%mcdashboard_".length(), d.value().length() - 1);
+            assertTrue(org.mcdashboard.stats.StatsPlaceholders.PARAMS.contains(param), "registered with the PlaceholderAPI: " + param);
+        }
         assertEquals("%server_tps%", defs.get(1).value(), "PowerNukkitX has no %server_tps_1%");
         assertEquals("%player%", defs.get(3).value(), "PowerNukkitX has no %player_name%");
         assertTrue(view.getMapList("catalog").isEmpty(), "the PlaceholderAPI for PowerNukkitX cannot list placeholders");

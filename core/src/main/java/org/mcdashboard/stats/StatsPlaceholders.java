@@ -16,7 +16,7 @@ public final class StatsPlaceholders {
     public static final String IDENTIFIER = "mcdashboard";
 
     /** Every parameter that is answered. */
-    public static final List<String> PARAMS = List.of("devices", "devices_online", "licensed", "license_state", "api_requests",
+    public static final List<String> PARAMS = List.of("devices", "devices_online", "devices_server", "devices_app", "devices_free", "licensed", "license_state", "api_requests",
             "api_requests_per_minute", "rate_limited", "live_clients", "history_samples", "history_storage", "placeholders",
             "dashboards", "uptime", "uptime_formatted", "version");
 
@@ -29,6 +29,9 @@ public final class StatsPlaceholders {
         return switch (param.toLowerCase(Locale.ROOT)) {
             case "devices" -> String.valueOf(stats.devices());
             case "devices_online" -> String.valueOf(stats.devicesOnline());
+            case "devices_server" -> String.valueOf(stats.devicesEntitled("server"));
+            case "devices_app" -> String.valueOf(stats.devicesEntitled("app"));
+            case "devices_free" -> String.valueOf(stats.devicesEntitled("free"));
             case "licensed" -> String.valueOf(stats.licensed());
             case "license_state" -> stats.licenseState();
             case "api_requests" -> String.valueOf(stats.apiRequests());

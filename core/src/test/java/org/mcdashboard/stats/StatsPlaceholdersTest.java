@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 class StatsPlaceholdersTest {
     private static PluginStats stats(PluginStatsTest.FakeClock clock) {
         return new PluginStats(clock).version("1.2.3").historyStorage("postgresql").licensed(true)
-                .devices(() -> 3, () -> 2).liveClients(() -> 1).historySamples(() -> 99).placeholders(() -> 20).dashboards(() -> 2);
+                .devices(() -> 3, () -> 2).devicesEntitled(e -> switch (e) { case "server" -> 2; case "app" -> 1; default -> 0; }).liveClients(() -> 1).historySamples(() -> 99).placeholders(() -> 20).dashboards(() -> 2);
     }
 
     @Test
@@ -28,6 +28,9 @@ class StatsPlaceholdersTest {
         clock.now += 61_000;
         assertEquals("3", StatsPlaceholders.resolve(stats, "devices"));
         assertEquals("2", StatsPlaceholders.resolve(stats, "devices_online"));
+        assertEquals("2", StatsPlaceholders.resolve(stats, "devices_server"));
+        assertEquals("1", StatsPlaceholders.resolve(stats, "devices_app"));
+        assertEquals("0", StatsPlaceholders.resolve(stats, "devices_free"));
         assertEquals("true", StatsPlaceholders.resolve(stats, "licensed"));
         assertEquals("licensed", StatsPlaceholders.resolve(stats, "license_state"));
         assertEquals("2", StatsPlaceholders.resolve(stats, "api_requests"));
@@ -45,9 +48,9 @@ class StatsPlaceholdersTest {
     }
 
     @Test
-    void unknownParametersAndPlannedOnesAreNull() {
+    void unknownParametersAreNull() {
         PluginStats stats = stats(new PluginStatsTest.FakeClock());
-        for (String p : new String[]{"", "nope", "devices_server", "devices_app", "devices_free", "player", "token", "address"}) {
+        for (String p : new String[]{"", "nope", "devices_other", "player", "token", "address"}) {
             assertNull(StatsPlaceholders.resolve(stats, p), p);
         }
         assertNull(StatsPlaceholders.resolve(stats, null));
