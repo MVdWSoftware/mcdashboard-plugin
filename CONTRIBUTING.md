@@ -25,6 +25,8 @@ You need JDK 21 and Maven (the Spigot plugin and `core/` are compiled for Java 1
 mvn -B verify          # compile, unit tests, jars in spigot/target/ and nukkit/target/
 ```
 
+JaCoCo runs with the tests (`<module>/target/site/jacoco/index.html`); `mvn -B verify` fails when a module drops below the limits in its `pom.xml`. Raise a limit when you raise coverage, never lower it.
+
 The tests start the HTTP API and the live feed on random local ports with a fake placeholder source, so no
 Minecraft server is needed. The history tests run against SQLite. To run them against PostgreSQL and MySQL as
 well, start the databases and pass their JDBC URLs:

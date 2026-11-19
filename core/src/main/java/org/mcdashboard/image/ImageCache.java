@@ -20,7 +20,8 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Fetches images over http(s) and keeps them per resolved URL for a caller-chosen time. Blocks the calling thread
  * (at most about 5 s), so it must never be called from the server main thread. Redirects are followed by hand and only
- * to http(s); the body is capped at {@link ImageFormat#MAX_BYTES} and must be a PNG, JPEG, GIF or WebP.
+ * to http(s); the body is capped (at {@link ImageFormat#MAX_BYTES} unless the caller says otherwise) and must be a PNG,
+ * JPEG, GIF or WebP.
  */
 public final class ImageCache {
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
@@ -40,15 +41,28 @@ public final class ImageCache {
         this.clock = clock;
     }
 
+    /** The clock the cache stamps entries with; {@code map:} sources use it for their own composite cache. */
+    public Clock clock() {
+        return clock;
+    }
+
     /** The image at {@code url}, fetched when the cached copy is older than {@code ttlMs}. Empty when unavailable. */
     public Optional<Image> get(String url, long ttlMs) {
+        return get(url, ttlMs, ImageFormat.MAX_BYTES);
+    }
+
+    /**
+     * As {@link #get(String, long)} with another size cap; map tiles are larger than what is sent to the app, but they are
+     * only an input to the picture that is. A URL is meant to be read with one cap only (it is part of the cache entry).
+     */
+    public Optional<Image> get(String url, long ttlMs, int maxBytes) {
         Entry e = entries.get(url);
         if (e != null && fresh(e)) return Optional.ofNullable(e.image());
         Object lock = locks.computeIfAbsent(url, k -> new Object());
         synchronized (lock) {
             e = entries.get(url);
             if (e != null && fresh(e)) return Optional.ofNullable(e.image());
-            Image img = fetch(url);
+            Image img = fetch(url, maxBytes);
             Image stale = e == null ? null : e.image();
             if (img == null) {
                 // Keep serving the last good image while the origin is down; remember the failure briefly.
@@ -82,7 +96,7 @@ public final class ImageCache {
         return c;
     }
 
-    private Image fetch(String url) {
+    private Image fetch(String url, int maxBytes) {
         try {
             URI uri = URI.create(url);
             for (int hop = 0; hop <= MAX_REDIRECTS; hop++) {
@@ -99,8 +113,8 @@ public final class ImageCache {
                     }
                     if (status != 200) return null;
                     long declared = res.headers().firstValueAsLong("Content-Length").orElse(-1);
-                    if (declared > ImageFormat.MAX_BYTES) return null;
-                    byte[] body = readCapped(in);
+                    if (declared > maxBytes) return null;
+                    byte[] body = readCapped(in, maxBytes);
                     return body == null || ImageFormat.sniff(body) == null ? null : new Image(body, clock.millis());
                 }
             }
@@ -119,14 +133,14 @@ public final class ImageCache {
     }
 
     /** Reads at most the size cap; null when the body is larger or takes longer than the timeout. */
-    private static byte[] readCapped(InputStream in) throws IOException {
+    private static byte[] readCapped(InputStream in, int maxBytes) throws IOException {
         long deadline = System.nanoTime() + TIMEOUT.toNanos();
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         byte[] buf = new byte[8192];
         int n;
         while ((n = in.read(buf)) > 0) {
             out.write(buf, 0, n);
-            if (out.size() > ImageFormat.MAX_BYTES || System.nanoTime() > deadline) return null;
+            if (out.size() > maxBytes || System.nanoTime() > deadline) return null;
         }
         return out.toByteArray();
     }

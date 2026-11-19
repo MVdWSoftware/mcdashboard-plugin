@@ -146,9 +146,38 @@ items:
   - `color` and `thresholds`: `accent`, `green`, `yellow`, `orange`, `red`, `purple`, `cyan` or `muted`. They follow the
     player's style, so there are no hex colours.
   - Number format: `decimals` (0-4), `compact` (`false` shows `1,234` instead of `1.2k`), `unit` (empty hides it),
-    `prefix`.
+    `prefix`, `unitSize` (`s` small by default, `m`, `l`) and `unitColor` (a named colour, `muted` by default). The unit
+    is drawn next to the value, also for text placeholders, so `unit: MB` gives `567 MB`.
   - Layout: `hideTitle`, `align` (`start`, `center`, `end`), `size` (`s`, `m`, `l`), `card` (`default`, `accent`, `plain`).
   - `invertTrend: true` on a `stat` tile makes a falling value green (lag, ping).
+  - Images: `fit` (`contain` default, `cover` edge to edge and cropped, `fill`, `none`), `position` (`center`, `top`, `bottom`:
+    what stays visible when `cover` crops) and `smoothing` (`auto`, `pixelated`, `smooth`). With `fit: cover` the title is
+    drawn over the picture unless `hideTitle` is set.
+  - `padding`: `none`, `s` or `m`, the space between the card edge and the content.
+  - `markerIcon`: an icon (`pack:name`, like `icon`) drawn at the value's position on a `gauge` arc, a `ring` or a `progress`
+    bar, e.g. a sun on the arc of the time of day.
+  - `speed`: `slow`, `normal` or `fast`, the scroll speed of the `ticker`.
+  - `background`: a background behind this tile only, under its content:
+    ```yaml
+    options:
+      background:
+        color: purple          # a named colour
+        gradient: cyan         # optional: fades diagonally from color (default accent) into this one
+        url: https://cdn.example.com/tile.jpg   # optional, https only
+        dim: 0.4               # 0-0.9, with url (default 0.4)
+        blur: 0                # 0-20 pixels, with url
+        fit: cover             # cover, contain or tile, with url
+    ```
+    It is left out entirely when nothing valid is left.
+
+### More widgets
+
+Besides `number`, `gauge`, `progress`, `list`, `area` and the others, the app has: `sky` (a day/night sky; placeholder 1
+is the world time as ticks 0-24000 or `HH:mm`, an optional second placeholder the weather, `style`: `overworld`, `nether`,
+`end`), `ticker` (scrolling text from a text placeholder or a `LIST`, with `speed`), `countdown` (a unix timestamp, or with
+`style: seconds` the seconds remaining), `heads` (a wall of player faces from a name list or a `LIST` with a `name`
+column, `count` caps it) and `leaderboard` (a `LIST` as a podium and ranked rows; `value` column, `count`, `decimals`,
+`compact`, `unit`, `prefix`). See [placeholders.md](placeholders.md#lists-and-leaderboards) for `LIST`.
 
 The server drops unknown keys and bad values instead of sending them on.
 

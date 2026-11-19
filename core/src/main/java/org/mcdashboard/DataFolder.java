@@ -6,9 +6,13 @@ package org.mcdashboard;
 
 import org.mcdashboard.config.ConfigView;
 import org.mcdashboard.config.YamlCodec;
+import org.mcdashboard.platform.Log;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.JarURLConnection;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -16,26 +20,37 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
+import java.util.Enumeration;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
+import java.util.stream.Stream;
 
 /** The files in {@code plugins/MCDashboard/}: the defaults it starts from, the signing key and the developer switch. */
 final class DataFolder {
+    /** Where the bundled configuration skills live in the jar, and where they are written: {@code .agents/skills/} is the standard
+     *  location an agent (Claude Code, OpenCode, ...) searches in the directory it works in. */
+    private static final String SKILLS = "skills";
+    private static final String SKILLS_TARGET = ".agents/skills";
+
     private final Path dir;
     private final YamlCodec yaml;
-    private final Consumer<String> warn;
+    private final Log log;
     private final String defaults;
 
-    private final java.util.List<String> dashboards;
+    private final List<String> dashboards;
 
-    DataFolder(Path dir, YamlCodec yaml, String defaultsFolder, java.util.List<String> dashboards, Consumer<String> warn) {
+    DataFolder(Path dir, YamlCodec yaml, String defaultsFolder, List<String> dashboards, Log log) {
         this.dir = dir;
         this.dashboards = dashboards;
         this.defaults = defaultsFolder;
         this.yaml = yaml;
-        this.warn = warn;
+        this.log = log;
     }
 
     Path dir() {
@@ -56,6 +71,82 @@ final class DataFolder {
         exportIfMissing("placeholders.yml");
         if (!Files.exists(resolve("dashboards"))) {
             for (String name : dashboards) export("dashboards/" + name + ".yml");
+        }
+        exportSkills();
+    }
+
+    /**
+     * Writes the bundled configuration skills to {@code .agents/skills/}. Unlike the configuration they are reference material that
+     * belongs to this plugin version, so an existing copy is replaced when it differs and files this version does not ship stay where
+     * they are (an owner may keep their own skill beside them). A failure is reported and never keeps the plugin from starting.
+     */
+    private void exportSkills() {
+        List<String> files;
+        try {
+            files = tree(DataFolder.class.getResource("/" + SKILLS));
+        } catch (IOException e) {
+            log.warning("Could not list the bundled configuration skills: " + e.getMessage());
+            return;
+        }
+        if (files.isEmpty()) {
+            log.warning("The jar has no bundled configuration skills; " + SKILLS_TARGET + " stays as it is.");
+            return;
+        }
+        int written = 0;
+        for (String name : files) {
+            try {
+                if (copyIfChanged(SKILLS + "/" + name, resolve(SKILLS_TARGET + "/" + name))) written++;
+            } catch (IOException e) {
+                log.warning("Could not write " + SKILLS_TARGET + "/" + name + ": " + e.getMessage());
+            }
+        }
+        if (written > 0) log.info("Wrote " + written + " configuration skill file(s) to " + SKILLS_TARGET + "/ for agents helping with config.yml.");
+    }
+
+    /** The files under a bundled classpath folder, as {@code /}-separated paths relative to it; empty when there is no such folder. */
+    static List<String> tree(URL folder) throws IOException {
+        if (folder == null) return List.of();
+        List<String> names = new ArrayList<>();
+        if ("file".equals(folder.getProtocol())) {
+            Path root;
+            try {
+                root = Path.of(folder.toURI());
+            } catch (URISyntaxException e) {
+                throw new IOException(e.getMessage(), e);
+            }
+            try (Stream<Path> walk = Files.walk(root)) {
+                walk.filter(Files::isRegularFile)
+                        .forEach(file -> names.add(root.relativize(file).toString().replace(java.io.File.separatorChar, '/')));
+            }
+            return names;
+        }
+        if ("jar".equals(folder.getProtocol())) {
+            JarURLConnection connection = (JarURLConnection) folder.openConnection();
+            connection.setUseCaches(false);
+            String prefix = connection.getEntryName();
+            if (prefix == null) return List.of();
+            if (prefix.endsWith("/")) prefix = prefix.substring(0, prefix.length() - 1);
+            String base = prefix + "/";
+            try (JarFile jar = connection.getJarFile()) {
+                for (Enumeration<JarEntry> entries = jar.entries(); entries.hasMoreElements(); ) {
+                    JarEntry entry = entries.nextElement();
+                    if (!entry.isDirectory() && entry.getName().startsWith(base)) names.add(entry.getName().substring(base.length()));
+                }
+            }
+            return names;
+        }
+        return List.of();
+    }
+
+    /** Copies a bundled file unless the target already has exactly these bytes; true when it wrote the file. */
+    private boolean copyIfChanged(String resource, Path target) throws IOException {
+        try (InputStream in = DataFolder.class.getResourceAsStream("/" + resource)) {
+            if (in == null) throw new IOException("the bundled " + resource + " is missing");
+            byte[] content = in.readAllBytes();
+            if (Files.isRegularFile(target) && Arrays.equals(Files.readAllBytes(target), content)) return false;
+            Files.createDirectories(target.getParent());
+            Files.write(target, content);
+            return true;
         }
     }
 
@@ -93,7 +184,7 @@ final class DataFolder {
         try {
             return ConfigView.of(yaml.parse(Files.readString(state, StandardCharsets.UTF_8))).getBoolean("enabled", configured);
         } catch (IOException | RuntimeException e) {
-            warn.accept("Could not read developer.yml: " + e.getMessage());
+            log.warning("Could not read developer.yml: " + e.getMessage());
             return configured;
         }
     }
@@ -113,7 +204,7 @@ final class DataFolder {
         try {
             return yaml.parse(Files.readString(file, StandardCharsets.UTF_8));
         } catch (IOException | RuntimeException e) {
-            warn.accept("Could not read " + dir.relativize(file) + ": " + e.getMessage());
+            log.warning("Could not read " + dir.relativize(file) + ": " + e.getMessage());
             return Map.of();
         }
     }
@@ -128,7 +219,7 @@ final class DataFolder {
         try (InputStream in = bundledStream(name)) {
             return in == null ? Map.of() : yaml.parse(new String(in.readAllBytes(), StandardCharsets.UTF_8));
         } catch (IOException | RuntimeException e) {
-            warn.accept("Could not read the bundled " + name + ": " + e.getMessage());
+            log.warning("Could not read the bundled " + name + ": " + e.getMessage());
             return Map.of();
         }
     }

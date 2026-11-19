@@ -316,13 +316,15 @@ components:
         name: { type: string }
         group: { type: string, description: 'catalog group, "General" by default' }
         description: { type: string }
-        type: { enum: [STRING, INTEGER, DECIMAL, BOOLEAN, PERCENTAGE, AUTO, IMAGE], description: 'AUTO values are typed per value; IMAGE values arrive as vd' }
+        type: { enum: [STRING, INTEGER, DECIMAL, BOOLEAN, PERCENTAGE, AUTO, IMAGE, LIST], description: 'AUTO values are typed per value; IMAGE values arrive as vd (the picture), or as vs (an https URL the client loads itself) when the owner set encode: false; LIST values (a leaderboard, a player list) arrive as a JSON table in vs: {"columns":["name","value"],"rows":[["Steve",120],["Alex","10k"]]}. A cell is a number when the whole cell parses as one (colour codes and thousands separators ignored), else text with the legacy colour codes kept (at most 256 characters); trailing empty rows are dropped. LIST has no history' }
         access: { enum: [PUBLIC, PLAYER] }
         minInterval: { type: integer, description: 'seconds; the effective minimum refresh interval for this caller, including permission overrides' }
         min: { type: number }
         max: { type: number }
         unit: { type: string }
         maxFrom: { type: string, description: id of the placeholder whose value is this one's maximum }
+        columns: { type: array, maxItems: 6, items: { type: string, pattern: '^[a-z][a-z0-9_]{0,23}$' }, description: 'LIST only: the column names in order' }
+        rows: { type: integer, minimum: 1, maximum: 50, description: 'LIST only: the most rows a value can have' }
         historyMinutes: { type: integer, description: 'minutes of history kept (in memory, or in the database when the owner enabled persistent history); see /history/{id}' }
     SenMLRecord:
       type: object
@@ -333,7 +335,7 @@ components:
         u: { type: string }
         v: { type: number }
         vb: { type: boolean }
-        vs: { type: string }
+        vs: { type: string, description: 'string value; for a LIST placeholder compact JSON {"columns":[...],"rows":[[...],...]}; for an IMAGE placeholder the server does not embed (encode: false) the https URL to load the picture from directly' }
         vd: { type: string, description: 'RFC 8428 data value: an IMAGE (PNG, JPEG, GIF or WebP, max 256 KB) as base64url without padding; sniff the type from the bytes' }
     DashboardSummary:
       type: object
@@ -383,6 +385,8 @@ components:
         decimals: { type: integer, minimum: 0, maximum: 4 }
         compact: { type: boolean, description: '1.2k instead of 1,234 (default true)' }
         unit: { type: string, maxLength: 16, description: replaces the placeholder unit; empty hides it }
+        unitSize: { type: string, enum: [s, m, l], description: 'size of the unit next to the value, relative to the value; default s (small)' }
+        unitColor: { $ref: '#/components/schemas/TileColor' }
         prefix: { type: string, maxLength: 8 }
         hideTitle: { type: boolean }
         align: { type: string, enum: [start, center, end] }
@@ -391,6 +395,23 @@ components:
         target: { type: number, description: marker of the bullet style }
         invertTrend: { type: boolean, description: 'stat: a falling value is good' }
         count: { type: integer, minimum: 1, maximum: 20, description: icons or segments of the icon and segment styles }
+        fit: { type: string, enum: [contain, cover, fill, none], description: 'image widget: contain (default), cover (edge to edge, cropped), fill (stretched) or none (natural size)' }
+        position: { type: string, enum: [center, top, bottom], description: 'image widget: which part stays visible when cover crops; default center' }
+        padding: { type: string, enum: [none, s, m], description: space between the card edge and the content; the widget default when absent }
+        smoothing: { type: string, enum: [auto, pixelated, smooth], description: 'image scaling; auto (default) is pixelated when scaled up and smooth when scaled down' }
+        markerIcon: { $ref: '#/components/schemas/Icon', description: 'gauge, ring and progress bar: icon drawn at the value position, e.g. a sun on the arc' }
+        speed: { type: string, enum: [slow, normal, fast], description: 'ticker widget: scroll speed; default normal' }
+        background: { $ref: '#/components/schemas/TileBackground' }
+    TileBackground:
+      type: object
+      description: 'a background behind one tile, under its content; dropped when nothing valid is left; only https URLs are accepted from the server'
+      properties:
+        color: { $ref: '#/components/schemas/TileColor' }
+        gradient: { allOf: [{ $ref: '#/components/schemas/TileColor' }], description: 'second colour: a diagonal gradient from color (default accent) to this one' }
+        url: { type: string, maxLength: 2048, pattern: '^https://', description: an https URL the app loads directly }
+        dim: { type: number, minimum: 0, maximum: 0.9, default: 0.4, description: 'with url: how much the tile colour covers the picture' }
+        blur: { type: number, minimum: 0, maximum: 20, default: 0, description: 'with url: pixels' }
+        fit: { type: string, enum: [cover, contain, tile], default: cover, description: with url }
     BackgroundImage:
       type: object
       required: [url]

@@ -73,6 +73,8 @@ public final class TileLook {
         if (m.get("decimals") instanceof Number n) out.put("decimals", (int) Math.max(0, Math.min(4, Math.round(n.doubleValue()))));
         if (m.get("compact") instanceof Boolean b) out.put("compact", b);
         if (m.get("unit") instanceof String u) out.put("unit", cut(u, 16));
+        oneOf(m.get("unitSize"), Set.of("s", "m", "l"), "unitSize", out);
+        if (m.get("unitColor") instanceof String uc && COLORS.contains(uc)) out.put("unitColor", uc);
         if (m.get("prefix") instanceof String p && !p.isEmpty()) out.put("prefix", cut(p, 8));
         if (Boolean.TRUE.equals(m.get("hideTitle"))) out.put("hideTitle", true);
         oneOf(m.get("align"), Set.of("start", "center", "end"), "align", out);
@@ -81,6 +83,29 @@ public final class TileLook {
         if (m.get("target") instanceof Number t && Double.isFinite(t.doubleValue())) out.put("target", t.doubleValue());
         if (Boolean.TRUE.equals(m.get("invertTrend"))) out.put("invertTrend", true);
         if (m.get("count") instanceof Number n) out.put("count", (int) Math.max(1, Math.min(20, Math.round(n.doubleValue()))));
+        oneOf(m.get("fit"), Set.of("contain", "cover", "fill", "none"), "fit", out);
+        oneOf(m.get("position"), Set.of("center", "top", "bottom"), "position", out);
+        oneOf(m.get("padding"), Set.of("none", "s", "m"), "padding", out);
+        oneOf(m.get("smoothing"), Set.of("auto", "pixelated", "smooth"), "smoothing", out);
+        String markerIcon = icon(m.get("markerIcon"));
+        if (markerIcon != null) out.put("markerIcon", markerIcon);
+        oneOf(m.get("speed"), Set.of("slow", "normal", "fast"), "speed", out);
+        Map<String, Object> background = tileBackground(m.get("background"));
+        if (background != null) out.put("background", background);
+        return out.isEmpty() ? null : out;
+    }
+
+    /**
+     * A tile's own background: a named {@code color}, a second {@code gradient} colour and/or a picture (an
+     * {@code https://} {@code url} with dim, blur and fit as in {@link #backgroundImage}). Null when nothing valid is left.
+     */
+    static Map<String, Object> tileBackground(Object raw) {
+        if (!(raw instanceof Map<?, ?> m)) return null;
+        Map<String, Object> out = new LinkedHashMap<>();
+        if (m.get("color") instanceof String c && COLORS.contains(c)) out.put("color", c);
+        if (m.get("gradient") instanceof String g && COLORS.contains(g)) out.put("gradient", g);
+        BackgroundImage image = backgroundImage(m);
+        if (image != null) out.putAll(image.toJson());
         return out.isEmpty() ? null : out;
     }
 

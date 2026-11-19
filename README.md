@@ -23,6 +23,17 @@ Only placeholders you list in `placeholders.yml` are ever resolved, and nothing 
    `placeholders.yml`, set `server.enabled: true`.
 4. The plugin serves HTTPS itself (a self-signed certificate it generates, or your own); behind a TLS-terminating reverse proxy set `server.tls.mode: off`. Full guide: [docs/installation.md](docs/installation.md).
 
+## Pictures, lists and tiles
+
+Placeholders of type `IMAGE` can show a web-map picture (`map:dynmap`, `map:squaremap`, `map:pl3xmap`, `map:bluemap`, see [docs/maps.md](docs/maps.md)) or an `https` URL the app loads itself (`encode: false`), `LIST` placeholders send a table such as a leaderboard, and tiles take look options (`fit`, `position`, `padding`, `smoothing`, `markerIcon`, `speed`, `background`): see [docs/placeholders.md](docs/placeholders.md) and [docs/dashboards.md](docs/dashboards.md).
+
+## Configuration skills (AI agents)
+
+The plugin writes six skills to `plugins/MCDashboard/.agents/skills/` (setup, configuration, placeholders, dashboards,
+networks, troubleshooting): Markdown instructions an AI agent (Claude Code, OpenCode, ...) loads when it helps with this
+server, each ending with the matching pages on [mcdashboard.org](https://mcdashboard.org/en/docs/). They are refreshed on
+update; see [docs/skills.md](docs/skills.md).
+
 ## Bedrock (PowerNukkitX)
 
 `MCDashboard-Nukkit.jar` is the same plugin for [PowerNukkitX](https://powernukkitx.org) 3 (Java 21), using the
@@ -42,6 +53,8 @@ paired player's ping) and can optionally read the values of backend servers that
 mvn -B verify    # spigot/target/MCDashboard.jar, nukkit/target/MCDashboard-Nukkit.jar,
                  # velocity/target/MCDashboard-Velocity.jar, bungee/target/MCDashboard-Bungee.jar
 ```
+
+`mvn -B verify` also runs JaCoCo: the report is in `<module>/target/site/jacoco/index.html` and the build fails below the limits set per module (`jacoco.minimum.line` / `jacoco.minimum.branch` in each `pom.xml`; the limits only go up). `core/` is at about 98% lines / 95% branches, `proxy-common/` at about 83% / 73%; the platform modules need a running server and are covered only for their pure helpers.
 
 `core/` holds everything that does not depend on a server platform (the API, authentication, history, tunnel and
 dashboards; JDK only). `spigot/` and `nukkit/` are the Spigot/Paper and PowerNukkitX plugins around it; `velocity/` and `bungee/` are the proxy plugins, sharing `proxy-common/`. Each shades `core/` into its jar.

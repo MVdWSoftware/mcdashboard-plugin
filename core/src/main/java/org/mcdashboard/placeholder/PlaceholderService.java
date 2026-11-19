@@ -45,7 +45,8 @@ public final class PlaceholderService {
     /** Fetched URL images are cached at least this long. */
     static final long IMAGE_URL_MIN_TTL_MS = 300_000;
 
-    private record Entry(PlaceholderDefinition def, String haystack, ImageSource image) {
+    /** {@code link} replaces {@code image} for a {@code url:} IMAGE with {@code encode: false}. */
+    private record Entry(PlaceholderDefinition def, String haystack, ImageSource image, ImageSource.UrlLink link) {
     }
 
     private record Snapshot(Map<String, Entry> byId, List<Entry> sorted) {
@@ -100,11 +101,14 @@ public final class PlaceholderService {
             String hay = (d.id() + '\n' + d.name() + '\n' + (d.description() == null ? "" : d.description()) + '\n' + d.group())
                     .toLowerCase(Locale.ROOT);
             ImageSource img = null;
-            if (d.type() == PlaceholderDefinition.Type.IMAGE) {
-                img = ImageSource.parse(d.source(), imagesDir, images, source,
+            ImageSource.UrlLink link = null;
+            if (d.type() == PlaceholderDefinition.Type.IMAGE && !d.encode()) {
+                link = new ImageSource.UrlLink(d.source(), source);
+            } else if (d.type() == PlaceholderDefinition.Type.IMAGE) {
+                img = ImageSource.parse(d.source(), d.map(), imagesDir, images, source,
                         Math.max(intervalMs(d), IMAGE_URL_MIN_TTL_MS));
             }
-            byId.put(d.id(), new Entry(d, hay, img));
+            byId.put(d.id(), new Entry(d, hay, img, link));
         }
         List<Entry> sorted = new ArrayList<>(byId.values());
         sorted.sort(ORDER);
@@ -157,7 +161,9 @@ public final class PlaceholderService {
         long global = globalIntervalOverrides.select(globalMinIntervalMs, playerUuid, permissions);
         long own = d.minIntervalOverrides().select(d.minIntervalMs(), playerUuid, permissions);
         long ms = Math.max(own, global);
-        if (d.type() == PlaceholderDefinition.Type.IMAGE) ms = Math.max(ms, d.source().startsWith("url:") ? IMAGE_URL_MIN_TTL_MS : 30_000);
+        if (d.type() == PlaceholderDefinition.Type.IMAGE) {
+            ms = Math.max(ms, d.source().startsWith("url:") || d.source().startsWith("map:") ? IMAGE_URL_MIN_TTL_MS : 30_000);
+        }
         return ms;
     }
 
@@ -175,6 +181,10 @@ public final class PlaceholderService {
      * values keep being served until they go stale.
      */
     private String resolveOnce(String key, String template, String ctx, long now) {
+        return resolveOnce(key, () -> source.resolve(template, ctx));
+    }
+
+    private String resolveOnce(String key, java.util.function.Supplier<String> resolver) {
         var mine = new java.util.concurrent.CompletableFuture<String>();
         var running = inflight.putIfAbsent(key, mine);
         if (running != null) {
@@ -189,7 +199,7 @@ public final class PlaceholderService {
         }
         String resolved = null;
         try {
-            resolved = source.resolve(template, ctx);
+            resolved = resolver.get();
             return resolved;
         } finally {
             if (resolved == null) {
@@ -221,7 +231,10 @@ public final class PlaceholderService {
         Value cached = cache.get(key);
         if (cached != null && now - cached.updatedMs() < intervalMs(d, playerUuid)) return Optional.of(cached);
         if (now < breakerUntilMs) return Optional.ofNullable(cached); // the server thread is not answering: do not pile up behind it
-        String resolved = resolveOnce(key, d.value(), ctx, now);
+        String resolved = d.list() != null
+                ? resolveOnce(key, () -> d.list().resolve(t -> source.resolve(t, ctx)))
+                : entry.link() != null ? resolveOnce(key, () -> entry.link().resolve(ctx))
+                : resolveOnce(key, d.value(), ctx, now);
         if (resolved == null || resolved.equals(d.value())) {
             // Unresolved: a short outage keeps the last value, but a dead value must not look live for ever.
             long keep = Math.max(STALE_AFTER_MS, 5 * intervalMs(d, playerUuid));

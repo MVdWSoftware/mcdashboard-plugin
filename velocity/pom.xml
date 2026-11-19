@@ -21,6 +21,12 @@
     </repository>
   </repositories>
 
+  <properties>
+    <!-- Adapters for the Velocity API: they need a running proxy; no unit tests (jacoco skips a module without execution data). -->
+    <jacoco.minimum.line>0.00</jacoco.minimum.line>
+    <jacoco.minimum.branch>0.00</jacoco.minimum.branch>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>org.mcdashboard</groupId>

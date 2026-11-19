@@ -12,6 +12,18 @@ and the project uses [Semantic Versioning](https://semver.org/).
   fingerprint (`pin=`) and `/v1/info` publishes it (`tlsFingerprint`, `websocketTls`).
 
 ### Added
+- JaCoCo in `mvn -B verify`: per-module coverage report and a check with limits (core about 98% lines / 95% branches); CI publishes the reports and the coverage figure. More tests for the tunnel channels, loopback requests, catalog loader, JSON and JDBC connector.
+- `map:` IMAGE sources (`map:dynmap`, `map:squaremap`, `map:pl3xmap`, `map:bluemap`): the tiles of a web map around a block
+  (fixed, or `%player_x%`/`%player_z%` for the paired player) stitched into one 64-512 px picture, fetched from the map's own
+  web server like `url:` images (no dependency on the map plugin); missing tiles stay transparent, PNG with a JPEG fallback
+  over 256 KB. See [docs/maps.md](docs/maps.md).
+- `encode: false` for `url:` IMAGE sources: the server fetches nothing and sends the expanded https URL in the SenML `vs`
+  value for the app to load directly (an `http://` URL is refused). See [docs/placeholders.md](docs/placeholders.md#images).
+- `LIST` placeholders (`rows`, `columns` with `{n}`, `empty`): a table such as a leaderboard or a player list, sent as JSON in the
+  SenML `vs` value; `GET /v1/placeholders` shows `columns` and `rows`. No history. See [docs/placeholders.md](docs/placeholders.md#lists-and-leaderboards).
+- New tile options `fit`, `position`, `padding`, `smoothing`, `markerIcon`, `speed` and a per-tile `background` (colour, gradient,
+  https picture), validated like the existing ones; documented with the `sky`, `ticker`, `countdown`, `heads` and `leaderboard`
+  widgets in [docs/dashboards.md](docs/dashboards.md#icons-and-tile-options).
 - `limits.max-dashboards` and `limits.max-tiles` (default `0` = no cap): the owner can cap dashboards per server and tiles per
   dashboard to protect performance, whatever the app unlock or licence. Published in `GET /v1/info` as `limits`; developer
   uploads above them are rejected with `422` (`tiles-limit`, `dashboards-limit`). See [docs/configuration.md](docs/configuration.md#limits).
@@ -23,6 +35,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
   exposes the PUBLIC placeholders of backend servers as `backend_<name>_<id>`. See [docs/proxy-platforms.md](docs/proxy-platforms.md).
 - `Platform.defaultDashboards()` and a platform's `config-append.yml` let a platform choose its preset dashboards and add its own
   settings to a new `config.yml`.
+- Configuration skills for AI agents: six Markdown skills (setup, configuration, placeholders, dashboards, networks,
+  troubleshooting) teach an agent such as Claude Code or OpenCode how to configure this server, each pointing at the matching
+  page on mcdashboard.org. They live in `.agents/skills/` in the repository, ship in the jar as `skills/`, and are written to
+  `plugins/MCDashboard/.agents/skills/` on every start (a changed file is replaced, an owner's own skill is kept). See
+  [docs/skills.md](docs/skills.md).
 - `security.client-verification`: require a client assertion from the MVdW attestation service (ES256, verified offline, bound to the
   host) so only genuine clients connect; the same for the app and other clients ([docs/client-verification.md](docs/client-verification.md)).
 - `security.background`: owners can switch off background updates (notifications, home-screen widgets) and limit them per device;
@@ -45,6 +62,7 @@ and the project uses [Semantic Versioning](https://semver.org/).
   group is in its default `placeholders.yml`.
 
 ### Fixed
+- The tunnel client applied live-feed frames (`open`, data, `x`) on parallel threads, so the first data frame of a stream could arrive before its `open` finished and be lost; channel frames are now applied in order.
 - BungeeCord: `bungee.yml` was invalid YAML (unquoted colon in the description), so the plugin was skipped; `%proxy_max%` is 0 instead of -1 when the proxy has no player limit; the federation warning no longer says `null`. Smoke-tested on real Velocity and BungeeCord (`scripts/proxy-smoke-test.sh`).
 - Refused pairing and refresh attempts (`429`) now count in `%mcdashboard_rate_limited%`.
 - The previous refresh token works for 30 seconds after a rotation, so a response lost on the way no longer unpairs the device.
@@ -68,6 +86,8 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - Dashboard items take an `icon` (`pack:name`, e.g. `fa6-solid:memory`) and `options` (progress styles such as hearts,
   colour rules, number format, layout); dashboards take a `background-image` (https URL, dim, blur, fit). Uploads accept
   them and the `stat`, `stacked` and `heatmap` widgets ([docs/dashboards.md](docs/dashboards.md)).
+- Tile units can be styled: `unitSize` (`s` small by default, `m`, `l`) and `unitColor` (a theme colour) next to `unit`,
+  so a value reads `567 MB` with the unit smaller or in another colour.
 - The plugin is open source under the GNU AGPL v3 licence, with its API contract ([openapi.yaml](openapi.yaml)) and
   server-owner documentation in this repository.
 - Persistent history: samples can be stored in SQLite, MySQL/MariaDB or PostgreSQL using a schema based on the

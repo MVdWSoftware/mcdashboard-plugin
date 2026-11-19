@@ -101,7 +101,7 @@ public final class WebhookDispatcher {
                     .header(SIGNATURE_HEADER, sign(h.secret(), ts, body))
                     .POST(HttpRequest.BodyPublishers.ofByteArray(body)).build();
             int status = client.send(req, HttpResponse.BodyHandlers.discarding()).statusCode();
-            ok = status >= 200 && status < 300;
+            ok = status / 100 == 2;
             if (!ok) why = "HTTP " + status;
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();

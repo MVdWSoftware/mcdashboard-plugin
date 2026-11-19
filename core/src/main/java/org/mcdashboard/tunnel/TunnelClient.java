@@ -50,6 +50,8 @@ public final class TunnelClient {
     private final Consumer<String> warn;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
     private final ExecutorService workers = Executors.newCachedThreadPool(Threads.daemon("MCDashboard-tunnel"));
+    /** Channel frames (open, data, close) must be applied in the order the proxy sent them: data follows open at once. */
+    private final ExecutorService ordered = Executors.newSingleThreadExecutor(Threads.daemon("MCDashboard-tunnel-channels"));
     private final ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor(Threads.daemon("MCDashboard-tunnel-timer"));
     private final LoopbackRequests requests;
     private final LiveChannels channels;
@@ -144,6 +146,7 @@ public final class TunnelClient {
         ws = null;
         channels.closeAll();
         timer.shutdownNow();
+        ordered.shutdownNow();
         workers.shutdownNow();
     }
 
@@ -190,7 +193,7 @@ public final class TunnelClient {
                         if (last) {
                             String text = partial.toString();
                             partial.setLength(0);
-                            workers.execute(() -> handle(g, text));
+                            dispatch(g, text);
                         }
                         socket.request(1);
                         return null;
@@ -296,14 +299,21 @@ public final class TunnelClient {
         return sendChain;
     }
 
-    private void handle(int g, String text) {
-        if (generation.get() != g) return;
+    /** Parses on the socket's own thread, so frames keep their order; slow work (REST requests) then runs in parallel. */
+    private void dispatch(int g, String text) {
         Map<String, Object> m;
         try {
             m = Json.parseObject(text);
         } catch (RuntimeException e) {
             return;
         }
+        Object t = m.get("t");
+        boolean channel = "open".equals(t) || "d".equals(t) || "x".equals(t);
+        (channel ? ordered : workers).execute(() -> handle(g, m));
+    }
+
+    private void handle(int g, Map<String, Object> m) {
+        if (generation.get() != g) return;
         Object t = m.get("t");
         if ("ready".equals(t)) {
             ready = true;

@@ -86,7 +86,8 @@ public record HistorySettings(Storage storage, long intervalMs, int retentionDay
     public List<PlaceholderDefinition> apply(List<PlaceholderDefinition> defs) {
         List<PlaceholderDefinition> out = new ArrayList<>(defs.size());
         for (PlaceholderDefinition p : defs) {
-            boolean eligible = p.access() == PlaceholderDefinition.Access.PUBLIC && p.type() != PlaceholderDefinition.Type.IMAGE;
+            boolean eligible = p.access() == PlaceholderDefinition.Access.PUBLIC && p.type() != PlaceholderDefinition.Type.IMAGE
+                    && p.type() != PlaceholderDefinition.Type.LIST;
             if (!eligible || matches(exclude, p.id())) {
                 out.add(p.historyMinutes() > 0 ? p.withHistoryMinutes(0) : p);
             } else if (p.historyMinutes() == 0 && matches(include, p.id())) {

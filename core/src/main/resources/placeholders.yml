@@ -3,7 +3,7 @@
 #
 # Only placeholders listed here can ever be read by the app. Every key is explained in docs/placeholders.md.
 # access: PUBLIC (anyone who can reach the server) or PLAYER (a paired device, resolved for that player).
-# type: STRING, INTEGER, DECIMAL, BOOLEAN, PERCENTAGE, AUTO (decided per value) or IMAGE.
+# type: STRING, INTEGER, DECIMAL, BOOLEAN, PERCENTAGE, AUTO (decided per value), IMAGE or LIST.
 # permission: optional node the paired player must hold. history: minutes kept for charts (PUBLIC only).
 # min-interval-permissions: optional map of permission node -> seconds for a faster interval, e.g. {mcdashboard.admin: 2}.
 placeholders:
@@ -215,6 +215,17 @@ placeholders:
 #    type: IMAGE
 #    access: PLAYER
 #    source: 'url:https://mc-heads.net/avatar/%player_uuid%/64'
+
+# LIST: a table (leaderboard, player list); {n} is the row number. Use _value, not _value_formatted; see docs/placeholders.md.
+#  - id: top-kills
+#    name: Top kills
+#    group: Leaderboards
+#    type: LIST
+#    rows: 10
+#    columns:
+#      name: '%ajlb_lb_kills_{n}_alltime_name%'
+#      value: '%ajlb_lb_kills_{n}_alltime_value%'
+#    empty: ['---', 'N/A']
 
 # Catalog: every placeholder of an installed PlaceholderAPI expansion as <expansion>_<name>; see docs/placeholders.md.
 # catalog:

@@ -15,4 +15,7 @@
   to (`COMMENT ON` on PostgreSQL, inline `COMMENT` on MySQL). Sensors share the `ssn:System` supertype table.
 - **Proxies** have no PlaceholderAPI: `proxy-common/ProxyValueSource` answers the built-in `%proxy_*%` placeholders from cached or in-memory data and must never block or ping on the calling thread. Federation (`network.backends`) only contacts the configured URLs: no redirects, timeouts, size cap, PUBLIC placeholders only.
 - Commands: `mvn -B verify` (all modules); `mvn -B -pl core verify` for the platform independent part only. `/mcdashboard` text lives in `core/commands/DashboardCommands`; platforms add only what is specific to them (clickable text, QR maps).
+- Skills: the owner-facing agent skills live in `.agents/skills/` at the repository root. `core/pom.xml` packages them as
+  `skills/` in the jar and `DataFolder` writes them to `plugins/MCDashboard/.agents/skills/` on every start (a file whose
+  content changed is replaced; extra files are kept). Change a skill together with the `docs/` page it summarises.
 - Docs: no ASCII repo trees; keep README and `docs/` current in the same change.

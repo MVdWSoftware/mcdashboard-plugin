@@ -14,6 +14,12 @@
   <name>MCDashboard core</name>
   <description>The platform independent part: REST and live API, authentication, history, tunnel and dashboards. Depends on the JDK only.</description>
 
+  <properties>
+    <!-- Reached 98.5% lines / 95.5% branches; target 100%. What is left: JDK-mandated catch blocks that cannot fire (NoSuchAlgorithm for SHA-256/HmacSHA256/SHA-1, AtomicMoveNotSupported), HTTP/TLS/IO error paths and a few partial branches. -->
+    <jacoco.minimum.line>0.98</jacoco.minimum.line>
+    <jacoco.minimum.branch>0.95</jacoco.minimum.branch>
+  </properties>
+
   <dependencies>
     <!-- Test only: an independent decoder for the plugin's QR encoder. -->
     <dependency>
@@ -63,6 +69,17 @@
   </dependencies>
 
   <build>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+      </resource>
+      <!-- The configuration skills are shared with the agents in this repository (`.agents/skills`) and ship in the jar
+           as `skills/`, from where DataFolder writes them to plugins/MCDashboard/.agents/skills/. -->
+      <resource>
+        <directory>${project.basedir}/../.agents/skills</directory>
+        <targetPath>skills</targetPath>
+      </resource>
+    </resources>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

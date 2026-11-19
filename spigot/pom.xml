@@ -25,6 +25,12 @@
     </repository>
   </repositories>
 
+  <properties>
+    <!-- Adapters for the Bukkit API: they need a running server (or a mock of it), so only the pure helpers are covered here. -->
+    <jacoco.minimum.line>0.08</jacoco.minimum.line>
+    <jacoco.minimum.branch>0.06</jacoco.minimum.branch>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>org.mcdashboard</groupId>

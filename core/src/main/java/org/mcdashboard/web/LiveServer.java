@@ -50,9 +50,9 @@ public final class LiveServer {
     private static final int MAX_SUBSCRIPTIONS = 100;
     private static final int MAX_HEAD = 8 * 1024;
     private static final int MAX_HEADERS = 50;
-    private static final int HANDSHAKE_TIMEOUT_MS = 10_000;
-    private static final int AUTH_TIMEOUT_MS = 10_000;
-    private static final int IDLE_TIMEOUT_MS = 60_000;
+    private int handshakeTimeoutMs = 10_000;
+    private int authTimeoutMs = 10_000;
+    private int idleTimeoutMs = 60_000;
 
     private final ApiContext ctx;
     private final ClientPolicy clients;
@@ -77,6 +77,13 @@ public final class LiveServer {
     /** Requires every connection to present a valid client assertion in its {@code auth} message. */
     public void verifyClients(ClientAssertions verifier) {
         this.assertions = verifier;
+    }
+
+    /** Shorter time limits for tests: the handshake, the first message of a client that must authenticate, and idleness before a ping. */
+    void timeouts(int handshakeMs, int authMs, int idleMs) {
+        this.handshakeTimeoutMs = handshakeMs;
+        this.authTimeoutMs = authMs;
+        this.idleTimeoutMs = idleMs;
     }
 
     public void start(String host, int port) throws IOException {
@@ -153,15 +160,15 @@ public final class LiveServer {
             this.sock = sock;
             this.in = sock.getInputStream();
             this.out = sock.getOutputStream();
-            sock.setSoTimeout(HANDSHAKE_TIMEOUT_MS);
+            sock.setSoTimeout(handshakeTimeoutMs);
             sock.setTcpNoDelay(true);
         }
 
         void run() throws IOException {
             if (!handshake()) return;
             boolean mustAuthenticate = ctx.requireAuthentication() || assertions != null;
-            long deadline = System.currentTimeMillis() + AUTH_TIMEOUT_MS;
-            sock.setSoTimeout(mustAuthenticate ? AUTH_TIMEOUT_MS : IDLE_TIMEOUT_MS);
+            long deadline = System.currentTimeMillis() + authTimeoutMs;
+            sock.setSoTimeout(mustAuthenticate ? authTimeoutMs : idleTimeoutMs);
             task = ticker.scheduleWithFixedDelay(this::tick, 1, 1, TimeUnit.SECONDS);
             while (true) {
                 if (mustAuthenticate && deviceId == null && !verified && System.currentTimeMillis() > deadline) return;
@@ -227,7 +234,7 @@ public final class LiveServer {
 
         /** The request line and header lines, or null when the head is too large, has too many headers or is cut off. */
         private List<String> head() throws IOException {
-            long deadline = System.currentTimeMillis() + HANDSHAKE_TIMEOUT_MS;
+            long deadline = System.currentTimeMillis() + handshakeTimeoutMs;
             List<String> lines = new ArrayList<>();
             StringBuilder line = new StringBuilder();
             int total = 0;
@@ -280,7 +287,7 @@ public final class LiveServer {
                 }
                 player = c.get().player();
                 deviceId = c.get().deviceId();
-                sock.setSoTimeout(IDLE_TIMEOUT_MS);
+                sock.setSoTimeout(idleTimeoutMs);
                 sendJson(Map.of("type", "authenticated"));
             } else if ("subscribe".equals(type) && m.get("ids") instanceof List<?> ids) {
                 if ((ctx.requireAuthentication() && deviceId == null) || (assertions != null && !verified)) {

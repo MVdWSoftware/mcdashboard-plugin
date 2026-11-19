@@ -1,0 +1,3 @@
+placeholders:
+  - id: own
+    value: "%own%"

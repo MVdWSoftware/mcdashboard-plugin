@@ -16,7 +16,8 @@ import java.util.regex.Pattern;
  * sensor measurements, so any SenML-aware client, proxy or collector can consume the data.
  * Each record: {@code n} name (placeholder id), {@code t} time (unix seconds), {@code u} unit and
  * one of {@code v} (number), {@code vb} (boolean), {@code vs} (string) or {@code vd} (data: an IMAGE as base64url
- * without padding; the type is sniffed from the bytes).
+ * without padding; the type is sniffed from the bytes; or, with {@code encode: false}, the https URL to load in {@code vs}).
+ * A LIST is a table as compact JSON in {@code vs}.
  */
 public final class SenMl {
     /** Media type of a SenML JSON pack. */
@@ -69,7 +70,11 @@ public final class SenMl {
         r.put("t", value.updatedMs() / 1000.0);
         if (def.unit() != null) r.put("u", def.unit());
         if (def.type() == PlaceholderDefinition.Type.IMAGE) {
-            r.put("vd", value.value());
+            r.put(def.encode() ? "vd" : "vs", value.value()); // vs: an https URL the app loads itself (encode: false)
+            return r;
+        }
+        if (def.type() == PlaceholderDefinition.Type.LIST) {
+            r.put("vs", value.value()); // compact JSON {"columns":[...],"rows":[[...]]}, colour codes kept
             return r;
         }
         String raw = clean(value.value());

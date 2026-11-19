@@ -1,4 +1,4 @@
-# Placeholders: groups, catalogs and images (for server owners)
+# Placeholders: groups, catalogs, images and lists (for server owners)
 
 `plugins/MCDashboard/placeholders.yml` is the allowlist of what the app may read. Players never send a `%placeholder%`
 template; they pick from this list, so nothing outside it is ever evaluated.
@@ -13,7 +13,7 @@ The plugin also provides placeholders of its own, `%mcdashboard_...%` (paired de
 | `id` | What the app asks for: letters, digits, `_`, `.` and `-`, at most 64. |
 | `name`, `description`, `group` | Shown in the app; `group` defaults to `General`. |
 | `value` | One PlaceholderAPI placeholder, e.g. `'%server_online%'`. |
-| `type` | `STRING`, `INTEGER`, `DECIMAL`, `BOOLEAN`, `PERCENTAGE`, `AUTO` (decided per value) or `IMAGE` (see below). |
+| `type` | `STRING`, `INTEGER`, `DECIMAL`, `BOOLEAN`, `PERCENTAGE`, `AUTO` (decided per value), `IMAGE` or `LIST` (see below). |
 | `access` | `PUBLIC`: anyone who can reach the server. `PLAYER`: a paired device, resolved for that player. |
 | `permission` | Optional node the paired player must hold for any request. |
 | `min-interval` | Seconds; the value is resolved at most this often (never below the caller's `security.min-interval`; `min-interval-permissions` can change it). |
@@ -66,6 +66,17 @@ placeholders:
     type: IMAGE
     access: PLAYER
     source: url:https://mc-heads.net/avatar/%player_uuid%/64   # PlaceholderAPI is expanded for the paired player
+  - id: skin
+    name: Your skin
+    type: IMAGE
+    access: PLAYER
+    source: url:https://mc-heads.net/body/%player_uuid%/128
+    encode: false                             # the app loads the URL itself; the server fetches nothing
+  - id: spawn-map
+    name: Spawn
+    type: IMAGE
+    source: map:squaremap                     # tiles of a web map around a block, see maps.md
+    map: { url: 'http://localhost:8080', world: minecraft_overworld, x: 0, z: 0, size: 256 }
 ```
 
 - Sent to the app and shown by the `image` widget.
@@ -73,6 +84,46 @@ placeholders:
   256 KB. `file:` paths cannot leave the `images/` folder. `url:` must be http(s) with a fixed host (a placeholder in the
   host is refused), is fetched off the main thread with a 5 second timeout, cached for at least 5 minutes, and the last
   good copy keeps being served if the origin is down.
+- `encode: false` (only for `url:`, default `true`): the server does not download the picture. It expands the
+  placeholders (for the paired player with `access: PLAYER`) and sends the resulting URL as the value (SenML `vs`
+  instead of the picture in `vd`); the app loads it directly. The URL must be `https://` (an `http://` one is refused when
+  the file is loaded, with a warning in the console) and stays on its fixed host. Use it for pictures the server should not
+  proxy, such as large ones; the phone then contacts that host itself, so only use hosts you trust with your players'
+  IP addresses.
+- `map:dynmap`, `map:squaremap`, `map:pl3xmap` and `map:bluemap` stitch tiles of your web map into one picture centred on
+  a block (a fixed one or `'%player_x%'` / `'%player_z%'` for the paired player). Always sent as a picture (`encode: false`
+  is refused). Keys, providers and limits: [Map pictures](maps.md).
+
+## Lists and leaderboards
+
+A `LIST` placeholder is a small table: several PlaceholderAPI placeholders, one per column, repeated for each row. `{n}` in a
+column is replaced by the row number (1, 2, 3, ...) before PlaceholderAPI expands it. The `leaderboard`, `heads` and
+`ticker` widgets of the app read it.
+
+```yaml
+placeholders:
+  - id: top-kills
+    name: Top kills
+    type: LIST
+    rows: 10                                   # 1-50, default 10
+    columns:                                   # 1-6 columns; names a-z, 0-9, _ (start with a letter, max 24); the order is kept
+      name: '%ajlb_lb_kills_{n}_alltime_name%'
+      value: '%ajlb_lb_kills_{n}_alltime_value%'
+    empty: ['---', 'N/A']                      # optional: cells equal to one of these (colour codes stripped, trimmed) are empty
+    access: PUBLIC
+    min-interval: 60
+```
+
+- This example uses the [ajLeaderboards](https://www.spigotmc.org/resources/ajleaderboards.85548/) expansion. Use the
+  `_value` placeholder, not `_value_formatted`: formatted values such as `10k` are text, not numbers, so the app cannot
+  format, compare or colour them.
+- Each column is one `%placeholder%`, like `value:` of a normal entry; other text around it is refused.
+- A row whose cells are all empty is dropped only when it comes after the last filled row, so the order of the rest is kept.
+- A cell that is fully a number (colour codes and thousands separators such as `1,234` ignored) is sent as a number, any
+  other cell as text with its `§`/`&` colour codes kept, cut to 256 characters.
+- `access`, `permission`, `min-interval` and `min-interval-permissions` work as for any other placeholder; every cell is
+  resolved on the server thread each refresh, so keep `rows` and `min-interval` modest. `history` is ignored.
+- An app that does not know `LIST` shows the table as JSON text.
 
 ## Permissions
 

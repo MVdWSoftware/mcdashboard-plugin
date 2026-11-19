@@ -4,18 +4,24 @@
  */
 package org.mcdashboard.image;
 
+import org.mcdashboard.image.map.MapSource;
+import org.mcdashboard.image.map.MapSpec;
 import org.mcdashboard.placeholder.ValueSource;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
 /**
  * Where an IMAGE placeholder gets its bytes: {@code file:<relative path>} inside the images folder (reloaded when the
- * file changes) or {@code url:<template>} with PlaceholderAPI placeholders expanded for the paired player.
+ * file changes), {@code url:<template>} with PlaceholderAPI placeholders expanded for the paired player, or
+ * {@code map:<provider>} with a {@code map:} block ({@link MapSpec}): tiles of a web map stitched into one picture.
  */
 public interface ImageSource {
     /** The current image for this player (null for server-wide placeholders), or empty when unavailable. */
@@ -30,15 +36,26 @@ public interface ImageSource {
             if (!URL_TEMPLATE.matcher(spec.substring(4)).matches()) {
                 throw new IllegalArgumentException("url source must be http(s)://host/... with a fixed host");
             }
+        } else if (spec.startsWith("map:")) {
+            MapSpec.provider(spec.substring(4));
         } else {
-            throw new IllegalArgumentException("source must start with file: or url:");
+            throw new IllegalArgumentException("source must start with file:, url: or map:");
         }
     }
 
     /** {@code ttlMs} is how long a fetched URL is cached; files are re-read when they change. */
     static ImageSource parse(String spec, Path imagesDir, ImageCache cache, ValueSource values, long ttlMs) {
+        return parse(spec, null, imagesDir, cache, values, ttlMs);
+    }
+
+    /** As {@link #parse(String, Path, ImageCache, ValueSource, long)}; {@code map} is the parsed block of a {@code map:} source. */
+    static ImageSource parse(String spec, MapSpec map, Path imagesDir, ImageCache cache, ValueSource values, long ttlMs) {
         validate(spec);
         if (spec.startsWith("file:")) return new FileSource(imagesDir, relative(spec.substring(5)));
+        if (spec.startsWith("map:")) {
+            if (map == null) throw new IllegalArgumentException("map source needs a map: block");
+            return new MapSource(map, cache, values, ttlMs);
+        }
         return new UrlSource(spec.substring(4), cache, values, ttlMs);
     }
 
@@ -90,6 +107,49 @@ public interface ImageSource {
                 return Optional.of(cached);
             } catch (IOException | RuntimeException e) {
                 return Optional.empty();
+            }
+        }
+    }
+
+    /**
+     * A {@code url:} source with {@code encode: false}: nothing is fetched, the app loads the expanded URL itself. The
+     * result must still be https on the template's own host (placeholders can only fill in the path).
+     */
+    final class UrlLink {
+        private final String template;
+        private final String host;
+        private final ValueSource values;
+
+        public UrlLink(String spec, ValueSource values) {
+            validate(spec);
+            if (!spec.regionMatches(true, 0, "url:https://", 0, 12)) {
+                throw new IllegalArgumentException("encode: false needs an https:// url");
+            }
+            this.template = spec.substring(4).trim();
+            String rest = template.substring(8);
+            int slash = rest.indexOf('/');
+            this.host = (slash < 0 ? rest : rest.substring(0, slash)).toLowerCase(Locale.ROOT);
+            this.values = values;
+        }
+
+        /** The URL for this player (null for server-wide placeholders), or null when a placeholder did not expand. */
+        public String resolve(String playerUuid) {
+            String url = template;
+            if (template.indexOf('%') >= 0) {
+                url = values.resolve(template, playerUuid);
+                if (url == null || url.equals(template)) return null;
+                url = url.trim();
+            }
+            if (url.length() > 2048 || !url.regionMatches(true, 0, "https://", 0, 8)) return null;
+            String rest = url.substring(8);
+            int end = 0;
+            while (end < rest.length() && "/?#".indexOf(rest.charAt(end)) < 0) end++;
+            if (!rest.substring(0, end).equalsIgnoreCase(host)) return null;
+            try {
+                URI uri = new URI(url);
+                return host.equalsIgnoreCase(uri.getRawAuthority()) ? url : null;
+            } catch (URISyntaxException e) {
+                return null; // a space or another character a browser would refuse
             }
         }
     }

@@ -60,6 +60,6 @@ public record LocalizedText(Map<String, String> translations, String plain) {
             String text = translations.get(language);
             if (text != null) return text;
         }
-        return translations.values().stream().findFirst().orElse("");
+        return "";
     }
 }

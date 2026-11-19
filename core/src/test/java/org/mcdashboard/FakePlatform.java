@@ -20,7 +20,7 @@ import org.mcdashboard.platform.Platform;
 import org.mcdashboard.web.ServerStatus;
 
 /** A platform that records what the core asks of it and runs "main thread" work at once. */
-public final class FakePlatform implements Platform {
+public class FakePlatform implements Platform {
     public final List<String> logged = new CopyOnWriteArrayList<>();
     public final AtomicInteger repeating = new AtomicInteger();
     public final List<String> permissionCalls = new CopyOnWriteArrayList<>();

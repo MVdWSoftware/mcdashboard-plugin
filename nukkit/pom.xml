@@ -15,6 +15,9 @@
   <description>The PowerNukkitX plugin for Bedrock servers: the hub's PlaceholderAPI as value source, PNX commands and permissions.</description>
 
   <properties>
+    <!-- Adapters for the Nukkit API: they need a running server, so only the pure helpers are covered here. -->
+    <jacoco.minimum.line>0.09</jacoco.minimum.line>
+    <jacoco.minimum.branch>0.10</jacoco.minimum.branch>
     <!-- PowerNukkitX 3 runs on Java 21. -->
     <maven.compiler.release>21</maven.compiler.release>
   </properties>
