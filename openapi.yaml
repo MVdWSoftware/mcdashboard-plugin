@@ -11,6 +11,8 @@ info:
     Value responses carry `ETag` and `Cache-Control: max-age=<min-interval>`, and anonymous
     responses are `public`, so a reverse proxy or CDN may cache them. Per-player responses are
     `private` and `Vary: Authorization`.
+    A request with an invalid, expired or revoked bearer token gets `401` with
+    `WWW-Authenticate: Bearer error="invalid_token"`, never the anonymous answer: refresh, or pair again.
 
     Every route except `GET /info` requires the official app's `User-Agent`, `MCDashboard/<x.y.z> (<android|ios|dev>)`.
     Others get `403`; a version below the server's `minClientVersion` gets `426`. A server owner can allow more clients.

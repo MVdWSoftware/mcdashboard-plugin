@@ -155,6 +155,15 @@ class ApiTest {
     }
 
     @Test
+    void anInvalidTokenIsRefusedInsteadOfAnsweredAsAnonymous() throws Exception {
+        // Public data for a stale token would leave the app on the public view without ever refreshing.
+        var r = get("/v1/dashboards", "Authorization", "Bearer not-a-valid-token");
+        assertEquals(401, r.statusCode());
+        assertEquals("Bearer error=\"invalid_token\"", r.headers().firstValue("WWW-Authenticate").orElseThrow());
+        assertEquals(200, get("/v1/dashboards").statusCode(), "without a token the public view stays open");
+    }
+
+    @Test
     void refreshRotatesAndOldRefreshTokenDies() throws Exception {
         var auth = Json.parseObject(post("/v1/auth", "{\"otp\":\"" + otps.create("u", "S") + "\"}").body());
         String r1 = (String) auth.get("refreshToken");

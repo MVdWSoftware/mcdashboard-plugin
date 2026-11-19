@@ -62,6 +62,8 @@ and the project uses [Semantic Versioning](https://semver.org/).
   group is in its default `placeholders.yml`.
 
 ### Fixed
+- An expired or revoked access token is answered with `401` (`WWW-Authenticate: Bearer error="invalid_token"`) instead of
+  the anonymous answer: the app kept showing the public view without ever refreshing, about 15 minutes after pairing.
 - The tunnel client applied live-feed frames (`open`, data, `x`) on parallel threads, so the first data frame of a stream could arrive before its `open` finished and be lost; channel frames are now applied in order.
 - BungeeCord: `bungee.yml` was invalid YAML (unquoted colon in the description), so the plugin was skipped; `%proxy_max%` is 0 instead of -1 when the proxy has no player limit; the federation warning no longer says `null`. Smoke-tested on real Velocity and BungeeCord (`scripts/proxy-smoke-test.sh`).
 - Refused pairing and refresh attempts (`429`) now count in `%mcdashboard_rate_limited%`.

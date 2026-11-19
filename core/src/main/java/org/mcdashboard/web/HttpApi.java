@@ -223,6 +223,13 @@ public final class HttpApi implements HttpHandler {
     private void authenticated(HttpExchange ex, String path, String method) throws IOException {
         String token = bearer(ex);
         Optional<TokenService.Claims> who = token == null ? Optional.empty() : authenticate(ctx, token);
+        if (token != null && who.isEmpty()) {
+            // An expired or revoked token is not an anonymous call: answering with public data would leave the app showing
+            // the public view without ever refreshing. RFC 6750 invalid_token tells it to refresh (or pair again).
+            ex.getResponseHeaders().set("WWW-Authenticate", "Bearer error=\"invalid_token\"");
+            error(ex, 401, "invalid or expired token");
+            return;
+        }
         if (ctx.requireAuthentication() && who.isEmpty()) {
             error(ex, 401, "authentication required");
             return;
