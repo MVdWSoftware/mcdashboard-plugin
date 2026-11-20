@@ -40,7 +40,7 @@ class ImageTest {
         assertEquals(image.hashCode(), new Image(new byte[]{1, 2}, 5).hashCode());
         assertNotEquals(image, new Image(new byte[]{1, 3}, 5));
         assertNotEquals(image, new Image(new byte[]{1, 2}, 6));
-        assertNotEquals(image, "image");
+        assertFalse(image.equals("image"), "a different type is not equal");
         assertTrue(image.toString().contains("bytes=[1, 2]"), image.toString());
     }
 
