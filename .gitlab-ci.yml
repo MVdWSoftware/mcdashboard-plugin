@@ -10,6 +10,19 @@ build:
     - mvn -B verify  # JaCoCo report + coverage check per module (limits in each pom)
     - 'awk -F, ''NR>1 {m+=$8; c+=$9} END {printf "Total coverage: %.1f %%\n", 100*c/(m+c)}'' core/target/site/jacoco/jacoco.csv'
     - for jar in spigot/target/MCDashboard.jar nukkit/target/MCDashboard-Nukkit.jar velocity/target/MCDashboard-Velocity.jar bungee/target/MCDashboard-Bungee.jar; do jar tf "$jar" | grep -vE '^(org/mcdashboard/|META-INF/|dashboards/|lang/|nukkit/|proxy/|skills/|[a-z-]+\.(yml|json)|org/$|dashboards/$|lang/$|nukkit/$|proxy/$)' && exit 1 || true; done  # nothing shaded (Velocity's SnakeYAML is relocated under org/mcdashboard/libs/)
+    # SonarQube Community Build (mvdw/ci-templates sonar.yml documents the same recipe): reuses the
+    # classes and JaCoCo reports from `verify`, so it is a second, cheap goal rather than a rebuild.
+    # Report-only by default; set SONAR_QUALITY_GATE_WAIT=true once the baseline is triaged.
+    - |
+      if [ -n "$SONAR_HOST_URL" ] && [ -n "$SONAR_TOKEN" ]; then
+        mvn -B sonar:sonar \
+          -Dsonar.projectKey=mcdashboard-mcdashboard-plugin \
+          -Dsonar.projectName="mcdashboard plugin" \
+          -Dsonar.exclusions='**/target/**' \
+          -Dsonar.qualitygate.wait="${SONAR_QUALITY_GATE_WAIT:-false}"
+      else
+        echo "SONAR_HOST_URL/SONAR_TOKEN not set: skipping SonarQube analysis"
+      fi
   coverage: '/Total coverage: (\d+\.\d+) %/'
   artifacts:
     when: always
