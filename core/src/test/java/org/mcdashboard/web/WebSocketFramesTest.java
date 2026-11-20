@@ -56,7 +56,7 @@ class WebSocketFramesTest {
         assertEquals(hello.hashCode(), same.hashCode());
         assertNotEquals(hello, new WebSocketFrames.Frame(WebSocketFrames.TEXT, "ho".getBytes(StandardCharsets.UTF_8)));
         assertNotEquals(hello, new WebSocketFrames.Frame(WebSocketFrames.PING, "hi".getBytes(StandardCharsets.UTF_8)));
-        assertNotEquals(hello, "hi");
+        assertFalse(hello.equals("hi"), "a different type is not equal");
         assertTrue(hello.toString().contains("payload=[104, 105]"), hello.toString());
     }
 
