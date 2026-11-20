@@ -18,8 +18,10 @@ import java.util.regex.Pattern;
  * but the documented shape (see {@code TileOptions} and {@code BackgroundImage} in openapi.yaml).
  */
 public final class TileLook {
-    /** {@code pack:name}, the Iconify naming the app uses ({@code fa6-solid:memory}). */
-    private static final Pattern ICON = Pattern.compile("[a-z0-9]+(-[a-z0-9]+)*:[a-z0-9]+(-[a-z0-9]+)*");
+    // An icon is `pack:name` (the Iconify naming the app uses, e.g. fa6-solid:memory): lowercase alphanumerics joined
+    // by single dashes on both sides of exactly one colon. Checked by hand rather than with a regex, because the
+    // equivalent pattern nests quantifiers and backtracks catastrophically on long non-matching input.
+
     private static final Pattern BIOME = Pattern.compile("[a-zA-Z0-9_:. -]{1,64}");
     private static final Pattern STYLE = Pattern.compile("[a-z0-9-]{1,24}");
     private static final Pattern HTTPS = Pattern.compile("https://[^\\s\"'()<>\\\\]+", Pattern.CASE_INSENSITIVE);
@@ -46,7 +48,29 @@ public final class TileLook {
     public static String icon(Object raw) {
         if (raw == null) return null;
         String s = raw.toString().trim().toLowerCase(Locale.ROOT);
-        return s.length() <= 64 && ICON.matcher(s).matches() ? s : null;
+        return s.length() <= 64 && isIcon(s) ? s : null;
+    }
+
+    /** {@code pack:name}: one colon, each side lowercase alphanumerics joined by single dashes. */
+    private static boolean isIcon(String s) {
+        int colon = s.indexOf(':');
+        if (colon < 0 || colon != s.lastIndexOf(':')) return false;
+        return isIconPart(s, 0, colon) && isIconPart(s, colon + 1, s.length());
+    }
+
+    private static boolean isIconPart(String s, int from, int to) {
+        if (from >= to || s.charAt(from) == '-' || s.charAt(to - 1) == '-') return false;
+        char previous = 0;
+        for (int i = from; i < to; i++) {
+            char c = s.charAt(i);
+            if (c == '-') {
+                if (previous == '-') return false;
+            } else if (!(c >= 'a' && c <= 'z') && !(c >= '0' && c <= '9')) {
+                return false;
+            }
+            previous = c;
+        }
+        return true;
     }
 
     /** The known, well-typed tile options; unknown keys and bad values are dropped. Null when nothing is left. */
