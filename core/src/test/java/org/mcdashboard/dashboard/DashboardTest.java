@@ -127,7 +127,7 @@ class DashboardTest {
         Dashboard.Item first = d.items().get(0);
         assertEquals("game-icons:mining", first.icon());
         assertEquals(Map.of("style", "hearts", "thresholds", List.of(Map.of("when", "below", "value", 18.0, "color", "orange")),
-                "decimals", 4, "unit", "MB", "unitSize", "l", "unitColor", "accent", "count", 20), first.options());
+                "decimals", 4, "unit", "MB", "unitSize", "l", "unitColor", "accent", "card", "default", "count", 20), first.options());
         assertNull(d.items().get(1).icon());
         assertNull(d.items().get(1).options());
         assertEquals(new TileLook.BackgroundImage("https://cdn.example.com/bg.jpg", 0.9, 4, "cover"), d.backgroundImage());
