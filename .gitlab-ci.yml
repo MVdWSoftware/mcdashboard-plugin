@@ -15,7 +15,8 @@ build:
     # Report-only by default; set SONAR_QUALITY_GATE_WAIT=true once the baseline is triaged.
     - |
       if [ -n "$SONAR_HOST_URL" ] && [ -n "$SONAR_TOKEN" ]; then
-        mvn -B sonar:sonar \
+        SONAR_PLUGIN=$(mvn -B help:evaluate -Dexpression=sonar.maven.plugin.version -q -DforceStdout)
+        mvn -B "org.sonarsource.scanner.maven:sonar-maven-plugin:${SONAR_PLUGIN}:sonar" \
           -Dsonar.projectKey=mcdashboard-mcdashboard-plugin \
           -Dsonar.projectName="mcdashboard plugin" \
           -Dsonar.exclusions='**/target/**' \
