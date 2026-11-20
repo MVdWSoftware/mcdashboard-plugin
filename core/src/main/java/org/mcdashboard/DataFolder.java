@@ -37,6 +37,8 @@ final class DataFolder {
      *  location an agent (Claude Code, OpenCode, ...) searches in the directory it works in. */
     private static final String SKILLS = "skills";
     private static final String SKILLS_TARGET = ".agents/skills";
+    /** One instance for every key and salt; {@link SecureRandom} is thread-safe and reseeding per call is wasteful. */
+    private static final SecureRandom RANDOM = new SecureRandom();
 
     private final Path dir;
     private final YamlCodec yaml;
@@ -166,7 +168,7 @@ final class DataFolder {
         Path file = resolve("secret.key");
         if (Files.exists(file)) return Base64.getDecoder().decode(Files.readString(file).trim());
         byte[] key = new byte[48];
-        new SecureRandom().nextBytes(key);
+        RANDOM.nextBytes(key);
         Files.createDirectories(file.getParent());
         Files.writeString(file, Base64.getEncoder().encodeToString(key), StandardOpenOption.CREATE_NEW);
         try {

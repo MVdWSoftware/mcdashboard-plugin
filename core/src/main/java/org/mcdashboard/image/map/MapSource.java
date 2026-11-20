@@ -186,7 +186,10 @@ public final class MapSource implements ImageSource {
         if (f.isCancelled()) return null;
         try {
             return f.get(); // already done: invokeAll returned
-        } catch (InterruptedException | ExecutionException e) {
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt(); // a tile that is missing must not swallow the shutdown
+            return null;
+        } catch (ExecutionException e) {
             return null; // a failed tile is a missing tile
         }
     }

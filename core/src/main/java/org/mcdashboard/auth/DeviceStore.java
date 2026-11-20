@@ -49,7 +49,7 @@ public final class DeviceStore {
     /** When each device last made an authenticated request. Kept in memory and written with the next save, not on every request. */
     private final Map<String, Long> seen = new ConcurrentHashMap<>();
     /** The entitlement each device reported, mirrored here so counting needs no lock. */
-    private final Map<String, String> entitlements = new ConcurrentHashMap<>();
+    private final Map<String, String> reportedEntitlements = new ConcurrentHashMap<>();
     /** The refresh generation each device had just before its last rotation, and when it rotated. */
     private final Map<String, long[]> rotated = new ConcurrentHashMap<>();
     /** How long the previous refresh token stays valid after a rotation, so a response lost on the way does not unpair the device. */
@@ -94,12 +94,12 @@ public final class DeviceStore {
      */
     public void entitle(String id, String raw) {
         String value = parseEntitlement(raw);
-        if (id == null || value == null || value.equals(entitlements.get(id))) return;
+        if (id == null || value == null || value.equals(reportedEntitlements.get(id))) return;
         synchronized (this) {
             Device d = devices.get(id);
             if (d == null) return;
             devices.put(id, new Device(d.id(), d.playerUuid(), d.playerName(), d.label(), d.serial(), d.createdMs(), d.client(), value));
-            entitlements.put(id, value);
+            reportedEntitlements.put(id, value);
             save();
         }
     }
@@ -107,7 +107,7 @@ public final class DeviceStore {
     /** How many devices reported {@code entitlement} ({@code server}, {@code app} or {@code free}). Lock free and in memory. */
     public int countEntitled(String entitlement) {
         int n = 0;
-        for (String v : entitlements.values()) if (v.equals(entitlement)) n++;
+        for (String v : reportedEntitlements.values()) if (v.equals(entitlement)) n++;
         return n;
     }
 
@@ -160,7 +160,7 @@ public final class DeviceStore {
         Device d = devices.remove(id);
         if (d == null) return false;
         seen.remove(id);
-        entitlements.remove(id);
+        reportedEntitlements.remove(id);
         rotated.remove(id);
         count = devices.size();
         save();
@@ -192,7 +192,7 @@ public final class DeviceStore {
                         ((Number) m.get("created")).longValue(), (String) m.get("client"),
                         parseEntitlement((String) m.get("entitlement")));
                 devices.put(d.id(), d);
-                if (d.entitlement() != null) entitlements.put(d.id(), d.entitlement());
+                if (d.entitlement() != null) reportedEntitlements.put(d.id(), d.entitlement());
                 if (m.get("seen") instanceof Number n) seen.put(d.id(), n.longValue());
             }
             count = devices.size();

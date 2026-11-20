@@ -49,6 +49,18 @@ class WebSocketFramesTest {
     }
 
     @Test
+    void framesCompareTheirPayloadByContent() {
+        var hello = new WebSocketFrames.Frame(WebSocketFrames.TEXT, "hi".getBytes(StandardCharsets.UTF_8));
+        var same = new WebSocketFrames.Frame(WebSocketFrames.TEXT, "hi".getBytes(StandardCharsets.UTF_8));
+        assertEquals(hello, same);
+        assertEquals(hello.hashCode(), same.hashCode());
+        assertNotEquals(hello, new WebSocketFrames.Frame(WebSocketFrames.TEXT, "ho".getBytes(StandardCharsets.UTF_8)));
+        assertNotEquals(hello, new WebSocketFrames.Frame(WebSocketFrames.PING, "hi".getBytes(StandardCharsets.UTF_8)));
+        assertNotEquals(hello, "hi");
+        assertTrue(hello.toString().contains("payload=[104, 105]"), hello.toString());
+    }
+
+    @Test
     void writesLargeFramesWithExtendedLength() throws Exception {
         ByteArrayOutputStream o = new ByteArrayOutputStream();
         WebSocketFrames.writeText(o, "a".repeat(300));

@@ -53,6 +53,8 @@ public final class TlsSupport {
 
     private static final int VALID_DAYS = 3650;
     private static final long RENEW_BEFORE_DAYS = 30;
+    /** Shared by every identity; {@link SecureRandom} is thread-safe. */
+    private static final SecureRandom RANDOM = new SecureRandom();
 
     private TlsSupport() {
     }
@@ -127,7 +129,7 @@ public final class TlsSupport {
     private static Identity identity(List<? extends Certificate> chain, PrivateKey key, boolean selfSigned) throws GeneralSecurityException, IOException {
         char[] pw = new char[24];
         byte[] rnd = new byte[pw.length];
-        new SecureRandom().nextBytes(rnd);
+        RANDOM.nextBytes(rnd);
         for (int i = 0; i < pw.length; i++) pw[i] = (char) ('a' + (rnd[i] & 0x0f));
         KeyStore ks = KeyStore.getInstance("PKCS12");
         ks.load(null, null);

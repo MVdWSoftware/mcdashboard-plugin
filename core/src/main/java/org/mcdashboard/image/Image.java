@@ -4,6 +4,22 @@
  */
 package org.mcdashboard.image;
 
+import java.util.Arrays;
+
 /** A validated image and the time it was fetched or last modified (epoch milliseconds). */
 public record Image(byte[] bytes, long timeMs) {
+    @Override
+    public boolean equals(Object o) {
+        return o instanceof Image i && timeMs == i.timeMs && Arrays.equals(bytes, i.bytes);
+    }
+
+    @Override
+    public int hashCode() {
+        return 31 * Long.hashCode(timeMs) + Arrays.hashCode(bytes);
+    }
+
+    @Override
+    public String toString() {
+        return "Image[bytes=" + Arrays.toString(bytes) + ", timeMs=" + timeMs + "]";
+    }
 }

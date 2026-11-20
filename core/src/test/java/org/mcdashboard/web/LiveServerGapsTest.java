@@ -277,6 +277,53 @@ class LiveServerGapsTest {
     }
 
     @Test
+    void aTypedPlayerNameAuthenticatesTheLiveFeed() throws Exception {
+        Clock clock = Clock.systemUTC();
+        var defs = PlaceholderDefinition.parseAll(List.of(Map.of("id", "tps", "value", "%tps%", "type", "DECIMAL")), m -> fail(m));
+        String steve = UUID.randomUUID().toString();
+        ApiContext base = TestContexts.context("T", "1", () -> ServerStatus.EMPTY, false, 5, 900, 900, 0,
+                new PlaceholderService((t, u) -> "19.5", clock, 0, defs), new TokenService(new byte[48], clock),
+                new DeviceStore(Files.createTempFile("d", ".json")), new OtpService(clock, 60), new RateLimiter(clock, 5, 1000),
+                List.of(), Set.of(), new HistoryService(clock, defs), null, d -> { }, perms, "en");
+        LiveServer l = new LiveServer(TestContexts.withPlayerNames(base, name -> name.equals("Steve") ? steve : null), 10);
+        l.timeouts(10_000, 10_000, 60_000);
+        l.start(null, 0);
+        servers.add(l);
+
+        Socket known = open(l);
+        send(known, "{\"type\":\"auth\",\"playerName\":\"  Steve  \"}");
+        assertTrue(text(known).contains("authenticated"));
+        send(known, "{\"type\":\"subscribe\",\"ids\":[\"tps\"]}");
+        assertTrue(text(known).contains("subscribed"));
+
+        Socket tooLong = open(l);
+        send(tooLong, "{\"type\":\"auth\",\"playerName\":\"" + "x".repeat(HttpApi.MAX_PLAYER_NAME + 1) + "\"}");
+        assertTrue(text(tooLong).contains("invalid player name"));
+        assertTrue(closedByServer(tooLong));
+
+        Socket control = open(l);
+        send(control, "{\"type\":\"auth\",\"playerName\":\"St\\u0001eve\"}");
+        assertTrue(text(control).contains("invalid player name"));
+
+        Socket unknown = open(l);
+        send(unknown, "{\"type\":\"auth\",\"playerName\":\"Alex\"}");
+        assertTrue(text(unknown).contains("unknown player"));
+        assertTrue(closedByServer(unknown));
+
+        Socket blank = open(l);
+        send(blank, "{\"type\":\"auth\",\"playerName\":\"   \"}");
+        assertTrue(text(blank).contains("authentication failed"));
+
+        Socket notAString = open(l);
+        send(notAString, "{\"type\":\"auth\",\"playerName\":7}");
+        assertTrue(text(notAString).contains("authentication failed"));
+
+        Socket nothing = open(l);
+        send(nothing, "{\"type\":\"auth\"}");
+        assertTrue(text(nothing).contains("authentication failed"));
+    }
+
+    @Test
     void stopIsSafeWithoutStarting() {
         Clock clock = Clock.systemUTC();
         var defs = PlaceholderDefinition.parseAll(List.of(), m -> fail(m));

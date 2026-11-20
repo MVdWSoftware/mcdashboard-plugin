@@ -13,14 +13,16 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
+import org.mcdashboard.util.Text;
+
 /**
  * One entry of {@code network.backends}: a backend server that runs MCDashboard. The URL is the only address the proxy
  * ever contacts for it. {@code key} is sent as a bearer token when set; {@code pin} is the SHA-256 fingerprint of its
  * self-signed certificate (hex, colons optional) that replaces the normal certificate check.
  */
 public record BackendConfig(String name, URI url, String key, String pin) {
-    private static final Pattern NAME = Pattern.compile("[A-Za-z0-9.-]{1,32}");
-    private static final Pattern PIN = Pattern.compile("[0-9a-fA-F]{64}");
+    private static final Pattern NAME_PATTERN = Pattern.compile("[A-Za-z0-9.-]{1,32}");
+    private static final Pattern PIN_PATTERN = Pattern.compile("[0-9a-fA-F]{64}");
 
     /** Parses the entries; a bad or duplicate one is reported through {@code warn} and skipped. */
     public static List<BackendConfig> parseAll(List<? extends Map<?, ?>> entries, Consumer<String> warn) {
@@ -40,7 +42,7 @@ public record BackendConfig(String name, URI url, String key, String pin) {
 
     static BackendConfig fromMap(Map<?, ?> m) {
         String name = text(m.get("name"));
-        if (!NAME.matcher(name).matches()) throw new IllegalArgumentException("name '" + name + "' must be 1-32 letters, digits, '.' or '-'");
+        if (!NAME_PATTERN.matcher(name).matches()) throw new IllegalArgumentException("name '" + name + "' must be 1-32 letters, digits, '.' or '-'");
         URI url;
         try {
             url = URI.create(text(m.get("url")));
@@ -52,9 +54,9 @@ public record BackendConfig(String name, URI url, String key, String pin) {
         if (url.getHost() == null || url.getUserInfo() != null || url.getRawQuery() != null || url.getRawFragment() != null) {
             throw new IllegalArgumentException(name + ": url must be scheme://host[:port] without credentials, query or fragment");
         }
-        String path = url.getRawPath() == null ? "" : url.getRawPath().replaceAll("/+$", "");
+        String path = url.getRawPath() == null ? "" : Text.trimTrailing(url.getRawPath(), '/');
         String pin = text(m.get("pin")).replace(":", "");
-        if (!pin.isEmpty() && !PIN.matcher(pin).matches()) throw new IllegalArgumentException(name + ": pin must be a SHA-256 fingerprint");
+        if (!pin.isEmpty() && !PIN_PATTERN.matcher(pin).matches()) throw new IllegalArgumentException(name + ": pin must be a SHA-256 fingerprint");
         String base = scheme + "://" + url.getRawAuthority() + path;
         return new BackendConfig(name, URI.create(base), text(m.get("key")), pin.toLowerCase(java.util.Locale.ROOT));
     }

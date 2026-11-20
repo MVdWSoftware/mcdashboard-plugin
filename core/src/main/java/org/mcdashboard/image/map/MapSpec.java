@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import org.mcdashboard.util.Text;
+
 /**
  * The {@code map:} block of a {@code source: map:<provider>} IMAGE placeholder: which web map to read, where to centre
  * and how large the picture is. {@code x} and {@code z} are a number or a PlaceholderAPI template (expanded when read);
@@ -47,7 +49,7 @@ public record MapSpec(TileProvider tiles, String url, String x, String z, int zo
         if (url == null || !BASE_URL.matcher(url.trim()).matches()) {
             throw new IllegalArgumentException("map url must be http(s)://host[:port][/path] with no placeholders, query or user name");
         }
-        url = url.trim().replaceAll("/+$", "");
+        url = Text.trimTrailing(url.trim(), '/');
         String x = coordinate(m, "x");
         String z = coordinate(m, "z");
         int size = integer(m, "size", 256, MIN_SIZE, MAX_SIZE);

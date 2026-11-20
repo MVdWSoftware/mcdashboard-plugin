@@ -37,6 +37,71 @@ public final class SosaSchema {
     private SosaSchema() {
     }
 
+    /** SQL text built by this schema; a prepared statement takes one of these rather than a free-form string. */
+    @FunctionalInterface
+    interface Query {
+        String text();
+    }
+
+    /**
+     * A table that a statement may name. The set is closed, so a caller selects one of these constants and a free-form
+     * string never becomes part of the SQL that reaches the database.
+     */
+    enum TableRef {
+        PLATFORM(SosaSchema.PLATFORM),
+        FEATURE(SosaSchema.FEATURE),
+        PROPERTY(SosaSchema.PROPERTY),
+        PROCEDURE(SosaSchema.PROCEDURE),
+        SYSTEM(SosaSchema.SYSTEM),
+        SENSOR(SosaSchema.SENSOR);
+
+        private final String name;
+
+        TableRef(String name) {
+            this.name = name;
+        }
+
+        /** {@code SELECT id FROM <table> WHERE uri = ?}. */
+        Query selectIdByUri() {
+            return () -> "SELECT id FROM " + name + " WHERE uri = ?";
+        }
+
+        /** {@code UPDATE <table> SET label = ? WHERE id = ?}. */
+        Query updateLabelById() {
+            return () -> "UPDATE " + name + " SET label = ? WHERE id = ?";
+        }
+
+        /** An insert of exactly these columns that leaves an existing row alone. */
+        Query insertIfAbsent(SqlDialect dialect, List<String> columns) {
+            return () -> dialect.insertIfAbsent(name, columns);
+        }
+
+        @Override
+        public String toString() {
+            return name;
+        }
+    }
+
+    /** The statements that are not per-table; a caller passes one of these instead of a free-form string. */
+    enum Statement implements Query {
+        COUNT_SCHEMA_VERSION("SELECT COUNT(*) FROM " + VERSION_TABLE),
+        INSERT_SCHEMA_VERSION("INSERT INTO " + VERSION_TABLE + " (version, applied_at) VALUES (?, ?)"),
+        UPDATE_PROPERTY("UPDATE " + PROPERTY + " SET unit = ?, feature_of_interest_id = ? WHERE id = ?"),
+        UPDATE_PROCEDURE("UPDATE " + PROCEDURE + " SET sampling_interval_s = ? WHERE id = ?"),
+        UPDATE_SENSOR("UPDATE " + SENSOR + " SET platform_id = ?, observed_property_id = ?, procedure_id = ? WHERE system_id = ?");
+
+        private final String text;
+
+        Statement(String text) {
+            this.text = text;
+        }
+
+        @Override
+        public String text() {
+            return text;
+        }
+    }
+
     /** A column. {@code type} is {@code ID} for the generated surrogate key; {@code term} is the ontology term it maps to. */
     record Column(String name, String type, boolean notNull, String term) {
     }

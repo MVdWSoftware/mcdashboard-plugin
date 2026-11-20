@@ -24,6 +24,8 @@ public final class ExpansionCatalog {
     public static final int DEFAULT_MAX = 2000;
 
     private static final Pattern ID = Pattern.compile("[A-Za-z0-9_.-]{1,64}");
+    /** Characters a parameter may not contain: markup, a placeholder opener, a percent sign or whitespace. */
+    private static final Pattern FORBIDDEN = Pattern.compile("[<{\\[%\\s]");
 
     /** One {@code catalog:} entry. */
     public record Entry(String expansion, String group, PlaceholderDefinition.Access access, String permission,
@@ -152,7 +154,7 @@ public final class ExpansionCatalog {
     static String param(String raw, String prefix) {
         if (raw == null || !raw.startsWith(prefix) || !raw.endsWith("%") || raw.length() <= prefix.length() + 1) return null;
         String param = raw.substring(prefix.length(), raw.length() - 1);
-        if (param.matches(".*[<{\\[%\\s].*")) return null;
+        if (FORBIDDEN.matcher(param).find()) return null;
         return param;
     }
 

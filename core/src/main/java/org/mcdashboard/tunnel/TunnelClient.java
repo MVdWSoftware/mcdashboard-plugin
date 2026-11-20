@@ -75,7 +75,7 @@ public final class TunnelClient {
     };
     private volatile long lastActivity;
     private CompletableFuture<?> sendChain = CompletableFuture.completedFuture(null);
-    private volatile int attempt;
+    private final AtomicInteger attempt = new AtomicInteger();
 
     /** {@code localHost} is where the plugin's own API listens; {@code livePort} is 0 when the live feed is off. */
     public TunnelClient(URI url, String key, String localHost, int httpPort, int livePort, String serverName, String version,
@@ -135,7 +135,7 @@ public final class TunnelClient {
     }
 
     public Status status() {
-        return new Status(connected(), connectedSince, attempt, lastError, lastErrorMs, rttMs, channels.size());
+        return new Status(connected(), connectedSince, attempt.get(), lastError, lastErrorMs, rttMs, channels.size());
     }
 
     public void stop() {
@@ -261,10 +261,11 @@ public final class TunnelClient {
         if (stopped) return;
         lastError = reason;
         lastErrorMs = System.currentTimeMillis();
-        long delay = Math.min(maxDelayMs, minDelayMs << Math.min(attempt++, 6));
+        int tries = attempt.getAndIncrement();
+        long delay = Math.min(maxDelayMs, minDelayMs << Math.min(tries, 6));
         delay = delay / 2 + (long) (Math.random() * delay / 2);
-        if (attempt <= 1 || attempt % 10 == 0) {
-            warn.accept("Tunnel to " + url.getHost() + " is down: " + reason + ". Retrying" + (attempt > 1 ? " (attempt " + attempt + ")" : "") + ".");
+        if (tries <= 1 || tries % 10 == 0) {
+            warn.accept("Tunnel to " + url.getHost() + " is down: " + reason + ". Retrying" + (tries > 1 ? " (attempt " + tries + ")" : "") + ".");
         }
         try {
             timer.schedule(this::connect, delay, TimeUnit.MILLISECONDS);
@@ -319,7 +320,7 @@ public final class TunnelClient {
             ready = true;
             connectedSince = System.currentTimeMillis();
             timer.schedule(() -> {
-                if (generation.get() == g && ready) attempt = 0;
+                if (generation.get() == g && ready) attempt.set(0);
             }, stableMs, TimeUnit.MILLISECONDS);
             onReady(m.get("since") instanceof String s ? s : null);
         } else if ("req".equals(t)) {
@@ -342,7 +343,7 @@ public final class TunnelClient {
     private void onReady(String since) {
         unsubscribe.run();
         unsubscribe = bus.subscribe(since, this::event, () -> send(Map.of("t", "reset")));
-        info.accept("Tunnel connected to " + url.getHost() + (attempt > 0 ? " (after " + attempt + " failed attempt(s))." : "."));
+        info.accept("Tunnel connected to " + url.getHost() + (attempt.get() > 0 ? " (after " + attempt.get() + " failed attempt(s))." : "."));
     }
 
     private void event(DeviceEvent e) {
