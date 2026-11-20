@@ -22,7 +22,7 @@ import java.util.function.Consumer;
 /** What {@code config.yml} says, read once at startup with its defaults applied. */
 record Settings(boolean enabled, String name, String defaultLanguage, String publicUrl, List<String> endpoints,
                 boolean discoveryOnly, String host, int port, boolean polling, int websocketPort, int maxLiveConnections,
-                boolean requireAuthentication, int maxDevices, long otpTimeoutSeconds, long accessTokenSeconds,
+                boolean requireAuthentication, boolean allowPlayerNames, int maxDevices, long otpTimeoutSeconds, long accessTokenSeconds,
                 long refreshTokenSeconds, int authAttemptsPerMinute, long minIntervalMs,
                 IntervalOverrides minIntervalOverrides, List<String> allowedClients,
                 String minClientVersion, int requestsPerMinute, int anonymousRequestsPerMinute, Set<String> trustedProxies,
@@ -64,6 +64,7 @@ record Settings(boolean enabled, String name, String defaultLanguage, String pub
                 websocketPort,
                 cfg.getInt("server.websocket.max-connections", 200),
                 cfg.getBoolean("security.require-authentication", true),
+                cfg.getBoolean("security.allow-player-names", false),
                 cfg.getInt("security.max-devices", 5),
                 cfg.getLong("security.otp-timeout", 300),
                 cfg.getLong("security.access-token-timeout", 900),

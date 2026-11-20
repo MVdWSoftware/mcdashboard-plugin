@@ -5,6 +5,7 @@
 package org.mcdashboard;
 
 import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.mcdashboard.auth.DeviceStore;
@@ -66,6 +67,15 @@ final class SpigotPlatform implements Platform {
     @Override
     public Permissions permissions(DashboardStore dashboards) {
         return new PermissionSync(plugin, dashboards);
+    }
+
+    /** A name typed by a client: an online player first, then someone this server has seen before. */
+    @Override
+    public String playerUuid(String name) {
+        Player online = Bukkit.getPlayerExact(name);
+        if (online != null) return online.getUniqueId().toString();
+        OfflinePlayer offline = Bukkit.getOfflinePlayer(name);
+        return offline.hasPlayedBefore() ? offline.getUniqueId().toString() : null;
     }
 
     @Override

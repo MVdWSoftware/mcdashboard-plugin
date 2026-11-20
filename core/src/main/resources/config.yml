@@ -43,6 +43,11 @@ server:
 security:
   # Only paired players can read anything, PUBLIC placeholders included. Set to false to let anyone read the PUBLIC ones.
   require-authentication: true
+  # DANGER: lets an app choose a player by typing a name, with no pairing code. Anyone who can reach the API can then
+  # read that player's PLAYER placeholders and personal (permission-gated) dashboards, including staff dashboards and
+  # balances, by typing their name. There is no authentication; use only on a private or trusted network.
+  # true: the app shows a player name field instead of needing /mcdashboard link (the name is resolved server side).
+  allow-player-names: false
   max-devices: 5
   # Seconds; all timeouts below are in seconds.
   otp-timeout: 300

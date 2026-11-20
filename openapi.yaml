@@ -14,6 +14,11 @@ info:
     A request with an invalid, expired or revoked bearer token gets `401` with
     `WWW-Authenticate: Bearer error="invalid_token"`, never the anonymous answer: refresh, or pair again.
 
+    When the owner enables `security.allow-player-names`, an unpaired request may name the player with the
+    `X-MCDashboard-Player` header (see the `PlayerName` parameter). The server resolves the name; a valid bearer token always
+    wins. This is explicitly **not authentication**: anyone who can reach the API can type any player's name and read that
+    player's PLAYER placeholders and permission-gated dashboards. Per-player answers stay `private`.
+
     Every route except `GET /info` requires the official app's `User-Agent`, `MCDashboard/<x.y.z> (<android|ios|dev>)`.
     Others get `403`; a version below the server's `minClientVersion` gets `426`. A server owner can allow more clients.
     The User-Agent identifies the client and its version; it is not a credential. Responses do not vary by it.
@@ -65,13 +70,16 @@ paths:
         - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
         - { name: offset, in: query, required: false, schema: { type: integer, minimum: 0, default: 0 } }
         - { name: ids, in: query, required: false, schema: { type: string }, description: 'Comma separated ids (max 100). Returns exactly the readable ones and ignores q, group, limit and offset; groups is empty' }
+        - { $ref: '#/components/parameters/PlayerName' }
       responses:
         '200': { description: 'OK. Cacheable: public when anonymous, private when authenticated', content: { application/json: { schema: { $ref: '#/components/schemas/PlaceholdersPage' } } } }
         '400': { description: Invalid limit, offset or ids }
   /placeholders/{id}:
     get:
       summary: Current value as a one-record SenML pack
-      parameters: [ { name: id, in: path, required: true, schema: { type: string } } ]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { $ref: '#/components/parameters/PlayerName' }
       responses:
         '200': { $ref: '#/components/responses/Values' }
         '304': { description: Not modified }
@@ -83,6 +91,7 @@ paths:
       parameters:
         - { name: ids, in: query, required: true, schema: { type: string }, description: Comma separated ids }
         - { $ref: '#/components/parameters/Entitlement' }
+        - { $ref: '#/components/parameters/PlayerName' }
       responses:
         '200': { $ref: '#/components/responses/Values' }
         '304': { description: Not modified }
@@ -93,13 +102,16 @@ paths:
         - { name: id, in: path, required: true, schema: { type: string } }
         - { name: since, in: query, required: false, schema: { type: integer }, description: unix seconds }
         - { name: points, in: query, required: false, schema: { type: integer, minimum: 2, maximum: 2000, default: 2000 }, description: 'at most this many records; longer series are reduced by averaging numbers (text: the last value) per equal time bucket, each record keeps the time of the last sample in its bucket' }
+        - { $ref: '#/components/parameters/PlayerName' }
       responses:
         '200': { $ref: '#/components/responses/Values' }
         '404': { description: No history for this placeholder }
   /dashboards:
     get:
       summary: The preset dashboards the caller may open (by permission), in order
-      parameters: [ { $ref: '#/components/parameters/AcceptLanguage' } ]
+      parameters:
+        - { $ref: '#/components/parameters/AcceptLanguage' }
+        - { $ref: '#/components/parameters/PlayerName' }
       responses:
         '200': { description: 'OK. Names and descriptions are translated for Accept-Language; Vary: Authorization, Accept-Language', content: { application/json: { schema: { type: object, required: [dashboards, canUpload], properties: { dashboards: { type: array, items: { $ref: '#/components/schemas/DashboardSummary' } }, canUpload: { type: boolean, description: 'the paired player holds mcdashboard.developer and the owner enabled developer mode' } } } } } }
     post:
@@ -140,13 +152,16 @@ paths:
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
         - { $ref: '#/components/parameters/AcceptLanguage' }
+        - { $ref: '#/components/parameters/PlayerName' }
       responses:
-        '200': { description: 'OK. Names, descriptions and tile titles are translated for Accept-Language; Vary: Authorization, Accept-Language', content: { application/json: { schema: { $ref: '#/components/schemas/Dashboard' } } } }
+        '200': { description: 'OK. Names, descriptions and tile titles are translated for Accept-Language; Vary: Authorization, Accept-Language, X-MCDashboard-Player when player names are allowed', content: { application/json: { schema: { $ref: '#/components/schemas/Dashboard' } } } }
         '404': { description: Unknown, or not offered to this caller }
   /dashboard:
     get:
       summary: The first dashboard the caller may open (kept for apps that predate presets)
-      parameters: [ { $ref: '#/components/parameters/AcceptLanguage' } ]
+      parameters:
+        - { $ref: '#/components/parameters/AcceptLanguage' }
+        - { $ref: '#/components/parameters/PlayerName' }
       responses:
         '200': { description: 'OK. Translated for Accept-Language', content: { application/json: { schema: { $ref: '#/components/schemas/Dashboard' } } } }
   /devices/self:
@@ -204,6 +219,17 @@ components:
         The app's UI language (one of en, nl, fr, de, es; regions are ignored). Dashboard names,
         descriptions and tile titles are resolved in this language, then in the server's
         `server.default-language`, then in any language the dashboard provides.
+    PlayerName:
+      name: X-MCDashboard-Player
+      in: header
+      required: false
+      schema: { type: string, maxLength: 32, example: Steve }
+      description: |
+        The player whose PLAYER placeholders and permission-gated dashboards an unpaired caller wants, on a server with
+        `security.allow-player-names: true`. The server resolves the name (online or known offline on that platform) and
+        answers as that player. Ignored when the request carries a valid bearer token, and when the setting is off the
+        header has no effect. **Not authentication:** there is no proof that the caller controls that player, so anyone could
+        read that player's data by typing the name. Answers are always `private` and vary on this header.
     Entitlement:
       name: X-MCDashboard-Entitlement
       in: header
@@ -254,11 +280,16 @@ components:
         version: { type: string }
         protocol: { type: integer, description: 'major API version; bumped only for a change that would break an older app, which then asks its player to update. Clients that do not know a higher value ask for an update; clients treat a missing value as 1' }
         features:
-          x-known: [presets, history-points, upload, tls, background, client-verification]
+          x-known: [presets, history-points, upload, tls, background, client-verification, player-names]
           type: array
           items: { type: string }
           description: 'optional capabilities of this plugin (for example presets, history-points, upload, tls). Absent on older plugins. A client gates features that need the plugin on this list and works without them'
         authRequired: { type: boolean }
+        allowPlayerNames:
+          type: boolean
+          description: >-
+            `security.allow-player-names`: an unpaired client may pick a player with the `X-MCDashboard-Player` header.
+            Not authentication; the app only offers the field when this is true (or `player-names` is in `features`).
         defaultLanguage: { type: string, enum: [en, nl, fr, de, es], description: 'language used when the app asks for one a dashboard does not provide' }
         languages: { type: array, items: { type: string, enum: [en, nl, fr, de, es] }, description: 'languages the server publishes dashboards in, sorted' }
         websocketPort: { type: integer }

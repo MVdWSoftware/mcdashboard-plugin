@@ -90,6 +90,15 @@ final class NukkitPlatform implements Platform {
         return new NukkitPermissions(plugin, dashboards);
     }
 
+    /** A name typed by a client: an online player first, then someone with saved player data on this server. */
+    @Override
+    public String playerUuid(String name) {
+        var server = plugin.getServer();
+        var online = server.getPlayerExact(name);
+        if (online != null) return online.getUniqueId().toString();
+        return server.hasOfflinePlayerData(name) ? server.getOfflinePlayer(name).getUniqueId().toString() : null;
+    }
+
     @Override
     public ServerStatus status() {
         var server = plugin.getServer();

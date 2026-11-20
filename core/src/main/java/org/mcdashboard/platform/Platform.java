@@ -56,6 +56,15 @@ public interface Platform {
     /** The permission bridge for the dashboards of this server. */
     Permissions permissions(DashboardStore dashboards);
 
+    /**
+     * The UUID of a player by exact name, online or known to this server, as a string. Used only when
+     * {@code security.allow-player-names} is on: there the code is not paired, so the client merely types a name.
+     * Null when the server does not know that player.
+     */
+    default String playerUuid(String name) {
+        return null;
+    }
+
     /** Main thread: the server list data, copied for the API threads. */
     ServerStatus status();
 

@@ -16,7 +16,8 @@ On a Velocity or BungeeCord proxy there is no PlaceholderAPI: follow [proxy-plat
    MCDashboard app.
 
 Every player pairs by default (`security.require-authentication: true`). To let players see PUBLIC placeholders without
-pairing, set it to `false`.
+pairing, set it to `false`. Separately, `security.allow-player-names: true` lets an unpaired app type a player name to
+read that player's data; **it is not authentication** and exposes player-specific data to anyone who can reach the API.
 
 With the default self-signed certificate, `/mcdashboard link` and the QR map (which need `server.public-url`) carry the
 certificate's fingerprint as `pin=`, and `/v1/info` publishes it as `tlsFingerprint`: a client pins that fingerprint

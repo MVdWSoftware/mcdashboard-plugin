@@ -115,6 +115,8 @@ permissions.
   `polling: false`; if both are off, polling stays on.
 - `security.require-authentication` (on by default) rejects unauthenticated requests, and live-feed connections that do not
   authenticate within 10 seconds. A live connection whose device is revoked is closed within a second.
+- `security.allow-player-names` (off by default) is a deliberate exception: an app may type a player name instead of
+  pairing. It is not authentication, so anyone who can reach the API could read that player's data and dashboards.
 - `security.min-interval` is the global floor for every placeholder; `min-interval` in `placeholders.yml` sets it per
   placeholder (the larger of the two wins, for polling, the live feed and caching headers).
   `security.min-interval-permissions` (and `min-interval-permissions` per placeholder) lets players with a permission

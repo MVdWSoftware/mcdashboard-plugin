@@ -74,6 +74,15 @@ public final class TestContexts {
                 c.discoveryOnly(), c.polling(), c.stats(), maxDashboards, maxTiles);
     }
 
+    /** The same context, with unauthenticated typed player names and the lookup that turns a name into a UUID. */
+    public static ApiContext withPlayerNames(ApiContext c, java.util.function.Function<String, String> playerUuid) {
+        return new ApiContext(c.serverName(), c.pluginVersion(), c.status(), c.requireAuthentication(), c.maxDevices(),
+                c.accessTokenSeconds(), c.refreshTokenSeconds(), c.websocketPort(), c.placeholders(), c.tokens(), c.devices(),
+                c.otps(), c.authLimiter(), c.dashboards(), c.trustedProxies(), c.history(), c.licenseId(), c.onLinked(),
+                c.permissions(), c.defaultLanguage(), c.developerMode(), c.onDashboardsChanged(), c.endpoints(),
+                c.discoveryOnly(), c.polling(), c.stats(), c.maxDashboards(), c.maxTiles(), true, playerUuid);
+    }
+
     /** A permission cache in which everybody holds every node. */
     public static PermissionCache allowAll() {
         return new PermissionCache() {

@@ -29,6 +29,7 @@ Every setting of `plugins/MCDashboard/config.yml`, with its default. Restart the
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | `require-authentication` | `true` | Only paired players can read anything, PUBLIC placeholders included. Live connections must authenticate within 10 seconds. Set `false` to let anyone who can reach the server read its PUBLIC placeholders without pairing; the plugin logs a warning at startup when you do. |
+| `allow-player-names` | `false` | **Security risk.** Lets an unpaired app choose a player by typing a name in the app (resolved on the server) instead of redeeming a pairing code. That player's `PLAYER` placeholders, personal data and permission-gated dashboards become readable to anyone who can reach the API and knows or guesses the name, including staff dashboards. There is no authentication and no proof that the name belongs to the caller. The app only shows the name field when `/v1/info` says `allowPlayerNames` (or lists the `player-names` feature). When both this and `require-authentication` are on, a request needs either a paired token or a name; a name-only request is treated as that player. The plugin logs a warning at startup when this is on. Use only on a private or trusted network. |
 | `max-devices` | `5` | Paired devices per player. |
 | `otp-timeout` | `300` | Seconds a `/mcdashboard link` code stays valid. It works once. |
 | `access-token-timeout` | `900` | Seconds an access token is valid. |

@@ -47,7 +47,7 @@ final class DashboardRoutes {
             list.add(m);
         }
         ex.getResponseHeaders().set("Cache-Control", "private, max-age=10");
-        varyLanguage(ex);
+        varyLanguage(ex, ctx.allowPlayerNames());
         boolean canUpload = player != null && ctx.developerMode().getAsBoolean()
                 && ctx.permissions().has(player, HttpApi.DEVELOPER_PERMISSION);
         respond(ex, 200, Map.of("dashboards", list, "canUpload", canUpload));
@@ -61,7 +61,7 @@ final class DashboardRoutes {
             return;
         }
         ex.getResponseHeaders().set("Cache-Control", "private, max-age=10");
-        varyLanguage(ex);
+        varyLanguage(ex, ctx.allowPlayerNames());
         respond(ex, 200, d.get().toJson(languages(ex), ctx.defaultLanguage()));
     }
 
@@ -72,7 +72,7 @@ final class DashboardRoutes {
             error(ex, 404, "no dashboard available");
             return;
         }
-        varyLanguage(ex);
+        varyLanguage(ex, ctx.allowPlayerNames());
         respond(ex, 200, all.get(0).toJson(languages(ex), ctx.defaultLanguage()));
     }
 

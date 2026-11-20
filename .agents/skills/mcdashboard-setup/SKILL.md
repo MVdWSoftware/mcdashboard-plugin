@@ -45,7 +45,9 @@ On Velocity the folder is `plugins/mcdashboard/` (the plugin id is lowercase). O
    one use) and the address in the app. With `server.public-url` set the command also prints a `mcdashboard://` link,
    and `/mcdashboard qr` hands out a QR map (Spigot only, the map works for its owner only).
 
-Every player pairs; `security.require-authentication` is on by default and should stay that way.
+Every player pairs; `security.require-authentication` is on by default and should stay that way. Do not enable
+`security.allow-player-names` on an internet-reachable server: it replaces pairing with a typed name, which nobody
+verifies, so anyone could read any player's data.
 
 ## Transport: pick one
 

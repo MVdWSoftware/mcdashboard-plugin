@@ -123,6 +123,12 @@ public final class ProxyPlatform implements Platform, AutoCloseable {
         return permissions;
     }
 
+    /** A name typed by a client: a player connected to this proxy. */
+    @Override
+    public String playerUuid(String name) {
+        return adapter.playerByName(name).map(p -> p.uuid().toString()).orElse(null);
+    }
+
     @Override
     public ServerStatus status() {
         return new ServerStatus(adapter.motd(), null, adapter.onlinePlayers(), Math.max(0, adapter.maxPlayers()),

@@ -41,7 +41,7 @@ final class Exchanges {
     static void cors(HttpExchange ex) {
         Headers h = ex.getResponseHeaders();
         h.set("Access-Control-Allow-Origin", "*");
-        h.set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-MCDashboard-Attestation, X-MCDashboard-Purpose, X-MCDashboard-Entitlement");
+        h.set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-MCDashboard-Attestation, X-MCDashboard-Purpose, X-MCDashboard-Entitlement, X-MCDashboard-Player");
         h.set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
         h.set("Cache-Control", "no-store");
     }
@@ -93,7 +93,14 @@ final class Exchanges {
 
     /** Translated answers differ by language, so shared caches must key on {@code Accept-Language} too. */
     static void varyLanguage(HttpExchange ex) {
-        ex.getResponseHeaders().set("Vary", "Authorization, Accept-Language");
+        varyLanguage(ex, false);
+    }
+
+    /** Also keys on the typed player name when the server lets clients choose a player without pairing. */
+    static void varyLanguage(HttpExchange ex, boolean playerNames) {
+        ex.getResponseHeaders().set("Vary", playerNames
+                ? "Authorization, Accept-Language, " + HttpApi.PLAYER_HEADER
+                : "Authorization, Accept-Language");
     }
 
     static String peer(HttpExchange ex) {

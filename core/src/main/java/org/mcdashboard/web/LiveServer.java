@@ -40,6 +40,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * and the plugin takes no dependencies). Protocol, JSON text frames:
  * <pre>
  *  client: {"type":"auth","token":"&lt;access token&gt;"}   (optional unless the server requires auth)
+ *  client: {"type":"auth","playerName":"Steve"}       (instead of a token when security.allow-player-names is on)
  *  client: {"type":"subscribe","ids":["tps","online"]}
  *  server: {"type":"values","values":[{"n":"tps","t":1.7E9,"v":19.9}]}   (SenML records, RFC 8428)
  * </pre>
@@ -171,12 +172,12 @@ public final class LiveServer {
             sock.setSoTimeout(mustAuthenticate ? authTimeoutMs : idleTimeoutMs);
             task = ticker.scheduleWithFixedDelay(this::tick, 1, 1, TimeUnit.SECONDS);
             while (true) {
-                if (mustAuthenticate && deviceId == null && !verified && System.currentTimeMillis() > deadline) return;
+                if (mustAuthenticate && player == null && !verified && System.currentTimeMillis() > deadline) return;
                 WebSocketFrames.Frame f;
                 try {
                     f = WebSocketFrames.read(in, MAX_FRAME);
                 } catch (SocketTimeoutException e) {
-                    if (mustAuthenticate && deviceId == null && !verified) return;
+                    if (mustAuthenticate && player == null && !verified) return;
                     send(WebSocketFrames.PING, new byte[0]);
                     continue;
                 } catch (EOFException e) {
@@ -275,22 +276,41 @@ public final class LiveServer {
                         sendJson(Map.of("type", "error", "error", "client verification failed"));
                         return false;
                     }
-                    if (m.get("token") == null && !ctx.requireAuthentication()) {
-                        sendJson(Map.of("type", "authenticated"));
-                        return true;
-                    }
                 }
-                Optional<TokenService.Claims> c = HttpApi.authenticate(ctx, String.valueOf(m.get("token")));
-                if (c.isEmpty()) {
+                Object token = m.get("token");
+                if (token != null && !String.valueOf(token).isBlank()) {
+                    Optional<TokenService.Claims> c = HttpApi.authenticate(ctx, String.valueOf(token));
+                    if (c.isEmpty()) {
+                        sendJson(Map.of("type", "error", "error", "authentication failed"));
+                        return false;
+                    }
+                    player = c.get().player();
+                    deviceId = c.get().deviceId();
+                    sock.setSoTimeout(idleTimeoutMs);
+                    sendJson(Map.of("type", "authenticated"));
+                } else if (ctx.allowPlayerNames() && m.get("playerName") instanceof String name && !name.isBlank()) {
+                    String clean = name.trim();
+                    if (clean.length() > HttpApi.MAX_PLAYER_NAME || clean.chars().anyMatch(Character::isISOControl)) {
+                        sendJson(Map.of("type", "error", "error", "invalid player name"));
+                        return false;
+                    }
+                    String uuid = ctx.playerUuid() == null ? null : ctx.playerUuid().apply(clean);
+                    if (uuid == null) {
+                        sendJson(Map.of("type", "error", "error", "unknown player"));
+                        return false;
+                    }
+                    player = uuid;
+                    sock.setSoTimeout(idleTimeoutMs);
+                    sendJson(Map.of("type", "authenticated"));
+                } else if (verifier != null && !ctx.requireAuthentication()) {
+                    // A verified client that needs no player identity may stay anonymous.
+                    sendJson(Map.of("type", "authenticated"));
+                } else {
                     sendJson(Map.of("type", "error", "error", "authentication failed"));
                     return false;
                 }
-                player = c.get().player();
-                deviceId = c.get().deviceId();
-                sock.setSoTimeout(idleTimeoutMs);
-                sendJson(Map.of("type", "authenticated"));
             } else if ("subscribe".equals(type) && m.get("ids") instanceof List<?> ids) {
-                if ((ctx.requireAuthentication() && deviceId == null) || (assertions != null && !verified)) {
+                if ((ctx.requireAuthentication() && player == null) || (assertions != null && !verified)) {
                     sendJson(Map.of("type", "error", "error", "authentication required"));
                     return false;
                 }

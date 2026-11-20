@@ -77,7 +77,7 @@ final class PlaceholderRoutes {
         }
         boolean priv = ctx.requireAuthentication() || player != null;
         ex.getResponseHeaders().set("Cache-Control", (priv ? "private" : "public") + ", max-age=" + (priv ? 10 : 60));
-        ex.getResponseHeaders().set("Vary", "Authorization");
+        vary(ex);
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("placeholders", list);
         out.put("total", total);
@@ -169,7 +169,7 @@ final class PlaceholderRoutes {
         Headers h = ex.getResponseHeaders();
         h.set("Cache-Control", (shared ? "public" : "private") + ", max-age=" + maxAge);
         h.set("ETag", etag);
-        h.set("Vary", "Authorization");
+        vary(ex);
         if (etag.equals(ex.getRequestHeaders().getFirst("If-None-Match"))) {
             ex.sendResponseHeaders(304, -1);
             return;
@@ -177,6 +177,13 @@ final class PlaceholderRoutes {
         h.set("Content-Type", SenMl.MEDIA_TYPE + "; charset=utf-8");
         ex.sendResponseHeaders(200, bytes.length);
         ex.getResponseBody().write(bytes);
+    }
+
+    /** Per-player answers also depend on the typed player name, so a shared cache must key on it too. */
+    private void vary(HttpExchange ex) {
+        ex.getResponseHeaders().set("Vary", ctx.allowPlayerNames()
+                ? "Authorization, " + HttpApi.PLAYER_HEADER
+                : "Authorization");
     }
 
     private static byte[] sha256(byte[] data) {

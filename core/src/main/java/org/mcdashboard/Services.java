@@ -130,7 +130,7 @@ final class Services {
                     settings.trustedProxies(), history, settings.licenseId(), d -> platform.notifyLinked(d, settings.prefix()), permissions.cache(),
                     settings.defaultLanguage(), developerMode, permissions::dashboardsChanged,
                     settings.endpoints(), settings.discoveryOnly(), settings.polling(), stats,
-                    settings.maxDashboards(), settings.maxTiles());
+                    settings.maxDashboards(), settings.maxTiles(), settings.allowPlayerNames(), platform::playerUuid);
             ClientPolicy clients = ClientPolicy.of(clock, settings.allowedClients(), settings.minClientVersion(),
                     settings.requestsPerMinute(), settings.anonymousRequestsPerMinute(), log::warning);
             // Slow or idle connections must not hold the API's worker threads: the JDK server has no timeouts unless told.
@@ -160,6 +160,11 @@ final class Services {
             log.info(defs.size() + " placeholder(s) exposed.");
             if (!settings.requireAuthentication()) {
                 log.warning("security.require-authentication is off: anyone who can reach this server can read its PUBLIC placeholders without pairing.");
+            }
+            if (settings.allowPlayerNames()) {
+                log.warning("security.allow-player-names is on: anyone who can reach this server can read PLAYER placeholders "
+                        + "and permission-gated dashboards as any player by typing that player's name. There is no authentication; "
+                        + "only enable this on a private or trusted network.");
             }
         } catch (IOException | RuntimeException e) {
             log.severe("Could not start MCDashboard: " + e.getMessage());

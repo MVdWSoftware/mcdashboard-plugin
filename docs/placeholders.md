@@ -14,7 +14,7 @@ The plugin also provides placeholders of its own, `%mcdashboard_...%` (paired de
 | `name`, `description`, `group` | Shown in the app; `group` defaults to `General`. |
 | `value` | One PlaceholderAPI placeholder, e.g. `'%server_online%'`. |
 | `type` | `STRING`, `INTEGER`, `DECIMAL`, `BOOLEAN`, `PERCENTAGE`, `AUTO` (decided per value), `IMAGE` or `LIST` (see below). |
-| `access` | `PUBLIC`: anyone who can reach the server. `PLAYER`: a paired device, resolved for that player. |
+| `access` | `PUBLIC`: anyone who can reach the server. `PLAYER`: a paired device, or a typed name when `security.allow-player-names` is on, resolved for that player. |
 | `permission` | Optional node the paired player must hold for any request. |
 | `min-interval` | Seconds; the value is resolved at most this often (never below the caller's `security.min-interval`; `min-interval-permissions` can change it). |
 | `min-interval-permissions` | Optional map of permission node to seconds for this placeholder. A paired player holding a node uses that interval instead of `min-interval`; the fastest held node wins. |

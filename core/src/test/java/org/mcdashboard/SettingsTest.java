@@ -66,6 +66,15 @@ class SettingsTest {
     }
 
     @Test
+    void unauthenticatedPlayerNamesAreOffUnlessTheOwnerOptsIn() {
+        List<String> warnings = new ArrayList<>();
+        assertTrue(!Settings.load(ConfigView.of(Map.of()), warnings::add).allowPlayerNames());
+        Settings on = load(Map.of("allow-player-names", true), warnings);
+        assertTrue(on.allowPlayerNames());
+        assertTrue(warnings.isEmpty(), warnings.toString());
+    }
+
+    @Test
     void serverCapsDefaultToNoneAndRejectNegativesAndGarbage() {
         List<String> warnings = new ArrayList<>();
         Settings none = Settings.load(ConfigView.of(Map.of()), warnings::add);

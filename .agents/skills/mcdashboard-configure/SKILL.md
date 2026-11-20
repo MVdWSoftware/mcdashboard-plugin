@@ -21,7 +21,7 @@ One file: `plugins/MCDashboard/config.yml` (`plugins/mcdashboard/` on Velocity).
 | Section | Covers | Defaults worth knowing |
 | --- | --- | --- |
 | `server` | master switch, name, `public-url`, bind `host`, `port` 1553, live feed 1554, TLS, polling/websocket, `endpoints`, `discovery-only` | `enabled: false`, `tls.mode: self-signed` |
-| `security` | pairing, tokens, device cap, refresh floor, client checks, rate limits, trusted proxies | `require-authentication: true`, `max-devices: 5`, `otp-timeout: 300`, `min-interval: 1`, `requests-per-minute: 120`, `anonymous-requests-per-minute: 60` |
+| `security` | pairing, unverified player names (`allow-player-names`), tokens, device cap, refresh floor, client checks, rate limits, trusted proxies | `require-authentication: true`, `allow-player-names: false`, `max-devices: 5`, `otp-timeout: 300`, `min-interval: 1`, `requests-per-minute: 120`, `anonymous-requests-per-minute: 60` |
 | `history` | chart storage (`memory`, `sqlite`, `mysql`, `mariadb`, `postgresql`), sampling, retention, `include`/`exclude` | memory, two hours, `sampling.interval: 30` |
 | `tunnel` | dial out to MCDashboard-proxy over one WebSocket | off; needs `url` and a 32+ character `key` |
 | `events` | device revocation stream (`token`) and signed `webhooks` | off; the tunnel carries the events without either |
@@ -32,7 +32,8 @@ One file: `plugins/MCDashboard/config.yml` (`plugins/mcdashboard/` on Velocity).
 | `network` | Velocity/BungeeCord only: backend federation and ping interval | written by the proxy plugins |
 
 `security.require-authentication` and `server.tls` interact: with pairing required, every response is `private` and no
-shared cache may store it. That is intended, not a bug.
+shared cache may store it. That is intended, not a bug. `security.allow-player-names: true` is an exception to pairing,
+not authentication: anyone who can reach the API can type a player's name and read that player's data and dashboards.
 
 ## Recipes
 

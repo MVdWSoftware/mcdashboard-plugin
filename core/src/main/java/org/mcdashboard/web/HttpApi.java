@@ -41,6 +41,13 @@ public final class HttpApi implements HttpHandler {
     public static final String PURPOSE_HEADER = "X-MCDashboard-Purpose";
     /** Header on authenticated requests in which the app says what it runs under: {@code server}, {@code app} or {@code free}. Informational only. */
     public static final String ENTITLEMENT_HEADER = "X-MCDashboard-Entitlement";
+    /**
+     * The player name an unpaired client types when the owner enabled {@code security.allow-player-names}. The server
+     * resolves it to a UUID; a valid bearer token always wins and this header is then ignored.
+     */
+    public static final String PLAYER_HEADER = "X-MCDashboard-Player";
+    /** A Minecraft name is at most 16 characters; some platforms allow a little more, so leave room without accepting a paragraph. */
+    static final int MAX_PLAYER_NAME = 32;
     private static final String PLACEHOLDER = "/v1/placeholders/";
     private static final String HISTORY = "/v1/history/";
     private static final String DASHBOARD = "/v1/dashboards/";
@@ -230,10 +237,6 @@ public final class HttpApi implements HttpHandler {
             error(ex, 401, "invalid or expired token");
             return;
         }
-        if (ctx.requireAuthentication() && who.isEmpty()) {
-            error(ex, 401, "authentication required");
-            return;
-        }
         // Keyed by the paired device when there is one, so a client that changes its User-Agent or address gains nothing.
         boolean allowed = who.isPresent() ? clients.allowDevice(who.get().deviceId())
                 : clients.allowAddress(Exchanges.remote(ex, ctx.trustedProxies()));
@@ -255,6 +258,21 @@ public final class HttpApi implements HttpHandler {
             return;
         }
         String player = who.map(TokenService.Claims::player).orElse(null);
+        if (player == null && ctx.allowPlayerNames()) {
+            String name = playerName(ex);
+            if (name != null) {
+                String uuid = ctx.playerUuid() == null ? null : ctx.playerUuid().apply(name);
+                if (uuid == null) {
+                    error(ex, 403, "unknown player");
+                    return;
+                }
+                player = uuid;
+            }
+        }
+        if (ctx.requireAuthentication() && player == null) {
+            error(ex, 401, "authentication required");
+            return;
+        }
         who.ifPresent(c -> {
             ctx.devices().touch(c.deviceId());
             String entitlement = ex.getRequestHeaders().getFirst(ENTITLEMENT_HEADER);
@@ -291,6 +309,17 @@ public final class HttpApi implements HttpHandler {
         }
     }
 
+    /** The player name a client typed, or null when it sent none; refused when it could never be a name. */
+    private String playerName(HttpExchange ex) {
+        String raw = ex.getRequestHeaders().getFirst(PLAYER_HEADER);
+        if (raw == null || raw.isBlank()) return null;
+        String name = raw.trim();
+        if (name.length() > MAX_PLAYER_NAME || name.chars().anyMatch(Character::isISOControl)) {
+            throw new BadRequest("invalid player name");
+        }
+        return name;
+    }
+
     private Map<String, Object> info() {
         Map<String, Object> o = new LinkedHashMap<>();
         o.put("name", ctx.serverName());
@@ -301,8 +330,10 @@ public final class HttpApi implements HttpHandler {
         if (tls) features.add("tls");
         if (background) features.add("background");
         if (assertions != null) features.add("client-verification");
+        if (ctx.allowPlayerNames()) features.add("player-names");
         o.put("features", features);
         o.put("authRequired", ctx.requireAuthentication());
+        o.put("allowPlayerNames", ctx.allowPlayerNames());
         if (!ctx.polling()) o.put("polling", false);
         o.put("defaultLanguage", ctx.defaultLanguage());
         o.put("languages", ctx.languages());

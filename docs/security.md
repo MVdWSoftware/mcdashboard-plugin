@@ -3,10 +3,11 @@
 - **Off by default.** `server.enabled: false` until the owner has reviewed `placeholders.yml`.
 - **Allowlist.** Only placeholders listed in `placeholders.yml` can be read; the app never sends
   a `%placeholder%` template, only an `id`, so nothing arbitrary is ever evaluated.
-- **Who is the player.** Placeholders can be specific to a player, so the app has to prove it acts for that player.
-  The only way in is a code the player creates themselves in game (`/mcdashboard link`, or the `[Get QR map]` button).
-  The app never sends a player name: redeeming the code decides which player the device is linked to, so only someone
-  who controls that account in game at that moment can pair for them. The code is shown as `ABCD-2345`, works once,
+- **Who is the player.** Placeholders can be specific to a player, so the app normally has to prove it acts for that player.
+  The only authenticated way in is a code the player creates themselves in game (`/mcdashboard link`, or the `[Get QR map]`
+  button). Redeeming the code decides which player the device is linked to, so only someone who controls that account in
+  game at that moment can pair for them. The app does not send a player name on a paired request. The one exception is the
+  owner's explicit opt-in below. The code is shown as `ABCD-2345`, works once,
   expires after 5 minutes (`security.otp-timeout`), and a player has at most one live code. Ways to hand it to the app:
   type it, click `[Copy code]` in chat, scan the QR map (a map item that only its owner sees; everyone else sees a
   blank map), or open the `mcdashboard://connect…` link when `server.public-url` is set. Because the map contains a
@@ -20,7 +21,8 @@
 - **Revocation.** `/mcdashboard revoke <id>` (or from the app); access tokens of a
   removed device are refused immediately and its open live-feed connection is closed within a second. A caching proxy learns of it through the [device events](events.md)
   (stream or signed webhook), both off until `events.*` is configured.
-- **PLAYER placeholders** resolve for the paired player only, never for a player named by the client.
+- **PLAYER placeholders** resolve for the paired player, and never for a name a client supplies unless the owner enabled
+  `security.allow-player-names` (see below).
 - **Brute force.** Pairing and refresh are rate limited per client address (10 per minute).
 - **Tunnel.** The optional [reverse tunnel](tunnel.md) is outbound only and needs a 32+ character key; the plugin refuses
   `ws://` unless the host is `localhost` or a private IP address (a host name never counts as private) and answers only
@@ -52,6 +54,20 @@
 - **Offline-mode servers.** On a server with `online-mode=false` anyone can join under any name, so the in-game proof is
   only as strong as the server's own login. Run the server in online mode (or behind an authenticating proxy) if
   player data matters.
+
+## Unverified player names (opt-in, not authentication)
+
+`security.allow-player-names: true` lets an app skip pairing and send the player's name instead, in the
+`X-MCDashboard-Player` header (and as `playerName` in the live feed's `auth` message). The server resolves that name to a
+player and answers as them. This exists for a private or trusted network where pairing every phone is impractical.
+
+It is **not authentication**. There is no secret and no proof that the caller is that player: anyone who can reach the
+API can type any name and read that player's `PLAYER` placeholders, personal data and permission-gated dashboards,
+including staff-only dashboards. With `security.require-authentication: true` a request still needs either a paired
+token or the name header; without either it is anonymous. A valid bearer token always wins over a typed name, and
+per-player answers stay `private` and vary on `X-MCDashboard-Player`, so a shared cache cannot hand one player's answer
+to another. The app only shows the name field after `/v1/info` reports `allowPlayerNames: true` (or the `player-names`
+feature).
 
 ## Transport: TLS
 
