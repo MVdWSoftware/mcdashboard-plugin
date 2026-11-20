@@ -60,7 +60,7 @@ public final class WebSocketFrames {
     /** Computes {@code Sec-WebSocket-Accept} for a client key. */
     public static String acceptKey(String clientKey) {
         try {
-            MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
+            MessageDigest sha1 = MessageDigest.getInstance("SHA-1"); // NOSONAR - Sec-WebSocket-Accept is SHA-1 by RFC 6455
             return Base64.getEncoder().encodeToString(sha1.digest((clientKey + GUID).getBytes(StandardCharsets.US_ASCII)));
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);

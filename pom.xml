@@ -46,10 +46,11 @@
     <!-- Pinned: the CI job runs `mvn sonar:sonar` when SONAR_HOST_URL is set (see .gitlab-ci.yml). -->
     <sonar.maven.plugin.version>5.1.0.4751</sonar.maven.plugin.version>
     <!-- Sec-WebSocket-Accept is SHA-1 by RFC 6455, so java:S4790 does not apply to that one file. The Maven scanner
-         reads its parameters from the pom; sonar-project.properties carries the same criterion for other tools. -->
+         reads its parameters from the pom, not from sonar-project.properties (that file is for the CLI), and its
+         resourceKey is module-relative, hence the **/ pattern. -->
     <sonar.issue.ignore.multicriteria>e1</sonar.issue.ignore.multicriteria>
     <sonar.issue.ignore.multicriteria.e1.ruleKey>java:S4790</sonar.issue.ignore.multicriteria.e1.ruleKey>
-    <sonar.issue.ignore.multicriteria.e1.resourceKey>core/src/main/java/org/mcdashboard/web/WebSocketFrames.java</sonar.issue.ignore.multicriteria.e1.resourceKey>
+    <sonar.issue.ignore.multicriteria.e1.resourceKey>**/WebSocketFrames.java</sonar.issue.ignore.multicriteria.e1.resourceKey>
     <!-- Raised per module below; a module that reaches its target keeps the limit as a ratchet. -->
     <jacoco.minimum.line>0.00</jacoco.minimum.line>
     <jacoco.minimum.branch>0.00</jacoco.minimum.branch>

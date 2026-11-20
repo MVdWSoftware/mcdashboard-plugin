@@ -14,7 +14,8 @@ build:
     # classes and JaCoCo reports from `verify`, so it is a second, cheap goal rather than a rebuild.
     # Report-only by default; set SONAR_QUALITY_GATE_WAIT=true once the baseline is triaged.
     - |
-      if [ -n "$SONAR_HOST_URL" ] && [ -n "$SONAR_TOKEN" ]; then
+      # SonarQube Community Build has no branch analysis: a scan from an MR branch would overwrite the main analysis.
+      if [ -n "$SONAR_HOST_URL" ] && [ -n "$SONAR_TOKEN" ] && [ "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" ]; then
         SONAR_PLUGIN=$(mvn -B help:evaluate -Dexpression=sonar.maven.plugin.version -q -DforceStdout)
         mvn -B "org.sonarsource.scanner.maven:sonar-maven-plugin:${SONAR_PLUGIN}:sonar" \
           -Dsonar.projectKey=mcdashboard-mcdashboard-plugin \
@@ -22,7 +23,7 @@ build:
           -Dsonar.exclusions='**/target/**' \
           -Dsonar.qualitygate.wait="${SONAR_QUALITY_GATE_WAIT:-false}"
       else
-        echo "SONAR_HOST_URL/SONAR_TOKEN not set: skipping SonarQube analysis"
+        echo "not the default branch or SONAR_HOST_URL/SONAR_TOKEN not set: skipping SonarQube analysis"
       fi
   coverage: '/Total coverage: (\d+\.\d+) %/'
   artifacts:

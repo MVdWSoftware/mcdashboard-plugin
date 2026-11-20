@@ -6,12 +6,37 @@ package org.mcdashboard.dashboard;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class TileLookTest {
+    @Test
+    void iconsAcceptOnlyPackName() {
+        assertEquals("fa6-solid:memory", TileLook.icon("fa6-solid:memory"));
+        assertEquals("a1-b2:c3-d4", TileLook.icon("A1-B2:C3-D4"));
+        assertNull(TileLook.icon("-mdi:home"));
+        assertNull(TileLook.icon("mdi-:home"));
+        assertNull(TileLook.icon(":home"));
+        assertNull(TileLook.icon("mdi:"));
+        assertNull(TileLook.icon("mdi::home"));
+        assertNull(TileLook.icon("mdi:ho--me"));
+        assertNull(TileLook.icon("mdi:ho_me"));
+        assertNull(TileLook.icon("mdi home:x"));
+    }
+
+    @Test
+    void hostileIconInputIsRejectedQuickly() {
+        String longTail = "a".repeat(50_000) + "!";
+        assertTimeoutPreemptively(Duration.ofSeconds(1), () -> assertNull(TileLook.icon(longTail)));
+        String dashes = "a-".repeat(10_000) + "!";
+        assertTimeoutPreemptively(Duration.ofSeconds(1), () -> assertNull(TileLook.icon(dashes)));
+        assertTimeoutPreemptively(Duration.ofSeconds(1), () -> assertNull(TileLook.icon("a".repeat(63) + "!")));
+    }
+
     @Test
     void newOptionsAreKeptWhenValid() {
         Map<String, Object> in = new LinkedHashMap<>();
