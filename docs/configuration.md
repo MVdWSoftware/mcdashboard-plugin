@@ -92,6 +92,12 @@ them as `limits` so the app shows at most that many and tells the player the ser
 
 A negative or invalid value counts as `0` and logs a warning.
 
+## `messages`
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `messages.prefix` | `&8[&bMCDashboard&8] &r` | Starts every chat message of `/mcdashboard` and the "a device was linked" notice. `&` colour codes work; empty sends plain messages. Normal text is grey, good news green and problems red. |
+
 ## `license`
 
 `id` is the licence id from the MVdW portal (https://mvdw-software.com), where the owner registers this server's

@@ -12,6 +12,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   fingerprint (`pin=`) and `/v1/info` publishes it (`tlsFingerprint`, `websocketTls`).
 
 ### Added
+- Chat that looks like a plugin: every `/mcdashboard` message starts with a configurable prefix (`messages.prefix`, default `[MCDashboard]`), grey text, green for good news, red for problems; follow-up lines are indented. Players without the permission get a clear "You don't have permission to do that (needs mcdashboard.admin)", and a wrong sub-command says what to try instead of a bare usage line.
+- `/mcd` as a short alias of `/mcdashboard` on Spigot, PowerNukkitX, Velocity and BungeeCord.
+- A richer `/mcdashboard about`: what MCDashboard is, store links for the Android and iOS apps (fixed in the plugin; placeholder URLs until the app is listed) and how to link a device. Clickable buttons on Spigot, plain links elsewhere. The pairing code message points to it.
+- `sky` tile: the biome decides what falls in a storm. A third placeholder (e.g. `%player_biome%` of PlaceholderAPI's Player expansion) or the new `biome` tile option (`snowy_plains`, `desert`, ...) gives rain, snow or nothing; the weather itself stays per world.
 - JaCoCo in `mvn -B verify`: per-module coverage report and a check with limits (core about 98% lines / 95% branches); CI publishes the reports and the coverage figure. More tests for the tunnel channels, loopback requests, catalog loader, JSON and JDBC connector.
 - `map:` IMAGE sources (`map:dynmap`, `map:squaremap`, `map:pl3xmap`, `map:bluemap`): the tiles of a web map around a block
   (fixed, or `%player_x%`/`%player_z%` for the paired player) stitched into one 64-512 px picture, fetched from the map's own
@@ -21,9 +25,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   value for the app to load directly (an `http://` URL is refused). See [docs/placeholders.md](docs/placeholders.md#images).
 - `LIST` placeholders (`rows`, `columns` with `{n}`, `empty`): a table such as a leaderboard or a player list, sent as JSON in the
   SenML `vs` value; `GET /v1/placeholders` shows `columns` and `rows`. No history. See [docs/placeholders.md](docs/placeholders.md#lists-and-leaderboards).
-- New tile options `fit`, `position`, `padding`, `smoothing`, `markerIcon`, `speed` and a per-tile `background` (colour, gradient,
+- New tile options `fit`, `position`, `padding`, `smoothing`, `markerIcon`, `hideValue`, `speed` and a per-tile `background` (colour, gradient,
   https picture), validated like the existing ones; documented with the `sky`, `ticker`, `countdown`, `heads` and `leaderboard`
-  widgets in [docs/dashboards.md](docs/dashboards.md#icons-and-tile-options).
+  widgets in [docs/dashboards.md](docs/dashboards.md#icons-and-tile-options). `hideValue` drops the number of a progress bar,
+  so hearts show the health without “20”.
 - `limits.max-dashboards` and `limits.max-tiles` (default `0` = no cap): the owner can cap dashboards per server and tiles per
   dashboard to protect performance, whatever the app unlock or licence. Published in `GET /v1/info` as `limits`; developer
   uploads above them are rejected with `422` (`tiles-limit`, `dashboards-limit`). See [docs/configuration.md](docs/configuration.md#limits).

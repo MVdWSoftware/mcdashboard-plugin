@@ -110,6 +110,11 @@ public final class MCDashboardCore {
         return services == null || !settings.tls().mode().equals("self-signed") ? null : services.tlsFingerprint();
     }
 
+    /** {@code messages.prefix} with {@code &} colour codes turned into {@code §}; empty means no prefix. */
+    public String chatPrefix() {
+        return settings.prefix();
+    }
+
     /** {@code server.public-url}, or null when it is not set. */
     public String publicUrl() {
         return settings.publicUrl();

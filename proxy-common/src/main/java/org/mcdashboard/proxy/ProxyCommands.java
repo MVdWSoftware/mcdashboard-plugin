@@ -37,30 +37,30 @@ public final class ProxyCommands {
     public void execute(DashboardCommands.Sender who, String label, String[] args) {
         String sub = args.length == 0 ? "about" : args[0].toLowerCase(Locale.ROOT);
         switch (sub) {
-            case "about" -> commands.about(who);
+            case "about" -> commands.about(who, label);
             case "developer" -> commands.developer(who, label, args);
             case "tunnel" -> commands.tunnel(who);
             case "reload" -> {
-                if (!who.hasPermission(DashboardCommands.ADMIN_PERMISSION)) who.send("You need mcdashboard.admin to reload.");
+                if (!who.hasPermission(DashboardCommands.ADMIN_PERMISSION)) commands.denied(who, DashboardCommands.ADMIN_PERMISSION);
                 else {
                     reloader.reload();
-                    who.send("MCDashboard restarted with the files on disk.");
+                    commands.success(who, "MCDashboard restarted with the files on disk.");
                 }
             }
             case "link", "qr" -> link(who, label, args);
             case "devices" -> {
                 if (commands.running(who)) {
-                    if (who.playerUuid() == null) who.send("This command can only be used by a player.");
+                    if (who.playerUuid() == null) commands.playersOnly(who);
                     else commands.devices(who, label, who.playerUuid());
                 }
             }
             case "revoke" -> {
                 if (commands.running(who)) {
-                    if (who.playerUuid() == null) who.send("This command can only be used by a player.");
+                    if (who.playerUuid() == null) commands.playersOnly(who);
                     else commands.revoke(who, label, args, who.playerUuid());
                 }
             }
-            default -> who.send("Usage: /" + label + " <" + String.join("|", SUBCOMMANDS) + ">");
+            default -> commands.usageOverview(who, label, SUBCOMMANDS);
         }
     }
 
@@ -72,7 +72,7 @@ public final class ProxyCommands {
         if (args.length > 1 && who.hasPermission(DashboardCommands.ADMIN_PERMISSION)) {
             Optional<ProxyAdapter.PlayerView> target = adapter.playerByName(args[1]);
             if (target.isEmpty()) {
-                who.send("Player " + args[1] + " is not online.");
+                commands.notOnline(who, args[1]);
                 return;
             }
             uuid = target.get().uuid().toString();
@@ -81,7 +81,7 @@ public final class ProxyCommands {
             name = adapter.player(java.util.UUID.fromString(uuid)).map(ProxyAdapter.PlayerView::name).orElse(uuid);
         }
         if (uuid == null) {
-            who.send("Usage: /" + label + " link <player>");
+            commands.usage(who, label, "link <player>");
             return;
         }
         commands.link(who, uuid, name);

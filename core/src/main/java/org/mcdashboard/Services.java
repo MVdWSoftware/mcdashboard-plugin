@@ -127,7 +127,7 @@ final class Services {
                     settings.accessTokenSeconds(), settings.refreshTokenSeconds(), settings.websocketPort(),
                     placeholders, tokens, devices, otps,
                     new RateLimiter(clock, settings.authAttemptsPerMinute(), 60_000), dashboards,
-                    settings.trustedProxies(), history, settings.licenseId(), platform::notifyLinked, permissions.cache(),
+                    settings.trustedProxies(), history, settings.licenseId(), d -> platform.notifyLinked(d, settings.prefix()), permissions.cache(),
                     settings.defaultLanguage(), developerMode, permissions::dashboardsChanged,
                     settings.endpoints(), settings.discoveryOnly(), settings.polling(), stats,
                     settings.maxDashboards(), settings.maxTiles());

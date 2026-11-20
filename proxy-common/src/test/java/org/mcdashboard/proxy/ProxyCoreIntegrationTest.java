@@ -155,12 +155,12 @@ class ProxyCoreIntegrationTest {
             }
         };
         runtime.execute(alex, "mcdashboard", new String[] {"link"});
-        assertTrue(said.stream().anyMatch(m -> m.startsWith("Your pairing code is ")), said.toString());
+        assertTrue(said.stream().anyMatch(m -> m.contains("Your pairing code is ")), said.toString());
         said.clear();
         runtime.execute(alex, "mcdashboard", new String[] {"reload"});
-        assertEquals(List.of("You need mcdashboard.admin to reload."), said);
+        assertEquals(List.of("§8[§bMCDashboard§8] §r§cYou don't have permission to do that. §7(needs §fmcdashboard.admin§7)"), said);
         runtime.execute(alex, "mcdashboard", new String[] {"devices"});
-        assertTrue(said.get(1).startsWith("No devices linked"), said.toString());
+        assertTrue(said.get(1).contains("No devices linked"), said.toString());
         assertNotNull(runtime);
     }
 
@@ -190,6 +190,6 @@ class ProxyCoreIntegrationTest {
         };
         runtime.execute(console, "mcdashboard", new String[] {"reload"});
         get(port, "/v1/info");
-        assertTrue(logged.contains("SAID MCDashboard restarted with the files on disk."), logged.toString());
+        assertTrue(logged.stream().anyMatch(l -> l.startsWith("SAID") && l.endsWith("MCDashboard restarted with the files on disk.")), logged.toString());
     }
 }

@@ -48,7 +48,7 @@ class DashboardGapsTest {
         Map<String, Object> o = TileLook.options(map("style", "hearts", "color", "red", "thresholds", rules, "decimals", 9, "compact", true,
                 "unit", "x".repeat(30), "unitSize", "m", "unitColor", "red", "prefix", "p".repeat(20), "hideTitle", true, "align", "end",
                 "size", "l", "card", "plain", "target", 5, "invertTrend", true, "count", 99, "fit", "fill", "position", "top", "padding", "s",
-                "smoothing", "pixelated", "markerIcon", "fa6-solid:map", "speed", "fast",
+                "smoothing", "pixelated", "markerIcon", "fa6-solid:map", "hideValue", true, "speed", "fast",
                 "background", map("color", "red", "gradient", "blue", "url", "https://x.example/a.png", "dim", 5, "blur", 99, "fit", "tile")));
         assertEquals(4, o.get("decimals"));
         assertEquals(16, ((String) o.get("unit")).length());
@@ -56,6 +56,7 @@ class DashboardGapsTest {
         assertEquals(8, ((List<?>) o.get("thresholds")).size() <= 8 ? 8 : 0);
         assertEquals(20, o.get("count"));
         assertEquals(5.0, o.get("target"));
+        assertEquals(true, o.get("hideValue"));
         Map<?, ?> bg = (Map<?, ?>) o.get("background");
         assertEquals(0.9, bg.get("dim"));
         assertEquals(20.0, bg.get("blur"));
@@ -63,7 +64,7 @@ class DashboardGapsTest {
         // wrong types and values are dropped one by one
         assertNull(TileLook.options(map("style", 5, "color", "nocolor", "thresholds", List.of(), "decimals", "x", "compact", "yes", "unit", 5,
                 "unitSize", "xl", "unitColor", "nocolor", "prefix", "", "hideTitle", false, "align", "left", "target", Double.NaN, "invertTrend", false,
-                "count", "x", "markerIcon", "bad", "background", "x", "fit", 5)));
+                "count", "x", "markerIcon", "bad", "hideValue", "yes", "background", "x", "fit", 5)));
         assertNull(TileLook.options(map("background", map("color", "nocolor", "gradient", "nocolor"))));
         assertNotNull(TileLook.options(map("background", map("gradient", "red"))));
         assertEquals(1, TileLook.options(map("count", 0)).get("count"));

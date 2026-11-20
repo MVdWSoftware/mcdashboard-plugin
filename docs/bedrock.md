@@ -10,7 +10,7 @@ works as on Spigot: the same API, pairing, dashboards, history, events and tunne
 2. Start the server once. Edit `plugins/MCDashboard/config.yml` and `placeholders.yml`, set `server.enabled: true`.
 3. Follow [installation.md](installation.md) for the reverse proxy and TLS.
 
-The plugin is named `MCDashboard` and the command is `/mcdashboard` (alias `/dashboard`), as on Spigot.
+The plugin is named `MCDashboard` and the command is `/mcdashboard` (aliases `/mcd` and `/dashboard`), as on Spigot.
 
 ## Differences from Spigot
 

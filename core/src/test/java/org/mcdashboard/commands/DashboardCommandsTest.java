@@ -75,12 +75,70 @@ class DashboardCommandsTest {
         return new DashboardCommands(core);
     }
 
+    private DashboardCommands startWith(String extraYaml) throws Exception {
+        Files.writeString(data.resolve("config.yml"), "server:\n  enabled: false\n" + extraYaml);
+        core = new MCDashboardCore(new FakePlatform(), new SnakeYamlCodec(), data);
+        core.start();
+        return new DashboardCommands(core);
+    }
+
+    @Test
+    void chatPrefixIsConfigurableAndStoresAreFixed() throws Exception {
+        DashboardCommands c = startWith("messages:\n  prefix: \"&6[MCD] \"\n");
+        Who who = new Who(null);
+        c.info(who, "hello");
+        c.success(who, "done");
+        c.error(who, "bad");
+        assertEquals(List.of("§6[MCD] §7hello", "§6[MCD] §adone", "§6[MCD] §cbad"), who.said);
+
+        Who about = new Who(null);
+        c.about(about, "mcd");
+        String text = String.join("\n", about.said);
+        assertTrue(text.contains(DashboardCommands.ANDROID_URL) && text.contains(DashboardCommands.IOS_URL), text);
+        assertTrue(text.contains("not available yet"), "linking explains itself while the server is off: " + text);
+    }
+
+    @Test
+    void emptyPrefixSendsPlainMessages() throws Exception {
+        DashboardCommands c = startWith("messages:\n  prefix: \"\"\n");
+        Who who = new Who(null);
+        c.error(who, "bad");
+        assertEquals("§cbad", who.said.get(0));
+    }
+
+    @Test
+    void sharedMessages() throws Exception {
+        DashboardCommands c = start(true, "");
+        Who who = new Who(STEVE);
+        c.denied(who, "mcdashboard.admin");
+        c.usage(who, "mcd", "link");
+        c.usageOverview(who, "mcd", List.of("link", "about"));
+        c.playersOnly(who);
+        c.notOnline(who, "Alex");
+        c.detail(who, "more");
+        String p = "§8[§bMCDashboard§8] §r§c";
+        assertEquals(List.of(p + "You don't have permission to do that. §7(needs §fmcdashboard.admin§7)", p + "Usage: §f/mcd link",
+                p + "Unknown command. Try §f/mcd <link|about>§c, or §f/mcd about§c.", p + "This command can only be used by a player.",
+                p + "Player §fAlex§c is not online.", " §8» §7more"), who.said);
+        Who actions = new Who(STEVE);
+        actions.sendActions(List.of(DashboardCommands.Action.link("Site", "https://mcdashboard.org", "open"),
+                DashboardCommands.Action.command("Link", "/mcd link", "run")));
+        assertEquals(List.of(" §8» §7Site: §fhttps://mcdashboard.org", " §8» §7Link: §f/mcd link"), actions.said);
+    }
+
     @Test
     void aboutAndUsage() throws Exception {
         DashboardCommands c = start(true, "");
         Who who = new Who(null);
-        c.about(who);
-        assertEquals(List.of("MCDashboard v9.9.9 - https://mcdashboard.org"), who.said);
+        c.about(who, "mcd");
+        String text = String.join("\n", who.said);
+        assertTrue(text.contains("MCDashboard §7v9.9.9"), text);
+        assertTrue(text.contains("play.google.com") && text.contains("apps.apple.com"), "both stores are offered: " + text);
+        assertTrue(text.contains("/mcd link"), text);
+        assertFalse(text.contains("Admin:"), "admin hints are for admins");
+        Who admin = new Who(null, DashboardCommands.ADMIN_PERMISSION);
+        c.about(admin, "mcd");
+        assertTrue(String.join("\n", admin.said).contains("Admin: §f/mcd devices"));
         assertEquals("Usage: /dashboard <link|qr|devices|revoke|developer|tunnel|about>", DashboardCommands.usage("dashboard"));
     }
 
@@ -89,14 +147,14 @@ class DashboardCommandsTest {
         DashboardCommands c = start(true, "");
         Who player = new Who(STEVE);
         c.developer(player, "mcdashboard", new String[] {"developer", "on"});
-        assertTrue(player.said.get(0).contains("mcdashboard.admin"));
+        assertEquals("§8[§bMCDashboard§8] §r§c" + "You don't have permission to do that. §7(needs §fmcdashboard.admin§7)", player.said.get(0));
         assertFalse(core.developerMode());
 
         Who admin = new Who(null, DashboardCommands.ADMIN_PERMISSION);
         c.developer(admin, "mcdashboard", new String[] {"developer"});
-        assertEquals("Developer mode is off.", admin.said.get(0));
+        assertEquals("§8[§bMCDashboard§8] §r§7Developer mode is §coff§7.", admin.said.get(0));
         c.developer(admin, "mcdashboard", new String[] {"developer", "maybe"});
-        assertEquals("Usage: /mcdashboard developer on|off", admin.said.get(2));
+        assertEquals("§8[§bMCDashboard§8] §r§cUsage: §f/mcdashboard developer on|off", admin.said.get(2));
         c.developer(admin, "mcdashboard", new String[] {"developer", "ON"});
         assertTrue(core.developerMode());
         assertTrue(Files.readString(data.resolve("developer.yml")).contains("enabled: true"));
@@ -110,7 +168,7 @@ class DashboardCommandsTest {
         assertTrue(player.said.get(0).contains("mcdashboard.admin"));
         Who admin = new Who(null, DashboardCommands.ADMIN_PERMISSION);
         c.tunnel(admin);
-        assertEquals("The tunnel is off (tunnel.enabled in config.yml).", admin.said.get(0));
+        assertTrue(admin.said.get(0).endsWith("The tunnel is off (tunnel.enabled in config.yml)."), admin.said.get(0));
     }
 
     @Test
@@ -120,16 +178,16 @@ class DashboardCommandsTest {
         assertTrue(c.running(steve));
         String code = c.link(steve, STEVE, "Steve");
         assertNotNull(code);
-        assertTrue(steve.said.get(0).startsWith("Your pairing code is "), steve.said.get(0));
+        assertTrue(steve.said.get(0).startsWith("§8[§bMCDashboard§8] §r§aYour pairing code is "), steve.said.get(0));
         assertTrue(steve.said.get(0).contains(org.mcdashboard.auth.OtpService.display(code)));
         // The default is a self-signed certificate, so the link carries the fingerprint the app pins.
-        assertTrue(steve.said.get(1).matches("Or open: mcdashboard://connect\\?url=https%3A%2F%2Fmc.example.org&code=" + code + "&pin=[0-9a-f]{64}"), steve.said.get(1));
+        assertTrue(steve.said.get(1).matches(" §8» §7Or open: §fmcdashboard://connect\\?url=https%3A%2F%2Fmc.example.org&code=" + code + "&pin=[0-9a-f]{64}"), steve.said.get(1));
         c.expiryNote(steve);
         assertTrue(steve.said.get(2).contains("expires in 5 min"));
 
         Who console = new Who(null);
         c.link(console, STEVE, "Steve");
-        assertTrue(console.said.get(0).startsWith("The pairing code for Steve is "));
+        assertTrue(console.said.get(0).contains("The pairing code for Steve is "));
     }
 
     @Test
@@ -161,7 +219,7 @@ class DashboardCommandsTest {
         DashboardCommands c = start(true, "");
         Who steve = new Who(STEVE);
         c.devices(steve, "mcdashboard", STEVE);
-        assertEquals("No devices linked. Use /mcdashboard link to link one.", steve.said.get(0));
+        assertTrue(steve.said.get(0).endsWith("No devices linked. Use §f/mcdashboard link§7 to link one."), steve.said.get(0));
 
         var device = core.devices().add(STEVE, "Steve", "Pixel", 5, "MCDashboard/1.0.0 (android)").orElseThrow();
         c.devices(steve, "mcdashboard", STEVE);
@@ -171,11 +229,11 @@ class DashboardCommandsTest {
 
         Who other = new Who("00000000-0000-0000-0000-000000000002");
         c.revoke(other, "mcdashboard", new String[] {"revoke", device.id()}, other.uuid);
-        assertEquals("Unknown device.", other.said.get(0), "someone else's device is not theirs to remove");
+        assertTrue(other.said.get(0).endsWith("Unknown device."), other.said.get(0));
         c.revoke(steve, "mcdashboard", new String[] {"revoke"}, STEVE);
-        assertEquals("Usage: /mcdashboard revoke <device id>", steve.said.get(3));
+        assertTrue(steve.said.get(3).endsWith("Usage: §f/mcdashboard revoke <device id>"), steve.said.get(3));
         c.revoke(steve, "mcdashboard", new String[] {"revoke", device.id()}, STEVE);
-        assertEquals("Device removed.", steve.said.get(4));
+        assertTrue(steve.said.get(4).endsWith("§aDevice removed."), steve.said.get(4));
         assertTrue(core.devices().devicesOf(STEVE).isEmpty());
     }
 

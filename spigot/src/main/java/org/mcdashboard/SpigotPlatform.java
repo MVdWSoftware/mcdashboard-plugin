@@ -90,13 +90,13 @@ final class SpigotPlatform implements Platform {
     }
 
     @Override
-    public void notifyLinked(DeviceStore.Device device) {
+    public void notifyLinked(DeviceStore.Device device, String prefix) {
         Bukkit.getScheduler().runTask(plugin, () -> {
             Player p = Bukkit.getPlayer(UUID.fromString(device.playerUuid()));
             if (p != null) {
                 QrMap.destroyFor(p, true); // the code has been used; the map must not stay readable
-                p.sendMessage("§aA device (§f" + device.label() + "§a) was linked to your account for MCDashboard.");
-                p.sendMessage("§7Not you? Run §f/mcdashboard revoke " + device.id() + "§7 to remove it.");
+                p.sendMessage(prefix + "§aA device (§f" + device.label() + "§a) was linked to your account for MCDashboard.");
+                p.sendMessage(" §8» §7Not you? Run §f/mcd revoke " + device.id() + "§7 to remove it.");
             }
         });
     }

@@ -31,7 +31,9 @@ record Settings(boolean enabled, String name, String defaultLanguage, String pub
                 boolean developerMode, String licenseId, org.mcdashboard.tls.TlsSupport.Settings tls,
                 boolean verifyClients, boolean verifyDeviceOnly, List<String> verifyKinds, List<String> verifyHosts,
                 List<Map<String, Object>> verifyKeys, boolean backgroundEnabled, int backgroundRequestsPerMinute, boolean offerStatsToApp,
-                int maxDashboards, int maxTiles) {
+                int maxDashboards, int maxTiles, String chatPrefix) {
+
+    static final String DEFAULT_CHAT_PREFIX = "&8[&bMCDashboard&8] &r";
 
     /** Reads the configuration; problems are reported through {@code warn} and replaced by a safe default. */
     static Settings load(ConfigView cfg, Consumer<String> warn) {
@@ -96,7 +98,8 @@ record Settings(boolean enabled, String name, String defaultLanguage, String pub
                 cfg.getBoolean("security.background.enabled", true),
                 Math.max(1, cfg.getInt("security.background.requests-per-minute", 30)),
                 cfg.getBoolean("stats.offer-to-app", false),
-                cap(cfg, "limits.max-dashboards", warn), cap(cfg, "limits.max-tiles", warn));
+                cap(cfg, "limits.max-dashboards", warn), cap(cfg, "limits.max-tiles", warn),
+                cfg.getString("messages.prefix", DEFAULT_CHAT_PREFIX));
     }
 
     /** {@code limits.max-*}: a whole number of at least 1 caps, 0 (or absent) means no cap; negatives and garbage become 0. */
@@ -121,6 +124,11 @@ record Settings(boolean enabled, String name, String defaultLanguage, String pub
     @SuppressWarnings("unchecked")
     private static Map<String, Object> stringKeys(Map<?, ?> m) {
         return (Map<String, Object>) m;
+    }
+
+    /** {@code messages.prefix} with {@code &} colour codes turned into {@code §}; empty means no prefix. */
+    String prefix() {
+        return chatPrefix == null ? "" : chatPrefix.replace('&', '§');
     }
 
     /** {@code server.name}, or {@code fallback} when it is not set. */

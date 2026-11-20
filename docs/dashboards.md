@@ -142,7 +142,8 @@ items:
   on [icon-sets.iconify.design](https://icon-sets.iconify.design/). An icon the app does not have is simply not drawn.
 - `options`:
   - `style`: the progress widget's look: `bar` (default), `segments`, `battery`, `bullet` (with `target`), `hearts`, `hunger`,
-    `armor` or `xp`; `count` sets the number of icons or segments (1-20).
+    `armor` or `xp`; `count` sets the number of icons or segments (1-20); `hideValue: true` drops the number, so e.g. a
+    health bar shows only the hearts.
   - `color` and `thresholds`: `accent`, `green`, `yellow`, `orange`, `red`, `purple`, `cyan` or `muted`. They follow the
     player's style, so there are no hex colours.
   - Number format: `decimals` (0-4), `compact` (`false` shows `1,234` instead of `1.2k`), `unit` (empty hides it),
@@ -173,8 +174,9 @@ items:
 ### More widgets
 
 Besides `number`, `gauge`, `progress`, `list`, `area` and the others, the app has: `sky` (a day/night sky; placeholder 1
-is the world time as ticks 0-24000 or `HH:mm`, an optional second placeholder the weather, `style`: `overworld`, `nether`,
-`end`), `ticker` (scrolling text from a text placeholder or a `LIST`, with `speed`), `countdown` (a unix timestamp, or with
+is the world time as ticks 0-24000 or `HH:mm`, an optional second placeholder the weather, an optional third the biome (such as `%player_biome%`) or a fixed `biome` option
+(`snowy_plains`, `desert`, ...): weather is per world, the biome decides what falls in a storm (rain, snow in snowy and frozen
+biomes, nothing in deserts, badlands and savannas); `style`: `overworld`, `nether`, `end`), `ticker` (scrolling text from a text placeholder or a `LIST`, with `speed`), `countdown` (a unix timestamp, or with
 `style: seconds` the seconds remaining), `heads` (a wall of player faces from a name list or a `LIST` with a `name`
 column, `count` caps it) and `leaderboard` (a `LIST` as a podium and ranked rows; `value` column, `count`, `decimals`,
 `compact`, `unit`, `prefix`). See [placeholders.md](placeholders.md#lists-and-leaderboards) for `LIST`.

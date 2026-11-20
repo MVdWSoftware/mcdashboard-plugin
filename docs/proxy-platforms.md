@@ -46,7 +46,7 @@ explicitly denied (BungeeCord cannot tell a denial from silence, so there they a
 `mcdashboard.dashboard.network`, `mcdashboard.admin` and `mcdashboard.developer`, must be granted. Snapshots are taken every 5
 seconds and when a player joins.
 
-`/mcdashboard` (alias `/dashboard`): `link [player]`, `devices`, `revoke <id>`, `reload` (admin: restarts the plugin, also
+`/mcdashboard` (aliases `/mcd` and `/dashboard`): `link [player]`, `devices`, `revoke <id>`, `reload` (admin: restarts the plugin, also
 re-reading `network:`), `developer`, `tunnel` and `about`. There is no QR map (that is a Bukkit item); `link` prints the code and,
 with `server.public-url`, the `mcdashboard://` link. `link <player>` needs `mcdashboard.admin` (or the console) and an online player.
 

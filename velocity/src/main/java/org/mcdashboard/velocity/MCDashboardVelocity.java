@@ -62,7 +62,7 @@ public final class MCDashboardVelocity {
         };
         runtime = new ProxyRuntime(new VelocityAdapter(proxy, this), log, version, dataDir, new ProxyYaml());
         runtime.start();
-        var meta = proxy.getCommandManager().metaBuilder("mcdashboard").aliases("dashboard").plugin(this).build();
+        var meta = proxy.getCommandManager().metaBuilder("mcdashboard").aliases("mcd", "dashboard").plugin(this).build();
         proxy.getCommandManager().register(meta, new Command());
     }
 

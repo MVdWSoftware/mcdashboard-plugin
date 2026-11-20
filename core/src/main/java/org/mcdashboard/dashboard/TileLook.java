@@ -20,6 +20,7 @@ import java.util.regex.Pattern;
 public final class TileLook {
     /** {@code pack:name}, the Iconify naming the app uses ({@code fa6-solid:memory}). */
     private static final Pattern ICON = Pattern.compile("[a-z0-9]+(-[a-z0-9]+)*:[a-z0-9]+(-[a-z0-9]+)*");
+    private static final Pattern BIOME = Pattern.compile("[a-zA-Z0-9_:. -]{1,64}");
     private static final Pattern STYLE = Pattern.compile("[a-z0-9-]{1,24}");
     private static final Pattern HTTPS = Pattern.compile("https://[^\\s\"'()<>\\\\]+", Pattern.CASE_INSENSITIVE);
     /** Named colours; the app maps each to a theme token. */
@@ -89,6 +90,8 @@ public final class TileLook {
         oneOf(m.get("smoothing"), Set.of("auto", "pixelated", "smooth"), "smoothing", out);
         String markerIcon = icon(m.get("markerIcon"));
         if (markerIcon != null) out.put("markerIcon", markerIcon);
+        if (Boolean.TRUE.equals(m.get("hideValue"))) out.put("hideValue", true);
+        if (m.get("biome") instanceof String b && BIOME.matcher(b.trim()).matches()) out.put("biome", b.trim());
         oneOf(m.get("speed"), Set.of("slow", "normal", "fast"), "speed", out);
         Map<String, Object> background = tileBackground(m.get("background"));
         if (background != null) out.put("background", background);

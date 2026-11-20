@@ -14,7 +14,7 @@ depend:
 commands:
   mcdashboard:
     description: Link devices to the MCDashboard app
-    aliases: [dashboard]
+    aliases: [mcd, dashboard]
     usage: /mcdashboard <link|devices|revoke|developer|tunnel|about>
 
 permissions:

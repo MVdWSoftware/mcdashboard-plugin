@@ -20,13 +20,19 @@ class TileLookTest {
         in.put("padding", "none");
         in.put("smoothing", "pixelated");
         in.put("markerIcon", "Fa6-Solid:Sun");
+        in.put("hideValue", true);
         in.put("speed", "fast");
+        in.put("biome", " snowy_plains ");
         Map<String, Object> out = TileLook.options(in);
+        assertEquals("snowy_plains", out.get("biome"));
+        assertEquals(null, TileLook.options(Map.of("biome", "<b>", "style", "end")).get("biome"));
+        assertEquals(null, TileLook.options(Map.of("biome", 3, "style", "end")).get("biome"));
         assertEquals("cover", out.get("fit"));
         assertEquals("top", out.get("position"));
         assertEquals("none", out.get("padding"));
         assertEquals("pixelated", out.get("smoothing"));
         assertEquals("fa6-solid:sun", out.get("markerIcon"));
+        assertEquals(true, out.get("hideValue"));
         assertEquals("fast", out.get("speed"));
     }
 
@@ -38,6 +44,7 @@ class TileLookTest {
         in.put("padding", "xl");
         in.put("smoothing", 1);
         in.put("markerIcon", "not an icon");
+        in.put("hideValue", false);
         in.put("speed", "ludicrous");
         in.put("background", Map.of("color", "pink", "url", "http://x.com/a.png"));
         assertNull(TileLook.options(in));

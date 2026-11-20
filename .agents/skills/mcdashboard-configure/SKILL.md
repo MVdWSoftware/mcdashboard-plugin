@@ -1,6 +1,6 @@
 ---
 name: MCDashboard configuration
-description: Change the MCDashboard plugin settings in config.yml (server, security, history, tunnel, events, developer, stats, license) and pick ports, TLS, rate limits and refresh intervals. Use when a server owner asks to change a setting, tighten security, limit traffic, keep history in a database or grant permissions for MCDashboard.
+description: Change the MCDashboard plugin settings in config.yml (server, security, history, tunnel, events, developer, stats, messages, license) and pick ports, TLS, rate limits and refresh intervals. Use when a server owner asks to change a setting, tighten security, limit traffic, keep history in a database or grant permissions for MCDashboard.
 license: AGPL-3.0-or-later
 ---
 
@@ -27,6 +27,7 @@ One file: `plugins/MCDashboard/config.yml` (`plugins/mcdashboard/` on Velocity).
 | `events` | device revocation stream (`token`) and signed `webhooks` | off; the tunnel carries the events without either |
 | `developer` | allow dashboard uploads from the app (also `/mcdashboard developer`, which writes `developer.yml` and wins) | `false` |
 | `stats` | also offer the plugin's own `%mcdashboard_*%` counters to the app | `offer-to-app: false` |
+| `messages` | `messages.prefix` (chat prefix, `&` codes) | MCDashboard prefix |
 | `license` | `license.id` (`mcl_...`) registered for this server's address in the portal | empty = free limits |
 | `network` | Velocity/BungeeCord only: backend federation and ping interval | written by the proxy plugins |
 
@@ -78,8 +79,8 @@ registered in the portal.
 
 ## Commands and permissions
 
-`/mcdashboard` (alias `/dashboard`): `link`, `qr` (Spigot), `devices`, `revoke <id>`, `developer on|off`,
-`tunnel`, `about`; on Velocity/BungeeCord also `reload`, and `link <player>` for the console or an admin.
+`/mcdashboard` (aliases `/mcd`, `/dashboard`): `link`, `qr` (Spigot), `devices`, `revoke <id>`, `developer on|off`,
+`tunnel`, `about` (what the plugin is, store links for the app, how to link; `messages.prefix` in `config.yml` changes the chat prefix); on Velocity/BungeeCord also `reload`, and `link <player>` for the console or an admin.
 
 | Node | Default | Grants |
 | --- | --- | --- |

@@ -49,7 +49,7 @@ public final class MCDashboardBungee extends Plugin implements Listener {
 
     private final class Cmd extends Command implements TabExecutor {
         Cmd() {
-            super("mcdashboard", null, "dashboard");
+            super("mcdashboard", null, "mcd", "dashboard");
         }
 
         @Override

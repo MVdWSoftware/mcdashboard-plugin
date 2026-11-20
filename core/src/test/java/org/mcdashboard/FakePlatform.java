@@ -124,7 +124,7 @@ public class FakePlatform implements Platform {
     }
 
     @Override
-    public void notifyLinked(DeviceStore.Device device) {
+    public void notifyLinked(DeviceStore.Device device, String prefix) {
         // nobody to tell
     }
 }

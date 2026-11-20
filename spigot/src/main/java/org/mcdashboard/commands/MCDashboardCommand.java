@@ -51,6 +51,15 @@ public final class MCDashboardCommand implements CommandExecutor, TabCompleter {
             public String playerUuid() {
                 return sender instanceof Player p ? p.getUniqueId().toString() : null;
             }
+
+            @Override
+            public void sendActions(List<DashboardCommands.Action> actions) {
+                if (!(sender instanceof Player p)) {
+                    DashboardCommands.Sender.super.sendActions(actions);
+                    return;
+                }
+                for (DashboardCommands.Action a : actions) p.spigot().sendMessage(ChatActions.line(a));
+            }
         };
     }
 
@@ -60,7 +69,7 @@ public final class MCDashboardCommand implements CommandExecutor, TabCompleter {
         DashboardCommands.Sender who = sender(sender);
         switch (sub) {
             case "about" -> {
-                commands.about(who);
+                commands.about(who, label);
                 return true;
             }
             case "developer" -> {
@@ -78,23 +87,24 @@ public final class MCDashboardCommand implements CommandExecutor, TabCompleter {
         if (sub.equals("link")) {
             OfflinePlayer target = linkTarget(sender, args);
             if (target == null) {
-                sender.sendMessage("Usage: /" + label + " link" + (sender instanceof Player ? "" : " <player>"));
+                commands.usage(who, label, "link" + (sender instanceof Player ? "" : " <player>"));
                 return true;
             }
             String name = target.getName() == null ? args[1] : target.getName();
             if (target instanceof Player targetPlayer) QrMap.destroyFor(targetPlayer, true); // the old map is stale
             String code = plugin.otps().create(target.getUniqueId().toString(), name);
             boolean self = sender instanceof Player me && me.getUniqueId().equals(target.getUniqueId());
-            sender.sendMessage((self ? "Your pairing code is " : "The pairing code for " + name + " is ") + OtpService.display(code)
-                    + ". Enter it in the MCDashboard app.");
+            commands.success(who, (self ? "Your pairing code is " : "The pairing code for " + name + " is ") + "§e§l" + OtpService.display(code)
+                    + "§a. Enter it in the MCDashboard app.");
             String link = commands.connectLink(code);
-            if (link != null) sender.sendMessage("Or open: " + link);
+            if (link != null) commands.detail(who, "Or open: §f" + link);
             if (sender instanceof Player p) {
                 TextComponent copy = new TextComponent("[Copy code]");
                 copy.setColor(ChatColor.GREEN);
                 copy.setClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, OtpService.display(code)));
                 copy.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text("Copy the code to the clipboard")));
-                TextComponent line = new TextComponent(copy);
+                TextComponent line = new TextComponent(" §8» ");
+                line.addExtra(copy);
                 if (link != null) {
                     TextComponent qr = new TextComponent("  [Get QR map]");
                     qr.setColor(ChatColor.AQUA);
@@ -103,39 +113,39 @@ public final class MCDashboardCommand implements CommandExecutor, TabCompleter {
                     line.addExtra(qr);
                 }
                 p.spigot().sendMessage(line);
-                sender.sendMessage("§7The code works once and expires in " + plugin.otpTimeoutSeconds() / 60 + " min.");
+                commands.expiryNote(who);
             }
             return true;
         }
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("This command can only be used by a player.");
+            commands.playersOnly(who);
             return true;
         }
         switch (sub) {
             case "qr" -> {
                 if (player.getInventory().firstEmpty() == -1) {
-                    sender.sendMessage("§cMake room in your inventory for the QR map, then run /" + label + " qr again.");
+                    commands.error(who, "Make room in your inventory for the QR map, then run §f/" + label + " qr§c again.");
                     return true;
                 }
                 QrMap.destroyFor(player, true); // one live map per player
                 String code = plugin.otps().create(player.getUniqueId().toString(), player.getName());
                 String link = commands.connectLink(code);
                 if (link == null) {
-                    sender.sendMessage("QR codes need server.public-url in the plugin config. Use the code instead: " + OtpService.display(code));
+                    commands.info(who, "QR codes need server.public-url in the plugin config. Use the code instead: §e§l" + OtpService.display(code));
                     return true;
                 }
                 long seconds = plugin.otpTimeoutSeconds() < 0 ? 300 : Math.min(300, plugin.otpTimeoutSeconds());
                 player.getInventory().addItem(QrMap.create(player, link, System.currentTimeMillis() + seconds * 1000));
-                sender.sendMessage("§aHere is your QR map. Scan it with the MCDashboard app; it self-destructs in "
+                commands.success(who, "Here is your QR map. Scan it with the MCDashboard app; it self-destructs in "
                         + Math.max(1, seconds / 60) + " min or as soon as you drop or store it.");
             }
             case "devices" -> {
                 List<DeviceStore.Device> list = plugin.devices().devicesOf(player.getUniqueId().toString());
-                if (list.isEmpty()) sender.sendMessage("No devices linked. Use /" + label + " qr to link one.");
-                else sender.sendMessage("§6Devices with access to your data §7(" + list.size() + "):");
+                if (list.isEmpty()) commands.info(who, "No devices linked. Use §f/" + label + " qr§7 to link one.");
+                else commands.info(who, "§6Devices with access to your data §7(" + list.size() + "):");
                 for (DeviceStore.Device d : list) {
                     String seen = plugin.devices().lastSeen(d.id()).map(t -> "last seen " + DashboardCommands.ago(t)).orElse("not seen since the server started");
-                    TextComponent line = new TextComponent("§e" + d.label() + " §7- " + (d.client() == null ? "unknown app" : d.client())
+                    TextComponent line = new TextComponent(" §8» §e" + d.label() + " §7- " + (d.client() == null ? "unknown app" : d.client())
                             + ", linked " + DashboardCommands.ago(d.createdMs()) + ", " + seen + "  ");
                     TextComponent revoke = new TextComponent("[Revoke]");
                     revoke.setColor(ChatColor.RED);
@@ -146,13 +156,9 @@ public final class MCDashboardCommand implements CommandExecutor, TabCompleter {
                 }
             }
             case "revoke" -> {
-                if (args.length < 2) {
-                    sender.sendMessage("Usage: /" + label + " revoke <device id>");
-                    return true;
-                }
                 commands.revoke(who, label, args, player.getUniqueId().toString());
             }
-            default -> sender.sendMessage(DashboardCommands.usage(label));
+            default -> commands.usageOverview(who, label, DashboardCommands.SUBCOMMANDS);
         }
         return true;
     }

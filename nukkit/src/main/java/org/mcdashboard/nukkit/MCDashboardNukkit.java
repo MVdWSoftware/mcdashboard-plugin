@@ -53,23 +53,23 @@ public final class MCDashboardNukkit extends PluginBase {
         };
         String sub = args.length == 0 ? "about" : args[0].toLowerCase(Locale.ROOT);
         switch (sub) {
-            case "about" -> commands.about(who);
+            case "about" -> commands.about(who, label);
             case "developer" -> commands.developer(who, label, args);
             case "tunnel" -> commands.tunnel(who);
             case "link", "qr" -> link(sender, who, label, args);
             case "devices" -> {
                 if (commands.running(who)) {
-                    if (who.playerUuid() == null) sender.sendMessage("This command can only be used by a player.");
+                    if (who.playerUuid() == null) commands.playersOnly(who);
                     else commands.devices(who, label, who.playerUuid());
                 }
             }
             case "revoke" -> {
                 if (commands.running(who)) {
-                    if (who.playerUuid() == null) sender.sendMessage("This command can only be used by a player.");
+                    if (who.playerUuid() == null) commands.playersOnly(who);
                     else commands.revoke(who, label, args, who.playerUuid());
                 }
             }
-            default -> sender.sendMessage(DashboardCommands.usage(label));
+            default -> commands.usageOverview(who, label, DashboardCommands.SUBCOMMANDS);
         }
         return true;
     }
@@ -81,14 +81,14 @@ public final class MCDashboardNukkit extends PluginBase {
         if (args.length > 1 && sender.hasPermission(DashboardCommands.ADMIN_PERMISSION)) {
             target = getServer().getPlayerExact(args[1]);
             if (target == null) {
-                sender.sendMessage("Player " + args[1] + " is not online.");
+                commands.notOnline(who, args[1]);
                 return;
             }
         } else if (sender instanceof Player p) {
             target = p;
         }
         if (target == null) {
-            sender.sendMessage("Usage: /" + label + " link <player>");
+            commands.usage(who, label, "link <player>");
             return;
         }
         commands.link(who, target.getUniqueId().toString(), target.getName());

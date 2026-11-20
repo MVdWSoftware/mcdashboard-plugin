@@ -66,7 +66,7 @@ items:
 - `icon` packs bundled in the app: `fa6-solid`, `fa6-regular`, `fa6-brands`, `game-icons`, `pixelarticons`, `ion`,
   `mdi`. Browse names at https://icon-sets.iconify.design/. An unknown icon is simply not drawn.
 - `options.style` for `progress`: `bar` (default), `segments`, `battery`, `bullet`, `hearts`, `hunger`, `armor`, `xp`;
-  `count` 1-20.
+  `count` 1-20; `hideValue: true` drops the number (hearts without “14”).
 - `options.color` and `thresholds` colors: `accent`, `green`, `yellow`, `orange`, `red`, `purple`, `cyan`, `muted`.
   There are no hex colours: they follow the player's theme.
 - Number format: `decimals` 0-4, `compact`, `unit`, `prefix`. Layout: `hideTitle`, `align` (`start`/`center`/`end`),
@@ -75,7 +75,7 @@ items:
   `pixelated`, `smooth`); `padding` (`none`, `s`, `m`); `markerIcon` (`pack:name`) on `gauge`, `ring` and `progress`;
   `speed` (`slow`, `normal`, `fast`) for `ticker`.
 - `options.background`: per-tile `{ color, gradient, url (https), dim 0-0.9, blur 0-20, fit cover|contain|tile }`.
-- Extra widgets: `sky` (world time ticks or `HH:mm`, optional weather, `style` overworld/nether/end), `ticker`, `countdown`
+- Extra widgets: `sky` (world time ticks or `HH:mm`, optional weather, optional biome as a third placeholder or the `biome` option (rain, snow or nothing in a storm), `style` overworld/nether/end), `ticker`, `countdown`
   (`style: seconds` for remaining seconds), `heads` (name list or `LIST` with `name`), `leaderboard` (`LIST`; `value`
   column, `count`, `decimals`, `compact`, `unit`, `prefix`). `LIST` placeholders are in the placeholders skill.
 - The plugin drops unknown keys and bad values; a typo never reaches the app as an error.

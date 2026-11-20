@@ -402,6 +402,8 @@ components:
         padding: { type: string, enum: [none, s, m], description: space between the card edge and the content; the widget default when absent }
         smoothing: { type: string, enum: [auto, pixelated, smooth], description: 'image scaling; auto (default) is pixelated when scaled up and smooth when scaled down' }
         markerIcon: { $ref: '#/components/schemas/Icon', description: 'gauge, ring and progress bar: icon drawn at the value position, e.g. a sun on the arc' }
+        hideValue: { type: boolean, description: 'progress: hides the value, so hearts show the health without the number' }
+        biome: { type: string, maxLength: 64, description: 'sky widget: a fixed biome (snowy_plains, desert, ...) deciding what falls in a storm: rain, snow or nothing' }
         speed: { type: string, enum: [slow, normal, fast], description: 'ticker widget: scroll speed; default normal' }
         background: { $ref: '#/components/schemas/TileBackground' }
     TileBackground:

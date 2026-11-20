@@ -68,6 +68,6 @@ public interface Platform {
     /** Runs the task on the main thread now and then every {@code ticks}. */
     void runSyncRepeating(Runnable task, long ticks);
 
-    /** Tells the player in game that a device was linked, with the way to undo it. */
-    void notifyLinked(DeviceStore.Device device);
+    /** Tells the player in game that a device was linked, with the way to undo it; {@code prefix} starts each line (colour codes as §). */
+    void notifyLinked(DeviceStore.Device device, String prefix);
 }

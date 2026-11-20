@@ -76,7 +76,7 @@ class DashboardCommandsGapsTest {
         c.developer(admin, "mcd", new String[]{"developer"});
         assertTrue(admin.said.get(2).contains("on"));
         c.developer(admin, "mcd", new String[]{"developer", "maybe"});
-        assertTrue(admin.said.get(admin.said.size() - 1).startsWith("Usage"));
+        assertTrue(admin.said.get(admin.said.size() - 1).contains("Usage"));
     }
 
     @Test
@@ -106,10 +106,10 @@ class DashboardCommandsGapsTest {
         assertTrue(DashboardCommands.summary(core.devices().devicesOf("u1").subList(0, 1)).startsWith("1 device:"));
         Who player = new Who("u1");
         c.revoke(player, "mcd", new String[]{"revoke", d.id()}, "u1");
-        assertEquals("Device removed.", player.said.get(0));
+        assertTrue(player.said.get(0).endsWith("Device removed."));
         c.revoke(player, "mcd", new String[]{"revoke", "nope"}, "u1");
-        assertEquals("Unknown device.", player.said.get(1));
+        assertTrue(player.said.get(1).endsWith("Unknown device."));
         c.revoke(player, "mcd", new String[]{"revoke"}, "u1");
-        assertTrue(player.said.get(2).startsWith("Usage"));
+        assertTrue(player.said.get(2).contains("Usage"));
     }
 }

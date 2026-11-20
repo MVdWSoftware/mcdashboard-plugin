@@ -146,6 +146,10 @@ developer:
 stats:
   offer-to-app: false
 
+# Chat messages of /mcdashboard. & colour codes work; an empty prefix sends plain messages.
+messages:
+  prefix: "&8[&bMCDashboard&8] &r"
+
 # Public licence id from the MVdW portal; only valid for the address registered there.
 license:
   id: ""

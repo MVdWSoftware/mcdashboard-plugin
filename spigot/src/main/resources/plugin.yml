@@ -14,7 +14,7 @@ softdepend:
 commands:
   mcdashboard:
     description: Link devices to the MCDashboard app
-    aliases: [dashboard]
+    aliases: [mcd, dashboard]
     usage: /<command> <link|qr|devices|revoke|developer|tunnel|about>
 
 permissions:
