@@ -75,6 +75,12 @@
       </plugins>
     </pluginManagement>
     <plugins>
+      <!-- Declared (no executions) so the CLI prefix `sonar:sonar` resolves; the version comes from
+           pluginManagement. Not bound to the lifecycle, so normal builds ignore it. -->
+      <plugin>
+        <groupId>org.sonarsource.scanner.maven</groupId>
+        <artifactId>sonar-maven-plugin</artifactId>
+      </plugin>
       <!-- Coverage of every module: the agent runs with the tests, `report` writes target/site/jacoco and `check`
            fails the build below the limits each module sets (jacoco.minimum.line / jacoco.minimum.branch). -->
       <plugin>
