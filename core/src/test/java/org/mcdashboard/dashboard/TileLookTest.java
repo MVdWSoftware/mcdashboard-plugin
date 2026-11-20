@@ -22,6 +22,7 @@ class TileLookTest {
         in.put("markerIcon", "Fa6-Solid:Sun");
         in.put("hideValue", true);
         in.put("speed", "fast");
+        in.put("card", "default");
         in.put("biome", " snowy_plains ");
         Map<String, Object> out = TileLook.options(in);
         assertEquals("snowy_plains", out.get("biome"));
@@ -34,6 +35,8 @@ class TileLookTest {
         assertEquals("fa6-solid:sun", out.get("markerIcon"));
         assertEquals(true, out.get("hideValue"));
         assertEquals("fast", out.get("speed"));
+        assertEquals("default", out.get("card"));
+        assertEquals("plain", TileLook.options(Map.of("card", "plain")).get("card"));
     }
 
     @Test

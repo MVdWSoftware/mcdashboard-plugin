@@ -42,9 +42,10 @@ items:
 
 ## Widgets
 
-| Free | `text`, `image`, `number`, `progress` |
-| --- | --- |
-| Paid or licensed server | `status`, `gauge` (half circle), `ring`, `stat` (value and trend), `line`, `area`, `stacked`, `heatmap` (day by hour), `bar`, `pie` |
+`text`, `ticker`, `image`, `number`, `countdown`, `stat` (value and trend), `progress`, `list`, `heads`,
+`leaderboard`, `status`, `gauge` (half circle), `ring`, `line`, `area`, `stacked` (several series summed), `heatmap`
+(day by hour), `bar`, `pie`, `sky`. Every widget, style, accent and background is free; the limits are on counts,
+history and player features, not on visualisations.
 
 `stat`, `line`, `area`, `stacked` and `heatmap` need history for the placeholder: `history: <minutes>` in
 `placeholders.yml` or the id in `history.include`. No history means an empty chart, never a broken dashboard.
@@ -75,7 +76,8 @@ items:
   `pixelated`, `smooth`); `padding` (`none`, `s`, `m`); `markerIcon` (`pack:name`) on `gauge`, `ring` and `progress`;
   `speed` (`slow`, `normal`, `fast`) for `ticker`.
 - `options.background`: per-tile `{ color, gradient, url (https), dim 0-0.9, blur 0-20, fit cover|contain|tile }`.
-- Extra widgets: `sky` (world time ticks or `HH:mm`, optional weather, optional biome as a third placeholder or the `biome` option (rain, snow or nothing in a storm), `style` overworld/nether/end), `ticker`, `countdown`
+- Extra widgets: `sky` (world time ticks or `HH:mm`, optional weather, optional biome as a third placeholder or the
+  `biome` option (rain, snow or nothing in a storm), `style` overworld/nether/end), `ticker`, `countdown`
   (`style: seconds` for remaining seconds), `heads` (name list or `LIST` with `name`), `leaderboard` (`LIST`; `value`
   column, `count`, `decimals`, `compact`, `unit`, `prefix`). `LIST` placeholders are in the placeholders skill.
 - The plugin drops unknown keys and bad values; a typo never reaches the app as an error.

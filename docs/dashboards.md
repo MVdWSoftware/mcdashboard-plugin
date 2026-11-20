@@ -28,13 +28,18 @@ items:
   permission only decides what is offered; use placeholder permissions for data that must stay private.
 - **Permissions refresh** on join, on quit and every 5 seconds for online players. An offline player keeps what they had
   when they left, until they join again.
-- **Widgets** are the app's widget ids: `text`, `image`, `number`, `progress` (free), `status`, `gauge` (half circle), `ring`,
-  `stat` (value with its trend), `line`, `area`, `stacked` (several series summed), `heatmap` (day by hour), `bar`, `pie`
-  (full version, or a subscribed server). `stat`, `line`, `area`, `stacked` and `heatmap` need history for the
-  placeholder: `history:` in `placeholders.yml` or `history.include` in `config.yml` ([history.md](history.md)). The grid has 4 columns.
+- **Widgets** are the app's widget ids: `text`, `ticker`, `image`, `number`, `countdown`, `stat` (value with its trend),
+  `progress`, `list`, `heads`, `leaderboard`, `status`, `gauge` (half circle), `ring`, `line`, `area`, `stacked`
+  (several series summed), `heatmap` (day by hour), `bar`, `pie`, `sky`. Every widget, style, accent and background is
+  free; the limits are on counts, history and player features, not on visualisations. `stat`, `line`, `area`, `stacked`
+  and `heatmap` need history for the placeholder: `history:` in `placeholders.yml` or `history.include` in `config.yml`
+  ([history.md](history.md)). The grid has 4 columns.
 - **Maximum from another placeholder.** `max-from: max-players` on `online` makes gauges and rings show players online out
   of the real maximum, even when it changes.
 - Presets are created from the defaults only on the first start; delete a file to remove a preset.
+- The files are read on every request, so an edit to an existing dashboard is there on the next open or pull-to-refresh.
+  A **new or renamed** file needs one restart (or any dashboard upload from the app) before its permission is watched;
+  granting that node to an online player is picked up within five seconds.
 
 The app shows the presets as tabs, plus "My dashboard". Editing a preset first copies it into "My dashboard"; the preset
 itself never changes.
@@ -204,4 +209,4 @@ Host the picture somewhere that serves it over HTTPS. Every player's app fetches
 IP addresses.
 
 The player can override it under Settings > Dashboard background: *Server default* (the default), *None*, *Picture*
-(a photo from their device or an image URL, full version) or any pattern of their own.
+(a photo from their device or an image URL) or any pattern of their own.

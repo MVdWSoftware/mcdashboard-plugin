@@ -19,3 +19,10 @@
   `skills/` in the jar and `DataFolder` writes them to `plugins/MCDashboard/.agents/skills/` on every start (a file whose
   content changed is replaced; extra files are kept). Change a skill together with the `docs/` page it summarises.
 - Docs: no ASCII repo trees; keep README and `docs/` current in the same change.
+- **The marketing site is part of the change.** A new or changed placeholder type, command,
+  permission, config key, dashboard feature, history behaviour, licence limit or network
+  feature must update `docs/` **and** the public site
+  (`../mcdashboard-server/docs/website`): the documentation pages under `src/en/docs/` and
+  `src/nl/docs/` (both languages) and, when the change is visible in the product story, the
+  marketing copy in `src/_data/i18n.json`. Change an `.agents/skills/` entry together with its
+  `docs/` page. The site describes what the plugin can do; stale copy is a bug.

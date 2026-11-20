@@ -80,7 +80,7 @@ public final class TileLook {
         if (Boolean.TRUE.equals(m.get("hideTitle"))) out.put("hideTitle", true);
         oneOf(m.get("align"), Set.of("start", "center", "end"), "align", out);
         oneOf(m.get("size"), Set.of("s", "m", "l"), "size", out);
-        oneOf(m.get("card"), Set.of("accent", "plain"), "card", out);
+        oneOf(m.get("card"), Set.of("default", "accent", "plain"), "card", out);
         if (m.get("target") instanceof Number t && Double.isFinite(t.doubleValue())) out.put("target", t.doubleValue());
         if (Boolean.TRUE.equals(m.get("invertTrend"))) out.put("invertTrend", true);
         if (m.get("count") instanceof Number n) out.put("count", (int) Math.max(1, Math.min(20, Math.round(n.doubleValue()))));
