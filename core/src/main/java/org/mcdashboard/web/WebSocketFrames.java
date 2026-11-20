@@ -13,6 +13,7 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import java.util.Base64;
 
 /** The subset of RFC 6455 the live feed needs: handshake accept key, text/ping/pong/close frames. */
@@ -28,6 +29,21 @@ public final class WebSocketFrames {
     public record Frame(int opcode, byte[] payload) {
         public String text() {
             return new String(payload, StandardCharsets.UTF_8);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            return o instanceof Frame f && opcode == f.opcode && Arrays.equals(payload, f.payload);
+        }
+
+        @Override
+        public int hashCode() {
+            return 31 * Integer.hashCode(opcode) + Arrays.hashCode(payload);
+        }
+
+        @Override
+        public String toString() {
+            return "Frame[opcode=" + opcode + ", payload=" + Arrays.toString(payload) + "]";
         }
     }
 

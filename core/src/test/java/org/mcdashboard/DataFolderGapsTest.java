@@ -109,7 +109,8 @@ class DataFolderGapsTest {
         assertEquals(List.of(), DataFolder.tree(null));
         assertEquals(List.of(), DataFolder.tree(URI.create("http://example.org/x").toURL()));
         assertFalse(DataFolder.tree(DataFolderGapsTest.class.getResource("/testplat")).isEmpty());
-        assertThrows(IOException.class, () -> DataFolder.tree(new URL("file:/tmp/a b/c")));
+        URL spaced = new URL("file:/tmp/a b/c");
+        assertThrows(IOException.class, () -> DataFolder.tree(spaced));
 
         Path jar = dir.resolve("t.jar");
         try (OutputStream out = Files.newOutputStream(jar); JarOutputStream j = new JarOutputStream(out)) {

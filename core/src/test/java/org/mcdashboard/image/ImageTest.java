@@ -33,6 +33,17 @@ class ImageTest {
     final AtomicInteger hits = new AtomicInteger();
     String base;
 
+    @Test
+    void imagesCompareTheirBytesByContent() {
+        Image image = new Image(new byte[]{1, 2}, 5);
+        assertEquals(image, new Image(new byte[]{1, 2}, 5));
+        assertEquals(image.hashCode(), new Image(new byte[]{1, 2}, 5).hashCode());
+        assertNotEquals(image, new Image(new byte[]{1, 3}, 5));
+        assertNotEquals(image, new Image(new byte[]{1, 2}, 6));
+        assertNotEquals(image, "image");
+        assertTrue(image.toString().contains("bytes=[1, 2]"), image.toString());
+    }
+
     @BeforeEach
     void start() throws Exception {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);

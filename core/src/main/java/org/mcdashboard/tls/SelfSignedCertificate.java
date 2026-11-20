@@ -28,6 +28,8 @@ import java.util.List;
 public final class SelfSignedCertificate {
     private static final DateTimeFormatter UTC_TIME = DateTimeFormatter.ofPattern("yyMMddHHmmss'Z'").withZone(ZoneOffset.UTC);
     private static final DateTimeFormatter GENERALIZED = DateTimeFormatter.ofPattern("yyyyMMddHHmmss'Z'").withZone(ZoneOffset.UTC);
+    /** Shared by every certificate; {@link SecureRandom} is thread-safe. */
+    private static final SecureRandom RANDOM = new SecureRandom();
 
     private final KeyPair keys;
     private final X509Certificate certificate;
@@ -53,13 +55,13 @@ public final class SelfSignedCertificate {
      */
     public static SelfSignedCertificate create(String commonName, List<String> names, int validDays) throws GeneralSecurityException {
         KeyPairGenerator gen = KeyPairGenerator.getInstance("EC");
-        gen.initialize(new ECGenParameterSpec("secp256r1"), new SecureRandom());
+        gen.initialize(new ECGenParameterSpec("secp256r1"), RANDOM);
         KeyPair keys = gen.generateKeyPair();
 
         Instant from = Instant.now().minusSeconds(86_400);
         Instant to = from.plusSeconds(86_400L * validDays);
         byte[] serial = new byte[16];
-        new SecureRandom().nextBytes(serial);
+        RANDOM.nextBytes(serial);
         serial[0] &= 0x7f;
         serial[0] |= 0x40; // positive and never shorter than 16 bytes
 

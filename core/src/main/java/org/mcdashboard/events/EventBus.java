@@ -23,7 +23,7 @@ public final class EventBus {
 
     private final String epoch;
     private final Clock clock;
-    private final ArrayDeque<DeviceEvent> history = new ArrayDeque<>();
+    private final ArrayDeque<DeviceEvent> replay = new ArrayDeque<>();
     private final List<Consumer<DeviceEvent>> listeners = new CopyOnWriteArrayList<>();
     private long seq;
 
@@ -40,8 +40,8 @@ public final class EventBus {
 
     public synchronized DeviceEvent publish(String type, String deviceId, String player) {
         DeviceEvent e = new DeviceEvent(epoch, ++seq, type, clock.millis(), deviceId, player);
-        history.addLast(e);
-        if (history.size() > HISTORY) history.removeFirst();
+        replay.addLast(e);
+        if (replay.size() > HISTORY) replay.removeFirst();
         for (Consumer<DeviceEvent> l : listeners) {
             try {
                 l.accept(e);
@@ -66,7 +66,7 @@ public final class EventBus {
         return () -> listeners.remove(onEvent);
     }
 
-    /** Events after the id, or null when the id is from another run or no longer covered by the history. */
+    /** Events after the id, or null when the id is from another run or no longer covered by the replay buffer. */
     private List<DeviceEvent> missedSince(String lastEventId) {
         int c = lastEventId.indexOf(':');
         if (c <= 0 || !lastEventId.substring(0, c).equals(epoch)) return null;
@@ -76,10 +76,10 @@ public final class EventBus {
         } catch (NumberFormatException e) {
             return null;
         }
-        long oldest = history.isEmpty() ? seq + 1 : history.peekFirst().seq();
+        long oldest = replay.isEmpty() ? seq + 1 : replay.peekFirst().seq();
         if (last > seq || last + 1 < oldest) return null;
         List<DeviceEvent> out = new ArrayList<>();
-        for (DeviceEvent e : history) if (e.seq() > last) out.add(e);
+        for (DeviceEvent e : replay) if (e.seq() > last) out.add(e);
         return out;
     }
 }

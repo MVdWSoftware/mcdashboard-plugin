@@ -41,16 +41,16 @@ final class SensorRegistrar {
         }
         c.setAutoCommit(false);
         try {
-            if (count(c, "SELECT COUNT(*) FROM " + SosaSchema.VERSION_TABLE) == 0) {
-                try (PreparedStatement p = c.prepareStatement("INSERT INTO " + SosaSchema.VERSION_TABLE + " (version, applied_at) VALUES (?, ?)")) {
+            if (count(c, SosaSchema.Statement.COUNT_SCHEMA_VERSION) == 0) {
+                try (PreparedStatement p = c.prepareStatement(SosaSchema.Statement.INSERT_SCHEMA_VERSION.text())) {
                     p.setInt(1, SosaSchema.VERSION);
                     p.setLong(2, nowMs);
                     p.executeUpdate();
                 }
             }
             String server = baseUri.replaceAll("[:/#]$", "");
-            long platform = ensure(c, SosaSchema.PLATFORM, server, platformLabel, Map.of());
-            long feature = ensure(c, SosaSchema.FEATURE, server, platformLabel, Map.of());
+            long platform = ensure(c, SosaSchema.TableRef.PLATFORM, server, platformLabel, Map.of());
+            long feature = ensure(c, SosaSchema.TableRef.FEATURE, server, platformLabel, Map.of());
             Map<String, Long> ids = new HashMap<>();
             for (HistoryStore.Series s : series) ids.put(s.id(), sensor(c, s, platform, feature));
             c.commit();
@@ -62,34 +62,33 @@ final class SensorRegistrar {
     }
 
     private long sensor(Connection c, HistoryStore.Series s, long platform, long feature) throws SQLException {
-        long property = ensure(c, SosaSchema.PROPERTY, baseUri + "property:" + s.id(), s.label(), Map.of("feature_of_interest_id", feature));
-        update(c, "UPDATE " + SosaSchema.PROPERTY + " SET unit = ?, feature_of_interest_id = ? WHERE id = ?", s.unit(), feature, property);
-        long procedure = ensure(c, SosaSchema.PROCEDURE, baseUri + "procedure:" + s.id(), s.label(), Map.of());
-        update(c, "UPDATE " + SosaSchema.PROCEDURE + " SET sampling_interval_s = ? WHERE id = ?", (int) (s.intervalMs() / 1000), procedure);
-        long system = ensure(c, SosaSchema.SYSTEM, baseUri + "sensor:" + s.id(), s.label(), Map.of());
-        try (PreparedStatement p = c.prepareStatement(dialect.insertIfAbsent(SosaSchema.SENSOR,
-                List.of("system_id", "platform_id", "observed_property_id", "procedure_id")))) {
+        long property = ensure(c, SosaSchema.TableRef.PROPERTY, baseUri + "property:" + s.id(), s.label(), Map.of("feature_of_interest_id", feature));
+        update(c, SosaSchema.Statement.UPDATE_PROPERTY, s.unit(), feature, property);
+        long procedure = ensure(c, SosaSchema.TableRef.PROCEDURE, baseUri + "procedure:" + s.id(), s.label(), Map.of());
+        update(c, SosaSchema.Statement.UPDATE_PROCEDURE, (int) (s.intervalMs() / 1000), procedure);
+        long system = ensure(c, SosaSchema.TableRef.SYSTEM, baseUri + "sensor:" + s.id(), s.label(), Map.of());
+        try (PreparedStatement p = c.prepareStatement(SosaSchema.TableRef.SENSOR.insertIfAbsent(dialect,
+                List.of("system_id", "platform_id", "observed_property_id", "procedure_id")).text())) {
             p.setLong(1, system);
             p.setLong(2, platform);
             p.setLong(3, property);
             p.setLong(4, procedure);
             p.executeUpdate();
         }
-        update(c, "UPDATE " + SosaSchema.SENSOR + " SET platform_id = ?, observed_property_id = ?, procedure_id = ? WHERE system_id = ?",
-                platform, property, procedure, system);
+        update(c, SosaSchema.Statement.UPDATE_SENSOR, platform, property, procedure, system);
         return system;
     }
 
     /** The id of the row with this URI, created (with the extra columns) when missing; the label follows the configuration. */
-    private long ensure(Connection c, String table, String uri, String label, Map<String, Object> extra) throws SQLException {
+    private long ensure(Connection c, SosaSchema.TableRef table, String uri, String label, Map<String, Object> extra) throws SQLException {
         Long id = find(c, table, uri);
         if (id != null) {
-            update(c, "UPDATE " + table + " SET label = ? WHERE id = ?", label, id);
+            update(c, table.updateLabelById(), label, id);
             return id;
         }
         List<String> columns = new ArrayList<>(List.of("uri", "label"));
         columns.addAll(extra.keySet());
-        try (PreparedStatement p = c.prepareStatement(dialect.insertIfAbsent(table, columns))) {
+        try (PreparedStatement p = c.prepareStatement(table.insertIfAbsent(dialect, columns).text())) {
             p.setString(1, uri);
             p.setString(2, label);
             int i = 3;
@@ -101,8 +100,8 @@ final class SensorRegistrar {
         return id;
     }
 
-    private static Long find(Connection c, String table, String uri) throws SQLException {
-        try (PreparedStatement p = c.prepareStatement("SELECT id FROM " + table + " WHERE uri = ?")) {
+    private static Long find(Connection c, SosaSchema.TableRef table, String uri) throws SQLException {
+        try (PreparedStatement p = c.prepareStatement(table.selectIdByUri().text())) {
             p.setString(1, uri);
             try (ResultSet r = p.executeQuery()) {
                 return r.next() ? r.getLong(1) : null;
@@ -110,8 +109,8 @@ final class SensorRegistrar {
         }
     }
 
-    private static void update(Connection c, String sql, Object... args) throws SQLException {
-        try (PreparedStatement p = c.prepareStatement(sql)) {
+    private static void update(Connection c, SosaSchema.Query query, Object... args) throws SQLException {
+        try (PreparedStatement p = c.prepareStatement(query.text())) {
             for (int i = 0; i < args.length; i++) {
                 if (args[i] == null) p.setNull(i + 1, Types.VARCHAR);
                 else p.setObject(i + 1, args[i]);
@@ -120,8 +119,8 @@ final class SensorRegistrar {
         }
     }
 
-    private static long count(Connection c, String sql) throws SQLException {
-        try (Statement s = c.createStatement(); ResultSet r = s.executeQuery(sql)) {
+    private static long count(Connection c, SosaSchema.Query query) throws SQLException {
+        try (Statement s = c.createStatement(); ResultSet r = s.executeQuery(query.text())) {
             r.next();
             return r.getLong(1);
         }

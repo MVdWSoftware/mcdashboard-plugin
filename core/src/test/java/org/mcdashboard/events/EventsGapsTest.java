@@ -153,10 +153,10 @@ class EventsGapsTest {
     @Test
     void stoppingInterruptsAHangingDelivery() throws Exception {
         java.net.ServerSocket hang = new java.net.ServerSocket(0);
+        List<String> warnings = Collections.synchronizedList(new ArrayList<>());
         try {
             WebhookDispatcher d = new WebhookDispatcher(List.of(new WebhookDispatcher.Hook(URI.create("http://127.0.0.1:" + hang.getLocalPort() + "/h"), "0123456789abcdef")),
-                    Clock.systemUTC(), "1", m -> {
-            }, new long[]{});
+                    Clock.systemUTC(), "1", warnings::add, new long[]{});
             EventBus bus = new EventBus(Clock.systemUTC());
             d.start(bus);
             bus.publish("device.revoked", "x", "p");
@@ -164,6 +164,7 @@ class EventsGapsTest {
             Thread.sleep(200);
             d.stop();
             Thread.sleep(200);
+            assertTrue(warnings.isEmpty(), "an interrupted delivery is abandoned, not retried or reported: " + warnings);
         } finally {
             hang.close();
         }

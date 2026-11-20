@@ -5,6 +5,7 @@
 package org.mcdashboard.history;
 
 import org.mcdashboard.placeholder.PlaceholderDefinition;
+import org.mcdashboard.util.Text;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -62,7 +63,8 @@ public record HistorySettings(Storage storage, long intervalMs, int retentionDay
             type = "memory";
         }
         int port = dialect == SqlDialect.POSTGRESQL ? 5432 : 3306;
-        String slug = str(st.get("server-id"), serverId).toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_.-]+", "-").replaceAll("^-+|-+$", "");
+        String slug = str(st.get("server-id"), serverId).toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_.-]+", "-");
+        slug = Text.trim(slug, '-');
         String base = str(st.get("base-uri"), "").trim();
         Storage storage = new Storage(type, dialect, str(st.get("file"), "history.db"), str(st.get("host"), "localhost"),
                 num(st.get("port"), port, 1, 65535, "history.storage.port", warn), str(st.get("database"), "mcdashboard"),
