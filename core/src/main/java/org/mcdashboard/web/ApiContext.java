@@ -15,6 +15,10 @@ import org.mcdashboard.dashboard.Languages;
 import org.mcdashboard.placeholder.HistoryService;
 import org.mcdashboard.placeholder.PlaceholderService;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
@@ -67,6 +71,20 @@ public record ApiContext(String serverName, String pluginVersion, Supplier<Serve
                 stats, maxDashboards, maxTiles, false, null);
     }
 
+
+    /**
+     * The public fingerprint of {@code license.id}: SHA-256 in hex. This is what {@code /v1/info} publishes, so a client
+     * that scrapes it never learns the id that the heartbeat (and future owner actions) use. Null without a licence.
+     * @return The hex digest, or null.
+     */
+    public String licenseHash() {
+        if (licenseId == null || licenseId.isBlank()) return null;
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(licenseId.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException e) {
+            return null; // SHA-256 is mandatory on every JVM; fail closed rather than publish the id.
+        }
+    }
 
     /** Counts a refused attempt in the {@code rate_limited} statistic; a no-op without stats (tests). */
     public void rateLimited() {

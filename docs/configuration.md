@@ -101,20 +101,33 @@ A negative or invalid value counts as `0` and logs a warning.
 
 ## `license`
 
-`id` is the licence id from the MVdW portal (https://mvdw-software.com), where the owner registers this server's
-address. Apps ask the portal whether the id is valid for the address they connected to; if so, players get every
-widget on this server and it does not count toward their free server limit. The id is public
-and only works for the registered address.
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `id` | empty | The licence id from the MVdW portal (https://mvdw-software.com), where the owner registers this server's address. The plugin publishes only its SHA-256 (`licenseHash`) in `/v1/info`; apps ask the portal whether that hash is valid for the address they connected to. If so, players get every widget on this server and it does not count toward their free server limit. The hash only works for the registered address; the id itself stays in this config and in the outbound heartbeat. |
+| `api-url` | `https://portal.mcdashboard.org/api` | The portal API for the heartbeat. Empty turns it off. |
+| `host` | empty | The address players connect to. Empty: derived from `server.public-url`, then the first `server.endpoints` entry. |
+| `heartbeat-minutes` | `60` | How often the plugin reports the licence and this address; `0` turns it off. |
+
+Once in a while the plugin sends `POST /v1/licenses/{id}/heartbeat` with this address and its version. The portal answers
+whether the licence exists, is banned, has a running subscription and covers this address, and records the report for the
+platform administrator's licence overview. **This is UI/UX and a help against putting a licence id on the wrong server,
+not copy protection:** the plugin is open source, so a modified copy can skip it. The signed, host-bound token that the
+app verifies is the enforcement; the heartbeat cannot grant anything.
+
+The heartbeat uses `license.id`, not the public hash, so scraping `/v1/info` does not give anyone the value needed to run it
+or to configure another server with this licence. Future owner actions (for example adding a LAN IP) must use a server
+secret, never the public hash.
 
 Devices tell the plugin which licence they use (the server's licence, the App unlock or none), which `/mcdashboard devices` and the
 `%mcdashboard_devices_server|app|free%` placeholders show ([security.md](security.md#device-entitlement)). That is informational: whether
 the id verifies is decided by the app and the portal, never by the plugin, and `license.id` alone sets `licensed`.
 
-Planned, not implemented: an in-game reminder when the server's trial is about to end. The plugin does not contact the portal, so it
-cannot know the trial. The licence token the portal issues carries only the server, the host and the plan (and expires after three
-days whatever the trial), so the app cannot learn the trial end from it either. A reminder needs a deliberate contract change first
-(for example a `trialEndsAt` claim in the token or a field in the check response, which the app would report with the entitlement
-header), designed together with the portal; until then the portal's own trial emails are the reminder.
+Planned, not implemented: an in-game reminder when the server's trial is about to end. The heartbeat tells the plugin only
+whether the licence is active, licensed and registered, not when the trial ends. The licence token the portal issues carries
+only the server, the host and the plan (and expires after three days whatever the trial), so the app cannot learn the trial
+end from it either. A reminder needs a deliberate contract change first (for example a `trialEndsAt` claim in the token, a
+field in the heartbeat answer, or a field in the check response that the app reports with the entitlement header), designed
+together with the portal; until then the portal's own trial emails are the reminder.
 
 ## `stats`
 

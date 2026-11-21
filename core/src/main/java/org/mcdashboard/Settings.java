@@ -31,7 +31,8 @@ record Settings(boolean enabled, String name, String defaultLanguage, String pub
                 boolean developerMode, String licenseId, org.mcdashboard.tls.TlsSupport.Settings tls,
                 boolean verifyClients, boolean verifyDeviceOnly, List<String> verifyKinds, List<String> verifyHosts,
                 List<Map<String, Object>> verifyKeys, boolean backgroundEnabled, int backgroundRequestsPerMinute, boolean offerStatsToApp,
-                int maxDashboards, int maxTiles, String chatPrefix) {
+                int maxDashboards, int maxTiles, String chatPrefix,
+                String licenseApiUrl, String licenseHost, int licenseHeartbeatMinutes) {
 
     static final String DEFAULT_CHAT_PREFIX = "&8[&bMCDashboard&8] &r";
 
@@ -100,7 +101,10 @@ record Settings(boolean enabled, String name, String defaultLanguage, String pub
                 Math.max(1, cfg.getInt("security.background.requests-per-minute", 30)),
                 cfg.getBoolean("stats.offer-to-app", false),
                 cap(cfg, "limits.max-dashboards", warn), cap(cfg, "limits.max-tiles", warn),
-                cfg.getString("messages.prefix", DEFAULT_CHAT_PREFIX));
+                cfg.getString("messages.prefix", DEFAULT_CHAT_PREFIX),
+                blankToNull(cfg.getString("license.api-url", "https://portal.mcdashboard.org/api")),
+                blankToNull(cfg.getString("license.host", "")),
+                Math.max(0, cfg.getInt("license.heartbeat-minutes", 60)));
     }
 
     /** {@code limits.max-*}: a whole number of at least 1 caps, 0 (or absent) means no cap; negatives and garbage become 0. */

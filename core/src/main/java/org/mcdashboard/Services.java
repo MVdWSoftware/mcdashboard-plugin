@@ -69,6 +69,7 @@ final class Services {
     private EventStream eventStream;
     private WebhookDispatcher webhooks;
     private HistoryService history;
+    private LicenseHeartbeat licenseHeartbeat;
     private ScheduledExecutorService sampler;
     private final PluginStats stats;
     private volatile int dashboardCount;
@@ -148,6 +149,12 @@ final class Services {
             EventBus bus = startEvents();
             http.start(settings.host(), settings.port(), tls == null ? null : tls.context());
             log.info("REST API listening on port " + http.port() + (tls == null ? " (plain HTTP)" : " (HTTPS)"));
+            // UI/UX only: tell the portal which licence and address this server uses. The app's signed, host-bound
+            // check is the enforcement; this heartbeat is open-source code and can be removed by a fork.
+            licenseHeartbeat = new LicenseHeartbeat(settings.licenseId(), settings.licenseApiUrl(),
+                    LicenseHeartbeat.hostFor(settings.licenseHost(), settings.publicUrl(), settings.endpoints()),
+                    settings.licenseHeartbeatMinutes(), platform.pluginVersion(), log);
+            licenseHeartbeat.start();
             if (settings.websocketPort() > 0) {
                 live = new LiveServer(ctx, settings.maxLiveConnections(), clients);
                 stats.liveClients(this::liveConnections);
@@ -276,6 +283,7 @@ final class Services {
         if (eventStream != null) eventStream.close();
         if (http != null) http.stop();
         if (live != null) live.stop();
+        if (licenseHeartbeat != null) licenseHeartbeat.close();
         if (sampler != null) sampler.shutdownNow();
         if (history != null) history.close();
     }

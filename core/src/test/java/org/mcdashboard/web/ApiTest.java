@@ -384,8 +384,8 @@ class ApiTest {
     }
 
     @Test
-    void infoPublishesTheLicenseIdOnlyWhenConfigured() throws Exception {
-        assertFalse(get("/v1/info").body().contains("licenseId"));
+    void infoPublishesTheLicenseHashOnlyWhenConfigured() throws Exception {
+        assertFalse(get("/v1/info").body().contains("licenseHash"));
         api.stop();
         Clock clock = Clock.systemUTC();
         var defs = PlaceholderDefinition.parseAll(List.of(Map.of("id", "tps", "value", "%server_tps%")), m -> fail(m));
@@ -396,7 +396,9 @@ class ApiTest {
         api = new HttpApi(ctx);
         api.start("127.0.0.1", 0, null);
         base = "http://127.0.0.1:" + api.port();
-        assertEquals("mcl_abc", ((Map<?, ?>) Json.parse(get("/v1/info").body())).get("licenseId"));
+        Map<?, ?> info = (Map<?, ?>) Json.parse(get("/v1/info").body());
+        assertEquals("68ba8d5957b8e1d77001e549e69b669e2988aee413e2dd2d9c036413f1de0f7b", info.get("licenseHash"));
+        assertFalse(info.containsKey("licenseId"));
     }
 
     @Test

@@ -158,3 +158,13 @@ messages:
 # Public licence id from the MVdW portal; only valid for the address registered there.
 license:
   id: ""
+  # The portal API the plugin reports to. Once in a while the plugin tells the portal which licence it uses and which
+  # address it runs on, so the portal can show "this server uses this licence" and warn when it is placed on an address
+  # that is not registered. This is UI/UX (and a help against putting the id on the wrong server), not a lock: the
+  # plugin is open source, so a modified copy can skip it. The signed, host-bound licence check in the app is the
+  # enforcement. Empty turns the heartbeat off.
+  api-url: "https://portal.mcdashboard.org/api"
+  # The address players connect to. Empty: derived from server.public-url, then the first server.endpoints entry.
+  host: ""
+  # Minutes between reports; 0 turns them off.
+  heartbeat-minutes: 60

@@ -348,7 +348,7 @@ public final class HttpApi implements HttpHandler {
         if (st.icon() != null) o.put("icon", st.icon());
         if (tls && ctx.websocketPort() > 0 && !ctx.discoveryOnly()) o.put("websocketTls", true);
         if (tlsFingerprint != null) o.put("tlsFingerprint", tlsFingerprint);
-        if (ctx.licenseId() != null) o.put("licenseId", ctx.licenseId());
+        if (ctx.licenseHash() != null) o.put("licenseHash", ctx.licenseHash());
         if (clients.minVersion() != null) o.put("minClientVersion", clients.minVersion());
         if (ctx.maxDashboards() > 0 || ctx.maxTiles() > 0) {
             Map<String, Object> limits = new LinkedHashMap<>();
