@@ -8,9 +8,18 @@ import java.util.Map;
 
 /** Reads and writes YAML as plain maps and lists; every server platform ships a YAML library, so the core brings none. */
 public interface YamlCodec {
-    /** The document as nested maps and lists (never sections or other library types), empty for an empty document. */
+    /** Parses a YAML document string into nested maps and lists.
+     *
+     * @param yaml The YAML text to parse.
+     * @return A {@code Map<String, Object>} tree representing the document.
+     * @throws IllegalArgumentException When the input is not valid YAML.
+     */
     Map<String, Object> parse(String yaml) throws IllegalArgumentException;
 
-    /** The map as a block style YAML document. */
+    /** Serializes a parsed configuration map back to a YAML block.
+     *
+     * @param map The configuration tree to serialize.
+     * @return A UTF-8 YAML document string using block style.
+     */
     String dump(Map<String, Object> map);
 }

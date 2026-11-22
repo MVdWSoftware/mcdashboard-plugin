@@ -19,29 +19,65 @@ import java.util.List;
 public final class DashboardCommands {
     /** The sub-commands, for tab completion and the usage line. */
     public static final List<String> SUBCOMMANDS = List.of("link", "qr", "devices", "revoke", "developer", "tunnel", "about");
+    /** The permission node that gates the admin sub-commands. */
     public static final String ADMIN_PERMISSION = "mcdashboard.admin";
 
     /** Whoever ran the command: a player or the console. */
     public interface Sender {
+        /** Sends a chat message to this sender.
+         *
+         * @param message The text to send.
+         */
         void send(String message);
 
+        /** Whether this sender holds the given permission node.
+         *
+         * @param node The permission node to test.
+         * @return True when the sender holds it.
+         */
         boolean hasPermission(String node);
 
-        /** The player's UUID, or null for the console. */
+        /** The player's UUID, or null for the console.
+         *
+         * @return The player's UUID as a string, or null for the console.
+         */
         String playerUuid();
 
-        /** Links and commands to offer; a platform with clickable text overrides this, the rest get plain lines. */
+        /** Links and commands to offer; a platform with clickable text overrides this, the rest get plain lines.
+         *
+         * @param actions The links or commands to present to the sender.
+         */
         default void sendActions(List<Action> actions) {
             for (Action a : actions) send(" §8» §7" + a.label() + ": §f" + (a.url() != null ? a.url() : a.command()));
         }
     }
 
-    /** Something to open or run: a link ({@code url}) or a command, with a hover text on platforms that have one. */
+    /** Something to open or run: a link ({@code url}) or a command, with a hover text on platforms that have one.
+     *
+     * @param label The text shown for the action.
+     * @param url The link to open, or null.
+     * @param command The command to run, or null.
+     * @param hover The hover text, or null.
+     */
     public record Action(String label, String url, String command, String hover) {
+        /** Factory for an external link.
+         *
+         * @param label The text shown for the action.
+         * @param url The link to open.
+         * @param hover The hover text, or null.
+         * @return The link action.
+         */
         public static Action link(String label, String url, String hover) {
             return new Action(label, url, null, hover);
         }
 
+        /** Factory for a chat command.
+         *
+         * @param label The text shown for the action.
+         * @param command The command to run.
+         * @param hover The hover text, or null.
+         * @return The command action.
+         */
         public static Action command(String label, String command, String hover) {
             return new Action(label, null, command, hover);
         }
@@ -49,54 +85,105 @@ public final class DashboardCommands {
 
     private final MCDashboardCore core;
 
+    /** Creates a command handler for the given core instance.
+     *
+     * @param core The core whose services the commands use.
+     */
     public DashboardCommands(MCDashboardCore core) {
         this.core = core;
     }
 
+    /** Returns the usage string for {@code /mcdashboard}.
+     *
+     * @param label The command label as typed by the player.
+     * @return A usage hint like {@code Usage: /mcdashboard <link|qr|...>}.
+     */
     public static String usage(String label) {
         return "Usage: /" + label + " <" + String.join("|", SUBCOMMANDS) + ">";
     }
 
-    // ---- one chat style for every message: [MCDashboard] prefix, grey text, green good news, red problems ----
-
-    /** A normal message: prefix, grey text. */
+    /**
+     * Sends an informational message in grey.
+     *
+     * @param sender The player or console receiving the message.
+     * @param message The text to display.
+     */
     public void info(Sender sender, String message) {
         sender.send(core.chatPrefix() + "§7" + message);
     }
 
-    /** Good news: prefix, green text. */
+    /**
+     * Sends good news in green.
+     *
+     * @param sender The player or console receiving the message.
+     * @param message The text to display.
+     */
     public void success(Sender sender, String message) {
         sender.send(core.chatPrefix() + "§a" + message);
     }
 
-    /** A problem: prefix, red text. */
+    /**
+     * Reports a problem in red.
+     *
+     * @param sender The player or console receiving the message.
+     * @param message The text to display.
+     */
     public void error(Sender sender, String message) {
         sender.send(core.chatPrefix() + "§c" + message);
     }
 
-    /** A follow-up line of a message, indented under it with no prefix. */
+    /**
+     * Appends an indented follow-up line without prefix.
+     *
+     * @param sender The player or console receiving the message.
+     * @param message The text to indent.
+     */
     public void detail(Sender sender, String message) {
         sender.send(" §8» §7" + message);
     }
 
-    /** Tells the sender they may not do this, and which permission would let them. */
+    /** Tells the sender they may not do this, and which permission would let them.
+     *
+     * @param sender The player or console being refused.
+     * @param node The permission node that would allow it.
+     */
     public void denied(Sender sender, String node) {
         error(sender, "You don't have permission to do that. §7(needs §f" + node + "§7)");
     }
 
-    /** {@code Usage: /mcd revoke <device id>}. */
+    /** Shows the usage line for a sub-command, e.g. {@code Usage: /mcd revoke <device id>}.
+     *
+     * @param sender The player or console to tell.
+     * @param label The command label used in the usage line.
+     * @param arguments The sub-command arguments to show.
+     */
     public void usage(Sender sender, String label, String arguments) {
         error(sender, "Usage: §f/" + label + " " + arguments);
     }
 
+    /** Shows an unknown-command error with available sub-commands listed.
+     *
+     * @param sender The player or console to tell.
+     * @param label The command label used in the hint.
+     * @param subcommands The sub-commands to list.
+     */
     public void usageOverview(Sender sender, String label, List<String> subcommands) {
         error(sender, "Unknown command. Try §f/" + label + " <" + String.join("|", subcommands) + ">§c, or §f/" + label + " about§c.");
     }
 
+    /** Tells a sender they must be a player to use this command.
+     *
+     * @param sender The console or other non-player sender.
+     */
     public void playersOnly(Sender sender) {
         error(sender, "This command can only be used by a player.");
     }
 
+    /** Tells a sender that a named player is not online.
+     *
+     * @param sender The player or console to tell.
+     * @param name The player name that is not online.
+     */
     public void notOnline(Sender sender, String name) {
         error(sender, "Player §f" + name + "§c is not online.");
     }
@@ -109,7 +196,12 @@ public final class DashboardCommands {
             Action.link("Android (Google Play)", ANDROID_URL, "Open the Google Play page of the MCDashboard app"),
             Action.link("iPhone & iPad (App Store)", IOS_URL, "Open the App Store page of the MCDashboard app"));
 
-    /** What MCDashboard is, how to get the app and how to link it; the first thing a player sees. */
+    /**
+     * What MCDashboard is, how to get the app and how to link it; the first thing a player sees.
+     *
+     * @param sender The player receiving the about information.
+     * @param label The command label used in sub-command references.
+     */
     public void about(Sender sender, String label) {
         sender.send("§8§m      §r §b§lMCDashboard §7v" + core.pluginVersion() + " §8§m      ");
         sender.send("§7Your server in your pocket: live stats, dashboards and alerts in the MCDashboard app.");
@@ -127,6 +219,12 @@ public final class DashboardCommands {
         }
     }
 
+    /** Toggles developer mode on or off for admins.
+     *
+     * @param sender The admin running the command.
+     * @param label The command label used in usage hints.
+     * @param args The sub-command arguments.
+     */
     public void developer(Sender sender, String label, String[] args) {
         if (!sender.hasPermission(ADMIN_PERMISSION)) {
             denied(sender, ADMIN_PERMISSION);
@@ -146,6 +244,10 @@ public final class DashboardCommands {
         success(sender, "Developer mode is now " + value + ". Players with mcdashboard.developer can upload a dashboard.");
     }
 
+    /** Reports the current tunnel status to an admin.
+     *
+     * @param sender The admin running the command.
+     */
     public void tunnel(Sender sender) {
         if (!sender.hasPermission(ADMIN_PERMISSION)) {
             denied(sender, ADMIN_PERMISSION);
@@ -166,14 +268,24 @@ public final class DashboardCommands {
         }
     }
 
-    /** False, after telling the sender, while the web server is off or failed to start. */
+    /** Whether MCDashboard is running and ready to accept commands.
+     *
+     * @param sender The sender to notify when the server is not running.
+     * @return True if the web server is active and OTPs are available.
+     */
     public boolean running(Sender sender) {
         if (core.otps() != null) return true;
         error(sender, "MCDashboard is not running. Ask an admin to enable it in config.yml.");
         return false;
     }
 
-    /** Creates a pairing code for the player and tells the sender; returns the code. */
+    /** Creates a pairing code for the player and tells the sender; returns the code.
+     *
+     * @param sender The player receiving the code message.
+     * @param targetUuid UUID of the player to pair.
+     * @param targetName Display name of the player to pair.
+     * @return The generated pairing code.
+     */
     public String link(Sender sender, String targetUuid, String targetName) {
         String code = core.otps().create(targetUuid, targetName);
         boolean self = targetUuid.equals(sender.playerUuid());
@@ -184,12 +296,20 @@ public final class DashboardCommands {
         return code;
     }
 
-    /** Tells a player how long a code works. */
+    /** Tells a player how long a code works.
+     *
+     * @param sender The player being told.
+     */
     public void expiryNote(Sender sender) {
         detail(sender, "The code works once and expires in " + core.otpTimeoutSeconds() / 60 + " min. No app yet? §f/mcd about");
     }
 
-    /** Lists the player's devices as plain text, each with the command that removes it. */
+    /** Lists the player's devices as plain text, each with the command that removes it.
+     *
+     * @param sender The player receiving the device list.
+     * @param label The command label used in sub-command references.
+     * @param playerUuid UUID of the player whose devices to list.
+     */
     public void devices(Sender sender, String label, String playerUuid) {
         List<DeviceStore.Device> list = core.devices().devicesOf(playerUuid);
         if (list.isEmpty()) {
@@ -227,6 +347,13 @@ public final class DashboardCommands {
         };
     }
 
+    /** Revokes a device by id; tells the sender whether it was removed or unknown.
+     *
+     * @param sender The player or console running the command.
+     * @param label The command label used in usage hints.
+     * @param args The sub-command arguments; {@code args[1]} is the device id.
+     * @param playerUuid The UUID of the player whose devices are checked.
+     */
     public void revoke(Sender sender, String label, String[] args, String playerUuid) {
         if (args.length < 2) {
             usage(sender, label, "revoke <device id>");
@@ -237,7 +364,11 @@ public final class DashboardCommands {
         else error(sender, "Unknown device.");
     }
 
-    /** The deep link for a code, or null when the server has no public address configured. */
+    /** The deep link for a code, or null when the server has no public address configured.
+     *
+     * @param code The pairing code to embed in the link.
+     * @return The {@code mcdashboard://connect} URI string, or null.
+     */
     public String connectLink(String code) {
         String publicUrl = core.publicUrl();
         if (publicUrl == null) return null;
@@ -246,7 +377,11 @@ public final class DashboardCommands {
                 + (pin == null ? "" : "&pin=" + pin);
     }
 
-    /** "5 min ago", "2 h ago", "3 days ago". */
+    /** A human-friendly relative time like {@code "5 min ago"} or {@code "just now"}.
+     *
+     * @param ms Epoch milliseconds to convert.
+     * @return A relative-time string from the current moment.
+     */
     public static String ago(long ms) {
         long s = Math.max(0, (System.currentTimeMillis() - ms) / 1000);
         if (s < 90) return "just now";

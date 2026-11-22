@@ -16,6 +16,13 @@ import org.mcdashboard.util.Text;
  * The {@code map:} block of a {@code source: map:<provider>} IMAGE placeholder: which web map to read, where to centre
  * and how large the picture is. {@code x} and {@code z} are a number or a PlaceholderAPI template (expanded when read);
  * {@code url} is the map's web root, fixed (no placeholders) and without a trailing slash.
+ *
+ * @param tiles The provider's tile layout.
+ * @param url The map's web root, without a trailing slash.
+ * @param x The centre block x coordinate, a number or a placeholder template.
+ * @param z The centre block z coordinate, a number or a placeholder template.
+ * @param zoom The zoom level, 0 being the most detailed.
+ * @param size Side length of the square picture in pixels.
  */
 public record MapSpec(TileProvider tiles, String url, String x, String z, int zoom, int size) {
     public static final List<String> PROVIDERS = List.of("dynmap", "squaremap", "pl3xmap", "bluemap");
@@ -29,7 +36,12 @@ public record MapSpec(TileProvider tiles, String url, String x, String z, int zo
     private static final Pattern BASE_URL = Pattern.compile("https?://[^/%\\s?#@\\\\]+(/[^%\\s?#\\\\]*)?", Pattern.CASE_INSENSITIVE);
     private static final Pattern SEGMENT = Pattern.compile("[A-Za-z0-9_.:+-]{1,64}");
 
-    /** The provider id after {@code map:}; throws when it is not one of {@link #PROVIDERS}. */
+    /** The provider id after {@code map:}; throws when it is not one of {@link #PROVIDERS}.
+     *
+     * @param id The provider id as written after {@code map:}.
+     * @return The normalised provider id.
+     * @throws IllegalArgumentException When the id is not a supported provider.
+     */
     public static String provider(String id) {
         String p = id == null ? "" : id.trim().toLowerCase(Locale.ROOT);
         if (!PROVIDERS.contains(p)) {
@@ -38,7 +50,13 @@ public record MapSpec(TileProvider tiles, String url, String x, String z, int zo
         return p;
     }
 
-    /** Parses and validates the block; the message of the {@link IllegalArgumentException} says what is wrong. */
+    /** Parses and validates the block; the message of the {@link IllegalArgumentException} says what is wrong.
+     *
+     * @param providerId The provider id as written after {@code map:}.
+     * @param block The raw parsed {@code map:} block.
+     * @return The validated map specification.
+     * @throws IllegalArgumentException When the block is missing, unknown or invalid.
+     */
     public static MapSpec parse(String providerId, Object block) {
         String provider = provider(providerId);
         if (!(block instanceof Map<?, ?> m)) throw new IllegalArgumentException("map:" + provider + " needs a map: block");
@@ -72,12 +90,18 @@ public record MapSpec(TileProvider tiles, String url, String x, String z, int zo
         return new MapSpec(tiles, url, x, z, zoom, size);
     }
 
-    /** The provider id. */
+    /** The provider id.
+     *
+     * @return The provider id this specification uses.
+     */
     public String provider() {
         return tiles.id();
     }
 
-    /** Whether {@code x} or {@code z} is expanded per read (and per player for PLAYER access). */
+    /** Whether {@code x} or {@code z} is expanded per read (and per player for PLAYER access).
+     *
+     * @return True when either coordinate contains a placeholder template.
+     */
     public boolean dynamic() {
         return x.indexOf('%') >= 0 || z.indexOf('%') >= 0;
     }

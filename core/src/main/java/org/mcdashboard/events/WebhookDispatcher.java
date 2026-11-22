@@ -35,10 +35,17 @@ import javax.crypto.spec.SecretKeySpec;
  * {@code "<timestamp>.<body>"} with the webhook's secret. Receivers must reject old timestamps.
  */
 public final class WebhookDispatcher {
+    /** A webhook endpoint and its HMAC secret.
+     *
+     * @param url The endpoint to POST to.
+     * @param secret The shared secret used to sign payloads.
+     */
     public record Hook(URI url, String secret) {
     }
 
+    /** Header carrying the HMAC-SHA256 signature. */
     public static final String SIGNATURE_HEADER = "X-MCDashboard-Signature";
+    /** Header carrying the unix timestamp the signature covers. */
     public static final String TIMESTAMP_HEADER = "X-MCDashboard-Timestamp";
     private static final long[] RETRY_SECONDS = {1, 5, 30, 120, 600};
     private static final int MAX_PENDING = 1000;
@@ -53,10 +60,18 @@ public final class WebhookDispatcher {
     private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(2, Threads.daemon("MCDashboard-webhooks"));
     private Runnable unsubscribe = () -> { };
 
+    /** Creates a dispatcher for the given webhooks, using the default retry schedule.
+     *
+     * @param hooks The list of endpoints to deliver events to.
+     * @param clock The clock used for timestamps.
+     * @param pluginVersion Plugin version for the User-Agent header.
+     * @param warn A callback for warning messages.
+     */
     public WebhookDispatcher(List<Hook> hooks, Clock clock, String pluginVersion, Consumer<String> warn) {
         this(hooks, clock, pluginVersion, warn, RETRY_SECONDS);
     }
 
+    /** Creates a dispatcher with a custom retry schedule (for testing). */
     WebhookDispatcher(List<Hook> hooks, Clock clock, String pluginVersion, Consumer<String> warn, long[] retrySeconds) {
         this.hooks = List.copyOf(hooks);
         this.clock = clock;
@@ -66,10 +81,15 @@ public final class WebhookDispatcher {
         this.client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).followRedirects(HttpClient.Redirect.NEVER).build();
     }
 
+    /** Starts listening to the bus and dispatching events to all configured webhooks.
+     *
+     * @param bus The event bus to subscribe to.
+     */
     public void start(EventBus bus) {
         unsubscribe = bus.subscribe(null, this::dispatch, () -> { });
     }
 
+    /** Stops delivery and shuts down the executor. */
     public void stop() {
         unsubscribe.run();
         executor.shutdownNow();
@@ -120,7 +140,13 @@ public final class WebhookDispatcher {
         }
     }
 
-    /** {@code sha256=<hex>} of the HMAC over {@code "<timestamp>.<body>"}. */
+    /** {@code sha256=<hex>} of the HMAC over {@code "<timestamp>.<body>"}.
+     *
+     * @param secret The webhook secret.
+     * @param timestampSeconds The unix timestamp in seconds.
+     * @param body The request body.
+     * @return The signature header value.
+     */
     public static String sign(String secret, long timestampSeconds, byte[] body) {
         try {
             Mac mac = Mac.getInstance("HmacSHA256");

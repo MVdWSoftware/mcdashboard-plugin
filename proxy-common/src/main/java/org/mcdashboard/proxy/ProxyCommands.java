@@ -21,6 +21,7 @@ public final class ProxyCommands {
 
     /** Restarts the core: stop, then start again with the files as they are now. */
     public interface Reloader {
+        /** Performs a full reload of MCDashboard configuration and state. */
         void reload();
     }
 
@@ -28,12 +29,26 @@ public final class ProxyCommands {
     private final DashboardCommands commands;
     private final Reloader reloader;
 
+    /**
+     * Creates the command handler for a proxy.
+     *
+     * @param adapter The proxy adapter used to look up players.
+     * @param core The started MCDashboard core.
+     * @param reloader Restarts the runtime for {@code /mcdashboard reload}.
+     */
     public ProxyCommands(ProxyAdapter adapter, MCDashboardCore core, Reloader reloader) {
         this.adapter = adapter;
         this.commands = new DashboardCommands(core);
         this.reloader = reloader;
     }
 
+    /**
+     * Dispatches the command to the appropriate handler based on the subcommand.
+     *
+     * @param who The sender to answer.
+     * @param label The command label that was used.
+     * @param args The raw command arguments.
+     */
     public void execute(DashboardCommands.Sender who, String label, String[] args) {
         String sub = args.length == 0 ? "about" : args[0].toLowerCase(Locale.ROOT);
         switch (sub) {
@@ -88,7 +103,12 @@ public final class ProxyCommands {
         if (who.playerUuid() != null) commands.expiryNote(who);
     }
 
-    /** Tab completion for the first argument. */
+    /**
+     * Tab completion for the first argument.
+     *
+     * @param args The command arguments typed so far.
+     * @return A list of valid completions, or an empty list if none apply.
+     */
     public static List<String> complete(String[] args) {
         if (args.length <= 1) return SUBCOMMANDS;
         if (args.length == 2 && args[0].equalsIgnoreCase("developer")) return List.of("on", "off");

@@ -18,7 +18,11 @@ public final class Languages {
     private Languages() {
     }
 
-    /** Maps a tag such as {@code nl}, {@code de-AT} or {@code es_419} to a supported language, or null. */
+    /** Maps a tag such as {@code nl}, {@code de-AT} or {@code es_419} to a supported language, or null.
+     *
+     * @param tag The language tag from a browser header or user setting.
+     * @return The matching supported language code, or null when no match exists.
+     */
     public static String normalise(String tag) {
         if (tag == null) return null;
         String value = tag.trim().toLowerCase(Locale.ROOT).replace('_', '-');
@@ -27,7 +31,11 @@ public final class Languages {
         return value.length() == 2 && SUPPORTED.contains(value) ? value : null;
     }
 
-    /** The supported languages in an {@code Accept-Language} header such as {@code fr-CA,fr;q=0.9,en;q=0.8}, best first. */
+    /** The supported languages in an {@code Accept-Language} header such as {@code fr-CA,fr;q=0.9,en;q=0.8}, best first.
+     *
+     * @param header The raw {@code Accept-Language} header value; empty list when null or blank.
+     * @return Languages sorted by quality then original order among equal qualities.
+     */
     public static List<String> preferred(String header) {
         if (header == null || header.isBlank()) return List.of();
         record Candidate(String language, double quality, int order) {
@@ -58,13 +66,22 @@ public final class Languages {
         return List.copyOf(out);
     }
 
-    /** The caller's best supported language, else the server's default; never null. */
+    /** The caller's best supported language, else the server's default; never null.
+     *
+     * @param header          The raw {@code Accept-Language} header value.
+     * @param defaultLanguage The server's configured fallback language.
+     * @return The best matching language code from the header, or the normalised default.
+     */
     public static String resolve(String header, String defaultLanguage) {
         List<String> preferred = preferred(header);
         return preferred.isEmpty() ? normaliseOrDefault(defaultLanguage) : preferred.get(0);
     }
 
-    /** A supported language, falling back to English. */
+    /** A supported language, falling back to English.
+     *
+     * @param language The language tag to normalise, or null.
+     * @return The matching supported language code, or {@code en} as a last resort.
+     */
     public static String normaliseOrDefault(String language) {
         String normalised = normalise(language);
         return normalised == null ? "en" : normalised;

@@ -17,6 +17,10 @@ import java.util.regex.Pattern;
  * The table behind a LIST placeholder (a leaderboard, for example): {@code rows} rows, each column a
  * {@code %placeholder%} template in which {@code {n}} is the 1-based row number. {@code empty} lists the cell values
  * (colour codes stripped, trimmed) that mean "no entry"; trailing rows made only of such cells are dropped.
+ *
+ * @param rows    The number of rows in the table.
+ * @param columns The ordered column name to {@code %placeholder%} template pairs.
+ * @param empty   The cell values that count as "no entry".
  */
 public record ListSpec(int rows, Map<String, String> columns, List<String> empty) {
     public static final int DEFAULT_ROWS = 10;

@@ -92,6 +92,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
   no server platform) and `spigot/` (the Bukkit plugin, which shades `core/`). The jar is now
   `spigot/target/MCDashboard.jar`; its content and behaviour are unchanged. The text of `/mcdashboard` is shared in `core/`.
 - Building needs JDK 21 (CI uses 21); the Spigot plugin and `core/` still target Java 17.
+- Javadoc is part of the build: `mvn -B verify` runs doclint's `all` checks and fails on any warning (unknown tags such as
+  `@returns`, a `@param` that does not match the signature, a missing `@return`, an undocumented public member).
+  The whole public API is documented as a result.
 
 ### Added
 - A PowerNukkitX plugin for Bedrock servers (`nukkit/`, `MCDashboard-Nukkit.jar`) on the PlaceholderAPI for PowerNukkitX; see

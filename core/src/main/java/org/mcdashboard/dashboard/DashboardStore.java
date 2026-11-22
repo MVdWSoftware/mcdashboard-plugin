@@ -31,7 +31,12 @@ public final class DashboardStore {
     private final Consumer<String> warn;
     private List<Dashboard> memory;
 
-    /** A store backed by files; a file that is not valid YAML is reported through {@code warn} and read as an empty dashboard. */
+    /** A store backed by files; a file that is not valid YAML is reported through {@code warn} and read as an empty dashboard.
+     *
+     * @param directory Path to the dashboards directory containing one YAML file per dashboard.
+     * @param yaml      The YAML codec used to parse and dump dashboard files.
+     * @param warn      Consumer for warnings about unreadable or malformed dashboard files.
+     */
     public DashboardStore(Path directory, YamlCodec yaml, Consumer<String> warn) {
         this.directory = directory;
         this.yaml = yaml;
@@ -46,12 +51,19 @@ public final class DashboardStore {
         this.memory = List.copyOf(dashboards);
     }
 
-    /** A store that keeps dashboards in memory (tests). */
+    /** A store that keeps dashboards in memory (tests).
+     *
+     * @param dashboards The initial set of dashboards.
+     * @return A new in-memory store holding the given dashboards.
+     */
     public static DashboardStore inMemory(List<Dashboard> dashboards) {
         return new DashboardStore(dashboards);
     }
 
-    /** All dashboards, ordered by id with {@code default} first. */
+    /** All dashboards, ordered by id with {@code default} first.
+     *
+     * @return The list of dashboards sorted with default first, then alphabetically by id.
+     */
     public List<Dashboard> all() {
         if (memory != null) return memory;
         List<Dashboard> out = new ArrayList<>();
@@ -66,7 +78,14 @@ public final class DashboardStore {
         return out;
     }
 
-    /** Writes the dashboard to {@code <id>.yml}, replacing it; {@code uploader} is the player UUID of an app upload, or null. */
+    /** Writes the dashboard to {@code <id>.yml}, replacing it; {@code uploader} is the player UUID of an app upload, or null.
+     *
+     * @param dashboard The dashboard to persist.
+     * @param uploader  The uploading player's UUID, or null for server-saved files.
+     * @return The same dashboard instance that was written.
+     * @throws java.io.IOException      When the file system rejects the write operation.
+     * @throws IllegalArgumentException If the dashboard id does not match the required pattern.
+     */
     public Dashboard save(Dashboard dashboard, String uploader) throws IOException {
         if (!dashboard.id().matches("[a-z0-9][a-z0-9-]{0,63}")) throw new IllegalArgumentException("invalid dashboard id");
         if (memory != null) {

@@ -20,6 +20,27 @@ import java.util.function.Consumer;
  * {@code placeholders.yml} are ever resolved; clients refer to them by {@code id}. {@code map} is the parsed block of a
  * {@code map:} IMAGE source (null otherwise); {@code encode} false makes a {@code url:} IMAGE send its expanded https URL
  * in {@code vs} for the app to load itself instead of the fetched bytes in {@code vd} (always true for other types).
+ *
+ * @param id                   The unique identifier clients refer to.
+ * @param name                 The human-readable name.
+ * @param value                The {@code %placeholder%} template to resolve; null for IMAGE and LIST.
+ * @param type                 The placeholder type.
+ * @param access               Who may read it: PUBLIC or PLAYER.
+ * @param minIntervalMs        Minimum time between resolutions in milliseconds; 0 when the default applies.
+ * @param minIntervalOverrides Per-permission interval overrides.
+ * @param min                  Optional minimum value for numeric types; null when unset.
+ * @param max                  Optional maximum value for numeric types; null when unset.
+ * @param unit                 Optional display unit.
+ * @param historyMinutes       History window in minutes; 0 when not recorded.
+ * @param historyIntervalMs    Minimum interval between samples in milliseconds; 0 uses the default.
+ * @param permission           Permission node a caller needs; null when none.
+ * @param maxFrom              Placeholder id that supplies the maximum; null when unset.
+ * @param group                Display group.
+ * @param description          Optional description.
+ * @param source               Image source (an {@code url:} or {@code map:} value) for IMAGE types.
+ * @param list                 The LIST table specification; null for other types.
+ * @param map                  The parsed map block of a {@code map:} IMAGE source; null otherwise.
+ * @param encode               Whether a {@code url:} IMAGE is encoded as bytes rather than linked.
  */
 public record PlaceholderDefinition(String id, String name, String value, Type type, Access access,
                                     long minIntervalMs, IntervalOverrides minIntervalOverrides,
@@ -27,14 +48,40 @@ public record PlaceholderDefinition(String id, String name, String value, Type t
                                     long historyIntervalMs, String permission, String maxFrom, String group, String description,
                                     String source, ListSpec list, MapSpec map, boolean encode) {
     /** AUTO infers number, boolean or string from each value; IMAGE serves a picture from {@code source}; LIST is a table of {@code rows} x {@code columns}. */
-    public enum Type { STRING, INTEGER, DECIMAL, BOOLEAN, PERCENTAGE, AUTO, IMAGE, LIST }
+    public enum Type {
+        /** A plain string value. */
+        STRING,
+        /** A whole number. */
+        INTEGER,
+        /** A decimal number. */
+        DECIMAL,
+        /** A boolean. */
+        BOOLEAN,
+        /** A percentage. */
+        PERCENTAGE,
+        /** Inferred from each value. */
+        AUTO,
+        /** A picture served from {@code source}. */
+        IMAGE,
+        /** A table of {@code rows} x {@code columns}. */
+        LIST
+    }
 
     public static final String DEFAULT_GROUP = "General";
 
     /** PUBLIC placeholders are readable by anyone who can reach the server; PLAYER needs a paired device. */
-    public enum Access { PUBLIC, PLAYER }
+    public enum Access {
+        /** Readable by anyone who can reach the server. */
+        PUBLIC,
+        /** Readable only by a paired device's player. */
+        PLAYER
+    }
 
-    /** Builds a definition from a parsed {@code placeholders.yml} entry. */
+    /** Builds a definition from a parsed {@code placeholders.yml} entry.
+     *
+     * @param m The parsed YAML map for one placeholder entry.
+     * @return A validated PlaceholderDefinition.
+     */
     public static PlaceholderDefinition fromMap(Map<?, ?> m) {
         String id = str(m.get("id"));
         String value = str(m.get("value"));
@@ -84,7 +131,11 @@ public record PlaceholderDefinition(String id, String name, String value, Type t
                 group == null ? DEFAULT_GROUP : group, blankToNull(str(m.get("description"))), source, list, map, encode);
     }
 
-    /** A copy with another history window (minutes); used when {@code history.include} / {@code exclude} decide what is recorded. */
+    /** A copy with another history window (minutes); used when {@code history.include} / {@code exclude} decide what is recorded.
+     *
+     * @param minutes The new history window in minutes; 0 disables history.
+     * @return A copy of this definition with the given window.
+     */
     public PlaceholderDefinition withHistoryMinutes(int minutes) {
         return new PlaceholderDefinition(id, name, value, type, access, minIntervalMs, minIntervalOverrides, min, max, unit, minutes,
                 historyIntervalMs, permission, maxFrom, group, description, source, list, map, encode);
@@ -93,18 +144,29 @@ public record PlaceholderDefinition(String id, String name, String value, Type t
     /**
      * Whether the caller may read this placeholder: PLAYER placeholders need a paired player, and a configured
      * {@code permission} needs that player to hold it. Applied on every route that returns a value or history.
+     *
+     * @param playerUuid  The paired player's UUID, or null for an anonymous caller.
+     * @param permissions The permission snapshots to consult.
+     * @return True when the caller may read this placeholder.
      */
     public boolean readableBy(String playerUuid, PermissionCache permissions) {
         if (access == Access.PLAYER && playerUuid == null) return false;
         return permission == null || permissions.has(playerUuid, permission);
     }
 
-    /** JSON view sent to clients. The raw {@code %placeholder%} template is never exposed. */
+    /** JSON view sent to clients. The raw {@code %placeholder%} template is never exposed.
+     *
+     * @return A map representing this definition as JSON.
+     */
     public Map<String, Object> toJson() {
         return toJson(minIntervalMs);
     }
 
-    /** JSON view with the interval that applies to this caller instead of the placeholder's configured one. */
+    /** JSON view with the interval that applies to this caller instead of the placeholder's configured one.
+     *
+     * @param effectiveMinIntervalMs The interval that applies to this caller, in milliseconds.
+     * @return A map representing this definition as JSON with the given interval.
+     */
     public Map<String, Object> toJson(long effectiveMinIntervalMs) {
         Map<String, Object> o = new LinkedHashMap<>();
         o.put("id", id);
@@ -126,7 +188,12 @@ public record PlaceholderDefinition(String id, String name, String value, Type t
         return o;
     }
 
-    /** Parses all entries; invalid ones are reported through {@code onError} and skipped. */
+    /** Parses all entries; invalid ones are reported through {@code onError} and skipped.
+     *
+     * @param entries The raw placeholder maps from the configuration.
+     * @param onError Receives a message for each entry that could not be parsed.
+     * @return The definitions that parsed successfully.
+     */
     public static List<PlaceholderDefinition> parseAll(List<? extends Map<?, ?>> entries,
                                                        Consumer<String> onError) {
         List<PlaceholderDefinition> out = new ArrayList<>();

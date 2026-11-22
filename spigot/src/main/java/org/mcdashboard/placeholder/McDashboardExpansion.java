@@ -21,7 +21,12 @@ public final class McDashboardExpansion extends PlaceholderExpansion {
     private final Supplier<PluginStats> stats;
     private final String author;
 
-    /** {@code stats} is read on every request, so it may start returning a live object after the expansion registered. */
+    /**
+     * {@code stats} is read on every request, so it may start returning a live object after the expansion registered.
+     *
+     * @param stats A supplier for the current plugin statistics.
+     * @param author The author name to report to PlaceholderAPI.
+     */
     public McDashboardExpansion(Supplier<PluginStats> stats, String author) {
         this.stats = stats;
         this.author = author;

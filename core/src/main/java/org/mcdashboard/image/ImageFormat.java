@@ -12,7 +12,11 @@ public final class ImageFormat {
     private ImageFormat() {
     }
 
-    /** The MIME type of a PNG, JPEG, GIF or WebP image, or null when the bytes are anything else. */
+    /** The MIME type of a PNG, JPEG, GIF or WebP image, or null when the bytes are anything else.
+     *
+     * @param b The raw image bytes to inspect.
+     * @return One of {@code image/png}, {@code image/jpeg}, {@code image/gif} or {@code image/webp}.
+     */
     public static String sniff(byte[] b) {
         if (b == null) return null;
         if (starts(b, 0, 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A)) return "image/png";

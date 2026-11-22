@@ -18,15 +18,29 @@ import java.util.Base64;
 
 /** The subset of RFC 6455 the live feed needs: handshake accept key, text/ping/pong/close frames. */
 public final class WebSocketFrames {
+    /** A text frame. */
     public static final int TEXT = 0x1;
+    /** A close frame. */
     public static final int CLOSE = 0x8;
+    /** A ping frame. */
     public static final int PING = 0x9;
+    /** A pong frame. */
     public static final int PONG = 0xA;
     private static final int CONTINUATION = 0x0;
     private static final String GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
-    /** A complete (reassembled) message or control frame. */
+    /**
+     * A complete (reassembled) message or control frame.
+     *
+     * @param opcode  The frame opcode.
+     * @param payload The unmasked payload bytes.
+     */
     public record Frame(int opcode, byte[] payload) {
+        /**
+         * The payload decoded as UTF-8 text.
+         *
+         * @return The payload as a string.
+         */
         public String text() {
             return new String(payload, StandardCharsets.UTF_8);
         }
@@ -49,6 +63,11 @@ public final class WebSocketFrames {
 
     /** Thrown for protocol violations; the connection must be closed. */
     public static final class ProtocolException extends IOException {
+        /**
+         * Creates the exception for a protocol violation.
+         *
+         * @param message What the client did wrong.
+         */
         public ProtocolException(String message) {
             super(message);
         }
@@ -57,7 +76,12 @@ public final class WebSocketFrames {
     private WebSocketFrames() {
     }
 
-    /** Computes {@code Sec-WebSocket-Accept} for a client key. */
+    /**
+     * Computes {@code Sec-WebSocket-Accept} for a client key.
+     *
+     * @param clientKey The {@code Sec-WebSocket-Key} the client sent.
+     * @return The value to send back in {@code Sec-WebSocket-Accept}.
+     */
     public static String acceptKey(String clientKey) {
         try {
             MessageDigest sha1 = MessageDigest.getInstance("SHA-1"); // NOSONAR - Sec-WebSocket-Accept is SHA-1 by RFC 6455
@@ -70,6 +94,11 @@ public final class WebSocketFrames {
     /**
      * Reads one message. Client frames must be masked; fragmented text messages are reassembled;
      * anything larger than {@code maxPayload} is refused rather than buffered.
+     *
+     * @param in         The stream to read from.
+     * @param maxPayload The largest message accepted.
+     * @return The complete frame or reassembled message.
+     * @throws java.io.IOException When the stream ends or the client violates the protocol.
      */
     public static Frame read(InputStream in, int maxPayload) throws IOException {
         DataInputStream data = new DataInputStream(in);
@@ -111,7 +140,14 @@ public final class WebSocketFrames {
         }
     }
 
-    /** Writes one unmasked server frame. */
+    /**
+     * Writes one unmasked server frame.
+     *
+     * @param out     The stream to write to.
+     * @param opcode  The frame opcode.
+     * @param payload The payload bytes.
+     * @throws java.io.IOException When the stream cannot be written.
+     */
     public static void write(OutputStream out, int opcode, byte[] payload) throws IOException {
         ByteArrayOutputStream f = new ByteArrayOutputStream(payload.length + 10);
         f.write(0x80 | opcode);
@@ -130,7 +166,13 @@ public final class WebSocketFrames {
         out.flush();
     }
 
-    /** Writes a text frame. */
+    /**
+     * Writes a text frame.
+     *
+     * @param out  The stream to write to.
+     * @param text The text to send.
+     * @throws java.io.IOException When the stream cannot be written.
+     */
     public static void writeText(OutputStream out, String text) throws IOException {
         write(out, TEXT, text.getBytes(StandardCharsets.UTF_8));
     }

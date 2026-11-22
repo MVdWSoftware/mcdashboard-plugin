@@ -30,6 +30,12 @@ public final class MCDashboardCommand implements CommandExecutor, TabCompleter {
     private final MCDashboard plugin;
     private final DashboardCommands commands;
 
+    /**
+     * Creates a new command handler for the /mcdashboard command.
+     *
+     * @param plugin The main plugin instance.
+     * @param commands The shared dashboard command logic.
+     */
     public MCDashboardCommand(MCDashboard plugin, DashboardCommands commands) {
         this.plugin = plugin;
         this.commands = commands;

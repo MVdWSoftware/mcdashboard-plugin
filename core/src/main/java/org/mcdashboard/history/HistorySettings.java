@@ -15,16 +15,39 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
-/** The {@code history:} section of {@code config.yml}: where samples go, how often they are taken and for which placeholders. */
+/** The {@code history:} section of {@code config.yml}: where samples go, how often they are taken and for which placeholders.
+ *
+ * @param storage       Where persistent samples are kept.
+ * @param intervalMs    Default time between two consecutive samples in milliseconds.
+ * @param retentionDays How long samples survive before pruning; 0 means one year.
+ * @param flushMs       Interval at which queued samples are flushed to the database.
+ * @param include       Placeholder ids or globs that should always get history when PUBLIC.
+ * @param exclude       Placeholder ids or globs that must never keep history.
+ */
 public record HistorySettings(Storage storage, long intervalMs, int retentionDays, long flushMs,
                               List<String> include, List<String> exclude) {
     /**
      * Where samples are kept. {@code dialect} is null for memory. {@code url} overrides the address built from
      * {@code host}, {@code port} and {@code database} (or the SQLite file); it must not contain the password.
+     *
+     * @param type     Storage backend name: memory, sqlite, mysql, mariadb or postgresql.
+     * @param dialect  The SQL dialect; null when using in-memory storage.
+     * @param file     SQLite database file name when type is sqlite.
+     * @param host     Database server hostname.
+     * @param port     Database server port number.
+     * @param database Database schema name.
+     * @param user     Database authentication username.
+     * @param password Database authentication password.
+     * @param url      Full JDBC URL when set explicitly; otherwise constructed from host/port/database/file.
+     * @param baseUri  IRI prefix used to mint sensor URIs in the history store.
      */
     public record Storage(String type, SqlDialect dialect, String file, String host, int port, String database,
                           String user, String password, String url, String baseUri) {
-        /** The JDBC URL; never contains the password. */
+        /** The JDBC URL; never contains the password.
+         *
+         * @param dataFolder The plugin's data directory, used as the parent for the SQLite file.
+         * @return The full JDBC connection string for this storage configuration.
+         */
         public String jdbcUrl(Path dataFolder) {
             if (!url.isBlank()) return url;
             return switch (dialect) {
@@ -41,7 +64,10 @@ public record HistorySettings(Storage storage, long intervalMs, int retentionDay
     public static final int MEMORY_MINUTES = 120;
     private static final int YEAR_MINUTES = 525_600;
 
-    /** Memory only, 30 s samples, nothing tracked beyond what {@code placeholders.yml} asks for. */
+    /** Memory only, 30 s samples, nothing tracked beyond what {@code placeholders.yml} asks for.
+     *
+     * @return A default HistorySettings instance with in-memory storage and conservative limits.
+     */
     public static HistorySettings defaults() {
         return new HistorySettings(new Storage("memory", null, "history.db", "localhost", 0, "mcdashboard", "", "", "", ""),
                 30_000, 30, 10_000, List.of(), List.of());
@@ -50,6 +76,11 @@ public record HistorySettings(Storage storage, long intervalMs, int retentionDay
     /**
      * Reads the section (null gives the defaults). Problems are reported through {@code warn} and fall back to the
      * default; an unknown storage type means memory. {@code serverId} names this server in the stored identifiers.
+     *
+     * @param m        The parsed YAML map from config.yml under history:, or null.
+     * @param serverId An identifier for this server instance, used in sensor URIs.
+     * @param warn     Consumer that receives warnings about invalid configuration values.
+     * @return A new HistorySettings populated from the provided data, or defaults when input is null.
      */
     public static HistorySettings parse(Map<?, ?> m, String serverId, Consumer<String> warn) {
         HistorySettings d = defaults();
@@ -76,7 +107,10 @@ public record HistorySettings(Storage storage, long intervalMs, int retentionDay
         return new HistorySettings(storage, interval, retention, flush, strings(m.get("include")), strings(m.get("exclude")));
     }
 
-    /** Whether samples go to a database. */
+    /** Whether samples go to a database.
+     *
+     * @return True when the configured storage uses a SQL dialect rather than memory.
+     */
     public boolean persistent() {
         return storage.dialect() != null;
     }
@@ -84,6 +118,9 @@ public record HistorySettings(Storage storage, long intervalMs, int retentionDay
     /**
      * Applies the include and exclude lists to the definitions: an included PUBLIC placeholder gets the default
      * retention when it has no {@code history} of its own, an excluded one loses its history. Everything else is untouched.
+     *
+     * @param defs The list of placeholder definitions to filter through the inclusion and exclusion rules.
+     * @return A new list with modified definitions reflecting the include/exclude policy.
      */
     public List<PlaceholderDefinition> apply(List<PlaceholderDefinition> defs) {
         List<PlaceholderDefinition> out = new ArrayList<>(defs.size());
@@ -106,13 +143,22 @@ public record HistorySettings(Storage storage, long intervalMs, int retentionDay
         return retentionDays == 0 ? YEAR_MINUTES : Math.min(YEAR_MINUTES, retentionDays * 1440);
     }
 
-    /** Time between two samples of this placeholder: its own {@code history-interval}, else the default; never below the source's refresh. */
+    /** Time between two samples of this placeholder: its own {@code history-interval}, else the default; never below the source's refresh.
+     *
+     * @param d                The placeholder definition with its own interval setting.
+     * @param sourceIntervalMs The minimum interval enforced by the data source.
+     * @return The effective sampling interval in milliseconds, at least {@link #MIN_INTERVAL_MS}.
+     */
     public long stepMs(PlaceholderDefinition d, long sourceIntervalMs) {
         long own = d.historyIntervalMs() > 0 ? d.historyIntervalMs() : intervalMs;
         return Math.max(MIN_INTERVAL_MS, Math.max(own, sourceIntervalMs));
     }
 
-    /** How long samples of this placeholder are kept in the database (0 = forever). */
+    /** How long samples of this placeholder are kept in the database (0 = forever).
+     *
+     * @param d The placeholder definition determining its individual retention setting.
+     * @return The retention period in milliseconds, or a very large value when retention is effectively unlimited.
+     */
     public long retentionMs(PlaceholderDefinition d) {
         if (d.historyMinutes() > 0 && !(matches(include, d.id()) && d.historyMinutes() == defaultMinutes())) return d.historyMinutes() * 60_000L;
         return retentionDays * 86_400_000L;

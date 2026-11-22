@@ -32,7 +32,13 @@ public final class ClientPolicy {
      */
     public static final String BUILT_IN_MIN_CLIENT = null;
 
-    /** An identified client. {@code version} and {@code platform} are null for a client the owner allowed explicitly. */
+    /**
+     * An identified client. {@code version} and {@code platform} are null for a client the owner allowed explicitly.
+     *
+     * @param agent    The User-Agent header, truncated to the maximum length.
+     * @param version  The version the client reported, or null.
+     * @param platform The platform the client reported, or null.
+     */
     public record Client(String agent, String version, String platform) {
     }
 
@@ -46,6 +52,11 @@ public final class ClientPolicy {
     /**
      * {@code extra} are further allowed clients (matched against the whole header); {@code devices} limits paired
      * requests per device id, {@code addresses} the others per remote address.
+     *
+     * @param extra      Additional allowed client patterns, matched against the whole header.
+     * @param minVersion The minimum accepted version in {@code x.y.z} form, or null.
+     * @param devices    The limiter for paired requests, keyed by device id.
+     * @param addresses  The limiter for the others, keyed by remote address.
      */
     public ClientPolicy(List<Pattern> extra, String minVersion, RateLimiter devices, RateLimiter addresses) {
         this.extra = List.copyOf(extra);
@@ -60,7 +71,12 @@ public final class ClientPolicy {
         this.addresses = addresses;
     }
 
-    /** The default: official app only, no minimum version, 120 requests a minute per device and 60 per address. */
+    /**
+     * The default: official app only, no minimum version, 120 requests a minute per device and 60 per address.
+     *
+     * @param clock The clock the limiters use.
+     * @return The default policy.
+     */
     public static ClientPolicy defaults(Clock clock) {
         return new ClientPolicy(List.of(), null, new RateLimiter(clock, 120, 60_000), new RateLimiter(clock, 60, 60_000));
     }
@@ -68,6 +84,14 @@ public final class ClientPolicy {
     /**
      * Builds the policy from the config values; a pattern that does not compile is reported and skipped (it can only
      * make the policy stricter), a bad minimum version is reported and ignored.
+     *
+     * @param clock      The clock the limiters use.
+     * @param allowed    The extra allowed client patterns from the config.
+     * @param minVersion The configured minimum version, or null.
+     * @param perDevice  Requests per minute allowed per paired device.
+     * @param perAddress Requests per minute allowed per remote address.
+     * @param warn       Receives a message for each value the policy had to skip.
+     * @return The policy built from the values.
      */
     public static ClientPolicy of(Clock clock, List<String> allowed, String minVersion, int perDevice, int perAddress,
                                   Consumer<String> warn) {
@@ -88,7 +112,12 @@ public final class ClientPolicy {
                 new RateLimiter(clock, Math.max(1, perAddress), 60_000));
     }
 
-    /** The client behind a {@code User-Agent}, or empty when it is neither the official app nor allowed by the owner. */
+    /**
+     * The client behind a {@code User-Agent}, or empty when it is neither the official app nor allowed by the owner.
+     *
+     * @param userAgent The User-Agent header to identify.
+     * @return The identified client, or empty when it is not allowed.
+     */
     public Optional<Client> identify(String userAgent) {
         if (userAgent == null) return Optional.empty();
         Matcher m = OFFICIAL.matcher(userAgent);
@@ -101,7 +130,12 @@ public final class ClientPolicy {
         return Optional.empty();
     }
 
-    /** Whether an official client is older than the configured minimum. Allowed third-party clients are never "too old". */
+    /**
+     * Whether an official client is older than the configured minimum. Allowed third-party clients are never "too old".
+     *
+     * @param client The identified client.
+     * @return True when the client is below the configured minimum.
+     */
     public boolean tooOld(Client client) {
         if (minVersion == null || client.version() == null) return false;
         int[] v = parse(client.version());
@@ -112,28 +146,52 @@ public final class ClientPolicy {
         return false;
     }
 
-    /** The configured minimum version, or null. */
+    /**
+     * The configured minimum version, or null.
+     *
+     * @return The minimum version in {@code x.y.z} form, or null when there is none.
+     */
     public String minVersion() {
         return minVersionText;
     }
 
-    /** Limits requests that declare themselves background updates (notifications, home-screen widgets) separately and tighter. */
+    /**
+     * Limits requests that declare themselves background updates (notifications, home-screen widgets) separately and tighter.
+     *
+     * @param limiter The limiter for background requests.
+     * @return This policy, for chaining.
+     */
     public ClientPolicy background(RateLimiter limiter) {
         this.background = limiter;
         return this;
     }
 
-    /** Records a background request of a device or address; false when over the background limit. Always true without a limit. */
+    /**
+     * Records a background request of a device or address; false when over the background limit. Always true without a limit.
+     *
+     * @param key The device id or remote address the request is counted for.
+     * @return True when the request is within the background limit.
+     */
     public boolean allowBackground(String key) {
         return background == null || background.allow(key);
     }
 
-    /** Records a request of a paired device; false when it is over its limit. */
+    /**
+     * Records a request of a paired device; false when it is over its limit.
+     *
+     * @param deviceId The device id the request is counted for.
+     * @return True when the request is within the device limit.
+     */
     public boolean allowDevice(String deviceId) {
         return devices.allow(deviceId);
     }
 
-    /** Records a request that is not authenticated; false when the address is over its limit. */
+    /**
+     * Records a request that is not authenticated; false when the address is over its limit.
+     *
+     * @param address The remote address the request is counted for.
+     * @return True when the request is within the address limit.
+     */
     public boolean allowAddress(String address) {
         return addresses.allow(address);
     }

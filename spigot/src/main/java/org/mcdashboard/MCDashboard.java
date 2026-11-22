@@ -16,6 +16,10 @@ import org.mcdashboard.tunnel.TunnelClient;
 
 /** Publishes an allowlist of PlaceholderAPI placeholders to the MCDashboard app over REST and a live feed. */
 public final class MCDashboard extends JavaPlugin {
+    /** Creates the plugin; the Spigot server instantiates it once on start-up. */
+    public MCDashboard() {
+    }
+
     private MCDashboardCore core;
     private McDashboardExpansion expansion;
 
@@ -43,34 +47,65 @@ public final class MCDashboard extends JavaPlugin {
         if (core != null) core.stop();
     }
 
+    /**
+     * Whether developer mode is currently active.
+     *
+     * @return True if developer mode is enabled.
+     */
     public boolean developerMode() {
         return core.developerMode();
     }
 
-    /** Turns developer mode on or off until it is changed again, surviving restarts. */
+    /**
+     * Turns developer mode on or off until it is changed again, surviving restarts.
+     *
+     * @param enabled True to enable, false to disable developer mode.
+     */
     public void setDeveloperMode(boolean enabled) {
         core.setDeveloperMode(enabled);
     }
 
-    /** Null while the web server is off or failed to start. */
+    /**
+     * Null while the web server is off or failed to start.
+     *
+     * @return The OTP service instance, or null when unavailable.
+     */
     public OtpService otps() {
         return core.otps();
     }
 
+    /**
+     * Returns the device store for managing linked devices.
+     *
+     * @return The device store instance.
+     */
     public DeviceStore devices() {
         return core.devices();
     }
 
-    /** Null when the tunnel is off. */
+    /**
+     * Null when the tunnel is off.
+     *
+     * @return The tunnel client, or null when tunnels are disabled.
+     */
     public TunnelClient tunnel() {
         return core.tunnel();
     }
 
+    /**
+     * Returns the configured OTP timeout in seconds (negative means default 5 minutes).
+     *
+     * @return The OTP timeout value.
+     */
     public long otpTimeoutSeconds() {
         return core.otpTimeoutSeconds();
     }
 
-    /** {@code server.public-url}, or null when it is not set. */
+    /**
+     * {@code server.public-url}, or null when it is not set.
+     *
+     * @return The configured public URL, or null if not set.
+     */
     public String publicUrl() {
         return core.publicUrl();
     }

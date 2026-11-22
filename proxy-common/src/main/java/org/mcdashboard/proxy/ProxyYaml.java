@@ -15,6 +15,10 @@ import java.util.Map;
 
 /** SnakeYAML as the plain maps the core works with. */
 public final class ProxyYaml implements YamlCodec {
+    /** Creates the codec; it keeps no state. */
+    public ProxyYaml() {
+    }
+
     @Override
     @SuppressWarnings("unchecked")
     public Map<String, Object> parse(String yaml) {

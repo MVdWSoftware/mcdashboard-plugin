@@ -27,7 +27,40 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-/** Everything the REST API and the live feed share. */
+/**
+ * Everything the REST API and the live feed share.
+ *
+ * @param serverName            The server's display name.
+ * @param pluginVersion         The plugin version.
+ * @param status                Supplies the current server status.
+ * @param requireAuthentication Whether requests must be authenticated.
+ * @param maxDevices            The most devices a player may pair.
+ * @param accessTokenSeconds    Access token lifetime in seconds.
+ * @param refreshTokenSeconds   Refresh token lifetime in seconds.
+ * @param websocketPort         The live feed port, or zero when disabled.
+ * @param placeholders          The placeholder service.
+ * @param tokens                The token service.
+ * @param devices               The paired device store.
+ * @param otps                  The pairing code service.
+ * @param authLimiter           The limiter for authentication attempts.
+ * @param dashboards            The dashboard store.
+ * @param trustedProxies        The proxies whose forwarded headers are trusted.
+ * @param history               The history service.
+ * @param licenseId             This server's licence id, or null.
+ * @param onLinked              Called when a device links.
+ * @param permissions           The permission cache.
+ * @param defaultLanguage       The default dashboard language.
+ * @param developerMode         Whether developer mode is on.
+ * @param onDashboardsChanged   Called when a dashboard changes.
+ * @param endpoints             The endpoints this server publishes.
+ * @param discoveryOnly         Whether only discovery is served.
+ * @param polling               Whether polling is allowed.
+ * @param stats                 The plugin statistics, or null.
+ * @param maxDashboards         The dashboard cap, or zero for none.
+ * @param maxTiles              The tile cap, or zero for none.
+ * @param allowPlayerNames      Whether players may type their name.
+ * @param playerUuid            Resolves a name to a UUID, or null.
+ */
 public record ApiContext(String serverName, String pluginVersion, Supplier<ServerStatus> status,
                          boolean requireAuthentication, int maxDevices,
                          long accessTokenSeconds, long refreshTokenSeconds, int websocketPort,
@@ -39,7 +72,36 @@ public record ApiContext(String serverName, String pluginVersion, Supplier<Serve
                          List<String> endpoints, boolean discoveryOnly, boolean polling,
                          org.mcdashboard.stats.PluginStats stats, int maxDashboards, int maxTiles,
                          boolean allowPlayerNames, Function<String, String> playerUuid) {
-    /** Without a server cap on dashboards or tiles, player names and a player lookup. */
+    /**
+     * Without a server cap on dashboards or tiles, player names and a player lookup.
+     *
+     * @param serverName            The server's display name.
+     * @param pluginVersion         The plugin version.
+     * @param status                Supplies the current server status.
+     * @param requireAuthentication Whether requests must be authenticated.
+     * @param maxDevices            The most devices a player may pair.
+     * @param accessTokenSeconds    Access token lifetime in seconds.
+     * @param refreshTokenSeconds   Refresh token lifetime in seconds.
+     * @param websocketPort         The live feed port, or zero when disabled.
+     * @param placeholders          The placeholder service.
+     * @param tokens                The token service.
+     * @param devices               The paired device store.
+     * @param otps                  The pairing code service.
+     * @param authLimiter           The limiter for authentication attempts.
+     * @param dashboards            The dashboard store.
+     * @param trustedProxies        The proxies whose forwarded headers are trusted.
+     * @param history               The history service.
+     * @param licenseId             This server's licence id, or null.
+     * @param onLinked              Called when a device links.
+     * @param permissions           The permission cache.
+     * @param defaultLanguage       The default dashboard language.
+     * @param developerMode         Whether developer mode is on.
+     * @param onDashboardsChanged   Called when a dashboard changes.
+     * @param endpoints             The endpoints this server publishes.
+     * @param discoveryOnly         Whether only discovery is served.
+     * @param polling               Whether polling is allowed.
+     * @param stats                 The plugin statistics, or null.
+     */
     public ApiContext(String serverName, String pluginVersion, Supplier<ServerStatus> status,
                       boolean requireAuthentication, int maxDevices,
                       long accessTokenSeconds, long refreshTokenSeconds, int websocketPort,
@@ -56,7 +118,38 @@ public record ApiContext(String serverName, String pluginVersion, Supplier<Serve
                 stats, 0, 0, false, null);
     }
 
-    /** Without player names, for callers that build this before the setting existed. */
+    /**
+     * Without player names, for callers that build this before the setting existed.
+     *
+     * @param serverName            The server's display name.
+     * @param pluginVersion         The plugin version.
+     * @param status                Supplies the current server status.
+     * @param requireAuthentication Whether requests must be authenticated.
+     * @param maxDevices            The most devices a player may pair.
+     * @param accessTokenSeconds    Access token lifetime in seconds.
+     * @param refreshTokenSeconds   Refresh token lifetime in seconds.
+     * @param websocketPort         The live feed port, or zero when disabled.
+     * @param placeholders          The placeholder service.
+     * @param tokens                The token service.
+     * @param devices               The paired device store.
+     * @param otps                  The pairing code service.
+     * @param authLimiter           The limiter for authentication attempts.
+     * @param dashboards            The dashboard store.
+     * @param trustedProxies        The proxies whose forwarded headers are trusted.
+     * @param history               The history service.
+     * @param licenseId             This server's licence id, or null.
+     * @param onLinked              Called when a device links.
+     * @param permissions           The permission cache.
+     * @param defaultLanguage       The default dashboard language.
+     * @param developerMode         Whether developer mode is on.
+     * @param onDashboardsChanged   Called when a dashboard changes.
+     * @param endpoints             The endpoints this server publishes.
+     * @param discoveryOnly         Whether only discovery is served.
+     * @param polling               Whether polling is allowed.
+     * @param stats                 The plugin statistics, or null.
+     * @param maxDashboards         The dashboard cap, or zero for none.
+     * @param maxTiles              The tile cap, or zero for none.
+     */
     public ApiContext(String serverName, String pluginVersion, Supplier<ServerStatus> status,
                       boolean requireAuthentication, int maxDevices, long accessTokenSeconds, long refreshTokenSeconds,
                       int websocketPort, PlaceholderService placeholders, TokenService tokens, DeviceStore devices,
@@ -104,7 +197,11 @@ public record ApiContext(String serverName, String pluginVersion, Supplier<Serve
      */
     public static final List<String> FEATURES = List.of("presets", "history-points", "upload");
 
-    /** Every language a dashboard on this server uses, plus the default, sorted. */
+    /**
+     * Every language a dashboard on this server uses, plus the default, sorted.
+     *
+     * @return The sorted language codes.
+     */
     public List<String> languages() {
         TreeSet<String> out = new TreeSet<>();
         out.add(Languages.normaliseOrDefault(defaultLanguage));

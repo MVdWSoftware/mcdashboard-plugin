@@ -32,8 +32,18 @@ public final class TileLook {
     private TileLook() {
     }
 
-    /** A dashboard's background picture. */
+    /** A dashboard's background picture.
+     *
+     * @param url  The HTTPS URL of the background image.
+     * @param dim  Background dimming intensity from 0 to 0.9.
+     * @param blur Gaussian blur radius in pixels.
+     * @param fit  How the image fits within its container area.
+     */
     public record BackgroundImage(String url, double dim, double blur, String fit) {
+        /** JSON view for the API response.
+         *
+         * @return A map containing url, dim, blur and fit keys.
+         */
         public Map<String, Object> toJson() {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("url", url);
@@ -44,7 +54,11 @@ public final class TileLook {
         }
     }
 
-    /** The icon when it is a well-formed {@code pack:name} of at most 64 characters, else null. */
+    /** The icon when it is a well-formed {@code pack:name} of at most 64 characters, else null.
+     *
+     * @param raw The parsed YAML value that may contain an icon specification.
+     * @return The validated icon string in {@code pack:name} format, or null when invalid or absent.
+     */
     public static String icon(Object raw) {
         if (raw == null) return null;
         String s = raw.toString().trim().toLowerCase(Locale.ROOT);
@@ -73,7 +87,11 @@ public final class TileLook {
         return true;
     }
 
-    /** The known, well-typed tile options; unknown keys and bad values are dropped. Null when nothing is left. */
+    /** The known, well-typed tile options; unknown keys and bad values are dropped. Null when nothing is left.
+     *
+     * @param raw The parsed YAML map of tile options.
+     * @return A filtered map containing only recognised option keys with valid values, or null.
+     */
     public static Map<String, Object> options(Object raw) {
         if (!(raw instanceof Map<?, ?> m)) return null;
         Map<String, Object> out = new LinkedHashMap<>();
@@ -136,7 +154,11 @@ public final class TileLook {
         return out.isEmpty() ? null : out;
     }
 
-    /** A background picture with an {@code https://} URL, dim 0-0.9, blur 0-20 and a known fit; null otherwise. */
+    /** A background picture with an {@code https://} URL, dim 0-0.9, blur 0-20 and a known fit; null otherwise.
+     *
+     * @param raw The parsed YAML map containing url, optional dim/blur/fit overrides.
+     * @return A validated BackgroundImage, or null when the input is missing or invalid.
+     */
     public static BackgroundImage backgroundImage(Object raw) {
         if (!(raw instanceof Map<?, ?> m) || m.get("url") == null) return null;
         String url = m.get("url").toString().trim();

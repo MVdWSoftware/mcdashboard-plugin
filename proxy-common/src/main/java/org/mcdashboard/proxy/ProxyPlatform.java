@@ -35,6 +35,19 @@ public final class ProxyPlatform implements Platform, AutoCloseable {
     private final ProxyValueSource values;
     private ProxyPermissions permissions;
 
+    /**
+     * Creates a new proxy platform with the given components.
+     *
+     * @param adapter The proxy adapter for server and player queries.
+     * @param log The logger to write messages through.
+     * @param pluginVersion The version string of this plugin.
+     * @param dataDir The plugin's data directory path.
+     * @param yaml The YAML codec for configuration parsing.
+     * @param fetcher How to fetch placeholder values from backend servers.
+     * @param probe Custom probe for server reachability checks; null for default TCP.
+     * @param clock The clock used for time-based operations.
+     * @param proxyStartedMs When the proxy process started, in milliseconds since epoch.
+     */
     public ProxyPlatform(ProxyAdapter adapter, Log log, String pluginVersion, Path dataDir, YamlCodec yaml, BackendFetcher fetcher,
                          ServerPinger.Probe probe, Clock clock, long proxyStartedMs) {
         this.adapter = adapter;
@@ -47,25 +60,53 @@ public final class ProxyPlatform implements Platform, AutoCloseable {
         this.values = new ProxyValueSource(adapter, pinger, federation, clock, proxyStartedMs);
     }
 
-    /** The production wiring: real TCP checks, the HTTP fetcher and the JVM start as proxy start. */
+    /**
+     * The production wiring: real TCP checks, the HTTP fetcher and the JVM start as proxy start.
+     *
+     * @param adapter The proxy-specific adapter implementation.
+     * @param log The logger to use for output.
+     * @param pluginVersion The version string of this plugin.
+     * @param dataDir The plugin's data directory path.
+     * @param yaml The YAML codec for configuration parsing.
+     * @return A fully wired ProxyPlatform ready to use.
+     */
     public static ProxyPlatform create(ProxyAdapter adapter, Log log, String pluginVersion, Path dataDir, YamlCodec yaml) {
         return new ProxyPlatform(adapter, log, pluginVersion, dataDir, yaml, new HttpBackendFetcher(pluginVersion), null,
                 Clock.systemUTC(), java.lang.management.ManagementFactory.getRuntimeMXBean().getStartTime());
     }
 
+    /**
+     * The loaded network configuration.
+     *
+     * @return The network configuration.
+     */
     public ProxyConfig config() {
         return config;
     }
 
+    /**
+     * The server reachability checker for backend servers.
+     *
+     * @return The server pinger.
+     */
     public ServerPinger pinger() {
         return pinger;
     }
 
+    /**
+     * The federation manager for cross-backend placeholder sharing; null when no backends are configured.
+     *
+     * @return The federation manager, or null when federation is off.
+     */
     public Federation federation() {
         return federation;
     }
 
-    /** The permission snapshots; null until the core has started. Platform listeners call {@code playerChanged}. */
+    /**
+     * The permission snapshots; null until the core has started. Platform listeners call {@code playerChanged}.
+     *
+     * @return The proxy permissions manager, or null before the core starts.
+     */
     public ProxyPermissions permissions() {
         return permissions;
     }

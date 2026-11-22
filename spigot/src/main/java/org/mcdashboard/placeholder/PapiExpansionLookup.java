@@ -11,6 +11,10 @@ import java.util.List;
 
 /** Reads the declared placeholders of a loaded expansion; call it on the server main thread. */
 public final class PapiExpansionLookup implements ExpansionLookup {
+    /** Creates the lookup; it keeps no state and reads the expansions of the running server. */
+    public PapiExpansionLookup() {
+    }
+
     @Override
     public List<String> placeholders(String identifier) {
         PlaceholderExpansion e = PlaceholderAPIPlugin.getInstance().getLocalExpansionManager().getExpansion(identifier);

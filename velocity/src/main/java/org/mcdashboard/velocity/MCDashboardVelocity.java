@@ -34,6 +34,13 @@ public final class MCDashboardVelocity {
     private final Path dataDir;
     private ProxyRuntime runtime;
 
+    /**
+     * Creates the plugin instance injected by Velocity.
+     *
+     * @param proxy The proxy server this plugin runs on.
+     * @param logger The plugin's logger.
+     * @param dataDir The plugin's data directory.
+     */
     @Inject
     public MCDashboardVelocity(ProxyServer proxy, Logger logger, @DataDirectory Path dataDir) {
         this.proxy = proxy;
@@ -41,6 +48,11 @@ public final class MCDashboardVelocity {
         this.dataDir = dataDir;
     }
 
+    /**
+     * Starts the runtime and registers the {@code /mcdashboard} command.
+     *
+     * @param event The proxy initialize event.
+     */
     @Subscribe
     public void onInit(ProxyInitializeEvent event) {
         String version = proxy.getPluginManager().fromInstance(this).flatMap(c -> c.getDescription().getVersion()).orElse("dev");
@@ -66,16 +78,31 @@ public final class MCDashboardVelocity {
         proxy.getCommandManager().register(meta, new Command());
     }
 
+    /**
+     * Stops the runtime when the proxy shuts down.
+     *
+     * @param event The shutdown event.
+     */
     @Subscribe
     public void onShutdown(ProxyShutdownEvent event) {
         if (runtime != null) runtime.stop();
     }
 
+    /**
+     * A player joined: refresh their permission snapshot.
+     *
+     * @param event The post-login event.
+     */
     @Subscribe
     public void onLogin(PostLoginEvent event) {
         if (runtime != null) runtime.playerChanged(event.getPlayer().getUniqueId(), true);
     }
 
+    /**
+     * A player disconnected: refresh their permission snapshot.
+     *
+     * @param event The disconnect event.
+     */
     @Subscribe
     public void onDisconnect(DisconnectEvent event) {
         if (runtime != null) runtime.playerChanged(event.getPlayer().getUniqueId(), false);

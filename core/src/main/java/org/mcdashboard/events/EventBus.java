@@ -27,6 +27,10 @@ public final class EventBus {
     private final List<Consumer<DeviceEvent>> listeners = new CopyOnWriteArrayList<>();
     private long seq;
 
+    /** Creates an event bus with a random epoch identifier.
+     *
+     * @param clock The clock used to timestamp events.
+     */
     public EventBus(Clock clock) {
         this.clock = clock;
         byte[] raw = new byte[4];
@@ -34,10 +38,21 @@ public final class EventBus {
         this.epoch = HexFormat.of().formatHex(raw);
     }
 
+    /** The hex-encoded epoch ID that identifies this plugin run.
+     *
+     * @return The epoch identifier.
+     */
     public String epoch() {
         return epoch;
     }
 
+    /** Publishes a device event and notifies all listeners immediately.
+     *
+     * @param type The event type, such as {@code device.revoked}.
+     * @param deviceId The paired device that triggered the event.
+     * @param player UUID of the owning player.
+     * @return The created event with its assigned sequence number.
+     */
     public synchronized DeviceEvent publish(String type, String deviceId, String player) {
         DeviceEvent e = new DeviceEvent(epoch, ++seq, type, clock.millis(), deviceId, player);
         replay.addLast(e);
@@ -55,6 +70,11 @@ public final class EventBus {
     /**
      * Registers a listener after handing it what it missed since {@code lastEventId}, atomically, so no event is lost
      * or duplicated in between. {@code onReset} runs instead when that cannot be guaranteed. Returns the unsubscribe.
+     *
+     * @param lastEventId The id of the last event the client saw, or null for none.
+     * @param onEvent The listener to register.
+     * @param onReset Runs when the missed events cannot be replayed.
+     * @return A runnable that unsubscribes the listener.
      */
     public synchronized Runnable subscribe(String lastEventId, Consumer<DeviceEvent> onEvent, Runnable onReset) {
         if (lastEventId != null && !lastEventId.isBlank()) {

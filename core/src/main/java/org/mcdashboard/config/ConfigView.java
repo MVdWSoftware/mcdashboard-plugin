@@ -17,11 +17,21 @@ public final class ConfigView {
         this.root = root;
     }
 
+    /** Creates a view over the given parsed YAML root map; null is treated as empty.
+     *
+     * @param root The parsed YAML root map, or null for an empty view.
+     * @return A view over the given root.
+     */
     public static ConfigView of(Map<String, Object> root) {
         return new ConfigView(root == null ? Map.of() : root);
     }
 
-    /** {@code overlay} on top of {@code base}: nested maps are merged key by key, every other value is replaced. */
+    /** {@code overlay} on top of {@code base}: nested maps are merged key by key, every other value is replaced.
+     *
+     * @param base The base configuration map.
+     * @param overlay Values to merge in on top.
+     * @return A new map with the overlay applied.
+     */
     public static Map<String, Object> merge(Map<String, Object> base, Map<String, Object> overlay) {
         Map<String, Object> out = new LinkedHashMap<>(base);
         for (Map.Entry<String, Object> e : overlay.entrySet()) {
@@ -35,6 +45,11 @@ public final class ConfigView {
         return out;
     }
 
+    /** Resolves a dotted path in the YAML tree and returns the raw object at that node.
+     *
+     * @param path The dotted YAML path.
+     * @return The raw value at the node, or null when absent.
+     */
     public Object get(String path) {
         Object node = root;
         for (String part : path.split("\\.")) {
@@ -44,23 +59,52 @@ public final class ConfigView {
         return node;
     }
 
+    /** The string at {@code path}, or null when absent.
+     *
+     * @param path The dotted YAML path.
+     * @return The value as a string, or null.
+     */
     public String getString(String path) {
         return getString(path, null);
     }
 
+    /** The string at {@code path}, or {@code fallback} when absent or not a string.
+     *
+     * @param path The dotted YAML path.
+     * @param fallback The value to return when absent.
+     * @return The value as a string, or the fallback.
+     */
     public String getString(String path, String fallback) {
         Object v = get(path);
         return v == null ? fallback : v.toString();
     }
 
+    /** The boolean at {@code path}, or {@code fallback} when absent or not a boolean.
+     *
+     * @param path The dotted YAML path.
+     * @param fallback The value to return when absent.
+     * @return The boolean value, or the fallback.
+     */
     public boolean getBoolean(String path, boolean fallback) {
         return get(path) instanceof Boolean b ? b : fallback;
     }
 
+    /** The integer at {@code path}, or {@code fallback} when absent or not an integer.
+     *
+     * @param path The dotted YAML path.
+     * @param fallback The value to return when absent.
+     * @return The integer value, or the fallback.
+     */
     public int getInt(String path, int fallback) {
         return (int) getLong(path, fallback);
     }
 
+    /** The number at {@code path} as a long, or {@code fallback} when absent or not parseable.
+     *
+     * @param path The dotted YAML path.
+     * @param fallback The value to return when absent.
+     * @return The long value, or the fallback.
+     */
     public long getLong(String path, long fallback) {
         Object v = get(path);
         if (v instanceof Number n) return n.longValue();
@@ -74,7 +118,11 @@ public final class ConfigView {
         return fallback;
     }
 
-    /** The list's scalar items as strings; empty when the value is not a list. */
+    /** The list's scalar items as strings; empty when the value is not a list.
+     *
+     * @param path The dotted YAML path to read.
+     * @return A new list of string representations for each item.
+     */
     public List<String> getStringList(String path) {
         List<String> out = new ArrayList<>();
         if (get(path) instanceof List<?> list) {
@@ -85,7 +133,11 @@ public final class ConfigView {
         return out;
     }
 
-    /** The list's map items; empty when the value is not a list. */
+    /** The list's map items; empty when the value is not a list.
+     *
+     * @param path The dotted YAML path to read.
+     * @return A new list containing only the map entries from the original list.
+     */
     public List<Map<?, ?>> getMapList(String path) {
         List<Map<?, ?>> out = new ArrayList<>();
         if (get(path) instanceof List<?> list) {
@@ -94,7 +146,11 @@ public final class ConfigView {
         return out;
     }
 
-    /** The nested map at the path, or null when it is absent or not a map. */
+    /** The nested map at the path, or null when it is absent or not a map.
+     *
+     * @param path The dotted YAML path to resolve.
+     * @return A new map with all keys converted to strings, or null.
+     */
     public Map<String, Object> getSection(String path) {
         return get(path) instanceof Map<?, ?> m ? strings(m) : null;
     }

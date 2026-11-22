@@ -37,7 +37,16 @@ public final class ProxyValueSource implements ValueSource {
     private final Clock clock;
     private final long startedMs;
 
-    /** {@code federation} may be null. {@code startedMs} is when the proxy started (for {@code proxy_uptime}). */
+    /**
+     * Creates a new value source with the given proxy adapter components. {@code federation} may be null.
+     * {@code startedMs} is when the proxy started (for {@code proxy_uptime}).
+     *
+     * @param adapter The proxy adapter for server and player queries.
+     * @param pinger The server reachability checker.
+     * @param federation The federation manager for cross-backend placeholders; may be null.
+     * @param clock The clock used for time-based operations.
+     * @param startedMs When the proxy process started, in milliseconds since epoch.
+     */
     public ProxyValueSource(ProxyAdapter adapter, ServerPinger pinger, Federation federation, Clock clock, long startedMs) {
         this.adapter = adapter;
         this.pinger = pinger;
@@ -105,6 +114,8 @@ public final class ProxyValueSource implements ValueSource {
     /**
      * What the catalog may list for {@code proxy} (the network wide and per server placeholders; the player ones are not
      * PUBLIC) and {@code backend}; null for any other expansion.
+     *
+     * @return A lookup function that returns placeholder lists by identifier, or null for unknown identifiers.
      */
     public ExpansionLookup lookup() {
         return id -> switch (id) {

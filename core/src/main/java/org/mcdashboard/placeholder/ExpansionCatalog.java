@@ -15,21 +15,37 @@ import java.util.regex.Pattern;
 
 /**
  * Turns the {@code catalog:} entries of {@code placeholders.yml} into AUTO definitions, one per placeholder an
- * expansion declares. Parameterised placeholders ({@code <}, {@code {} or {@code [}) are skipped, a deny list keeps
- * sensitive parameters out (always including {@link #DEFAULT_DENY}) and {@code max} caps the amount per expansion.
+ * expansion declares. Parameterised placeholders (those containing {@code &lt;}, an opening brace or {@code [}) are
+ * skipped, a deny list keeps sensitive parameters out (always including {@link #DEFAULT_DENY}) and {@code max} caps the
+ * amount per expansion.
  */
 public final class ExpansionCatalog {
     /** Applied to every catalog entry, even when not configured. Matched case-insensitively against the parameter. */
     public static final List<String> DEFAULT_DENY = List.of("*ip*", "*password*", "*token*", "*secret*", "*address*");
+    /** Default cap on the number of placeholders one catalog entry may yield. */
     public static final int DEFAULT_MAX = 2000;
 
     private static final Pattern ID = Pattern.compile("[A-Za-z0-9_.-]{1,64}");
     /** Characters a parameter may not contain: markup, a placeholder opener, a percent sign or whitespace. */
     private static final Pattern FORBIDDEN = Pattern.compile("[<{\\[%\\s]");
 
-    /** One {@code catalog:} entry. */
+    /** One {@code catalog:} entry.
+     *
+     * @param expansion  The PlaceholderAPI expansion identifier.
+     * @param group      The display group the generated definitions belong to.
+     * @param access     Whether the generated definitions are PUBLIC or PLAYER.
+     * @param permission Permission node a caller needs to read any generated placeholder; null when none.
+     * @param deny       Extra parameter globs to skip for this entry.
+     * @param max        Maximum number of placeholders this entry may generate.
+     * @param params     Extra parameter names to declare explicitly for the expansion.
+     */
     public record Entry(String expansion, String group, PlaceholderDefinition.Access access, String permission,
                         List<String> deny, int max, List<String> params) {
+        /** Builds an entry from one parsed {@code catalog:} map; throws on missing or malformed fields.
+         *
+         * @param m The parsed YAML map for this catalog entry.
+         * @return A validated Entry.
+         */
         public static Entry fromMap(Map<?, ?> m) {
             Object ex = m.get("expansion");
             if (ex == null || !ex.toString().matches("[A-Za-z0-9_]{1,40}")) {
@@ -60,7 +76,12 @@ public final class ExpansionCatalog {
     private ExpansionCatalog() {
     }
 
-    /** Parses the entries; invalid ones are reported through {@code onError} and skipped. */
+    /** Parses the entries; invalid ones are reported through {@code onError} and skipped.
+     *
+     * @param entries The raw catalog maps from the configuration.
+     * @param onError Receives a message for each entry that could not be parsed.
+     * @return The entries that parsed successfully.
+     */
     public static List<Entry> parseAll(List<? extends Map<?, ?>> entries, Consumer<String> onError) {
         List<Entry> out = new ArrayList<>();
         for (Map<?, ?> e : entries) {
@@ -73,7 +94,13 @@ public final class ExpansionCatalog {
         return out;
     }
 
-    /** Builds the AUTO definitions; an expansion that is not installed is reported through {@code warn} and skipped. */
+    /** Builds the AUTO definitions; an expansion that is not installed is reported through {@code warn} and skipped.
+     *
+     * @param entries The parsed catalog entries to build from.
+     * @param lookup  Lists the placeholders each installed expansion declares.
+     * @param warn    Receives warnings for expansions that are not installed.
+     * @return The AUTO placeholder definitions generated from the entries.
+     */
     public static List<PlaceholderDefinition> build(List<Entry> entries, ExpansionLookup lookup, Consumer<String> warn) {
         return build(entries, lookup, warn, new LinkedHashMap<>());
     }
@@ -81,6 +108,12 @@ public final class ExpansionCatalog {
     /**
      * Like {@link #build(List, ExpansionLookup, Consumer)}; {@code counts} receives the number of definitions each
      * expansion yielded. Discovered placeholders and the entry's {@code params} are combined.
+     *
+     * @param entries The parsed catalog entries to build from.
+     * @param lookup  Lists the placeholders each installed expansion declares.
+     * @param warn    Receives warnings for expansions that are not installed or are capped.
+     * @param counts  Receives the number of definitions each expansion yielded.
+     * @return The AUTO placeholder definitions generated from the entries.
      */
     public static List<PlaceholderDefinition> build(List<Entry> entries, ExpansionLookup lookup, Consumer<String> warn,
                                                     Map<String, Integer> counts) {
@@ -124,13 +157,23 @@ public final class ExpansionCatalog {
         return new ArrayList<>(out.values());
     }
 
-    /** True when an installed expansion yielded nothing and no {@code params} were configured: discovery may still succeed later. */
+    /** True when an installed expansion yielded nothing and no {@code params} were configured: discovery may still succeed later.
+     *
+     * @param entries The parsed catalog entries.
+     * @param counts  The number of definitions each expansion yielded so far.
+     * @return True when at least one expansion without explicit params yielded nothing.
+     */
     public static boolean worthRetrying(List<Entry> entries, Map<String, Integer> counts) {
         for (Entry e : entries) if (e.params().isEmpty() && counts.getOrDefault(e.expansion(), 0) == 0) return true;
         return false;
     }
 
-    /** The final log lines: how many placeholders each expansion yielded, and a warning for those that yielded none. */
+    /** The final log lines: how many placeholders each expansion yielded, and a warning for those that yielded none.
+     *
+     * @param entries The parsed catalog entries.
+     * @param counts  The number of definitions each expansion yielded.
+     * @return One log line per expansion that was installed.
+     */
     public static List<String> report(List<Entry> entries, Map<String, Integer> counts) {
         List<String> out = new ArrayList<>();
         for (String id : new LinkedHashSet<>(entries.stream().map(Entry::expansion).toList())) {
@@ -142,7 +185,12 @@ public final class ExpansionCatalog {
         return out;
     }
 
-    /** Explicit definitions first; a catalog definition with an id that already exists is dropped. */
+    /** Explicit definitions first; a catalog definition with an id that already exists is dropped.
+     *
+     * @param explicit The definitions listed explicitly in placeholders.yml.
+     * @param catalog  The definitions generated from the expansion catalog.
+     * @return The merged definitions, with explicit ones taking precedence.
+     */
     public static List<PlaceholderDefinition> merge(List<PlaceholderDefinition> explicit, List<PlaceholderDefinition> catalog) {
         Map<String, PlaceholderDefinition> all = new LinkedHashMap<>();
         for (PlaceholderDefinition d : explicit) all.put(d.id(), d);

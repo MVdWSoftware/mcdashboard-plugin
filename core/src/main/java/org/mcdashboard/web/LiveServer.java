@@ -64,18 +64,34 @@ public final class LiveServer {
     private ExecutorService acceptors;
     private ScheduledExecutorService ticker;
 
-    /** A live feed that accepts only the official app's User-Agent. */
+    /**
+     * A live feed that accepts only the official app's User-Agent.
+     *
+     * @param ctx            The shared API context.
+     * @param maxConnections The most open connections allowed at once.
+     */
     public LiveServer(ApiContext ctx, int maxConnections) {
         this(ctx, maxConnections, ClientPolicy.defaults(Clock.systemUTC()));
     }
 
+    /**
+     * A live feed that uses the given client policy.
+     *
+     * @param ctx            The shared API context.
+     * @param maxConnections The most open connections allowed at once.
+     * @param clients        The client policy used for the WebSocket handshake.
+     */
     public LiveServer(ApiContext ctx, int maxConnections, ClientPolicy clients) {
         this.ctx = ctx;
         this.maxConnections = maxConnections;
         this.clients = clients;
     }
 
-    /** Requires every connection to present a valid client assertion in its {@code auth} message. */
+    /**
+     * Requires every connection to present a valid client assertion in its {@code auth} message.
+     *
+     * @param verifier The assertion verifier, or null to stop requiring assertions.
+     */
     public void verifyClients(ClientAssertions verifier) {
         this.assertions = verifier;
     }
@@ -87,11 +103,25 @@ public final class LiveServer {
         this.idleTimeoutMs = idleMs;
     }
 
+    /**
+     * Starts listening for plain WebSocket connections.
+     *
+     * @param host The address to bind, or null or blank for all interfaces.
+     * @param port The port to listen on.
+     * @throws java.io.IOException When the socket cannot be bound.
+     */
     public void start(String host, int port) throws IOException {
         start(host, port, null);
     }
 
-    /** Serves TLS ({@code wss://}) when {@code ssl} is given. */
+    /**
+     * Serves TLS ({@code wss://}) when {@code ssl} is given.
+     *
+     * @param host The address to bind, or null or blank for all interfaces.
+     * @param port The port to listen on.
+     * @param ssl  The TLS context, or null for plain WebSocket.
+     * @throws java.io.IOException When the socket cannot be bound.
+     */
     public void start(String host, int port, javax.net.ssl.SSLContext ssl) throws IOException {
         socket = ssl == null ? new ServerSocket() : ssl.getServerSocketFactory().createServerSocket();
         socket.setReuseAddress(true);
@@ -101,10 +131,16 @@ public final class LiveServer {
         acceptors.execute(this::acceptLoop);
     }
 
+    /**
+     * The port the live feed is listening on.
+     *
+     * @return The bound port.
+     */
     public int port() {
         return socket.getLocalPort();
     }
 
+    /** Closes the listening socket and stops the worker threads. */
     public void stop() {
         try {
             if (socket != null) socket.close();
@@ -139,7 +175,11 @@ public final class LiveServer {
         }
     }
 
-    /** Open live-feed connections right now. */
+    /**
+     * Open live-feed connections right now.
+     *
+     * @return The current number of open connections.
+     */
     public int connections() {
         return connections.get();
     }

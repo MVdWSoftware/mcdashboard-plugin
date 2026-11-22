@@ -49,6 +49,13 @@ public final class ClientAssertions {
     /**
      * A verified assertion. {@code level} is {@code device} or {@code registered}; {@code licenseId} is the {@code lid} claim
      * (the licensed server the assertion was issued for, only for server-side clients) or null.
+     *
+     * @param instance    The client that produced it ({@code sub}).
+     * @param kind        What produced it.
+     * @param version     The client version ({@code cver}).
+     * @param level       {@code device} or {@code registered}.
+     * @param expiresAtMs Expiry in epoch milliseconds.
+     * @param licenseId   The {@code lid} claim, or null.
      */
     public record Verified(String instance, String kind, String version, String level, long expiresAtMs, String licenseId) {
     }
@@ -63,18 +70,28 @@ public final class ClientAssertions {
     private final Map<String, Verified> cache = new ConcurrentHashMap<>();
 
     /**
-     * @param keys       the service's public keys (JWK maps: {@code kty EC, crv P-256, x, y}); several while it rotates
-     * @param kinds      accepted client kinds, empty for all
-     * @param hosts      host names an assertion may be for; empty means the host the client connected to
-     * @param deviceOnly accept only {@code device}-level assertions (platform-attested apps), not {@code registered} clients
+     * Creates a verifier for the service's published keys.
+     *
+     * @param keys       The service's public keys (JWK maps: {@code kty EC, crv P-256, x, y}); several while it rotates.
+     * @param clock      The clock used for expiry and cache decisions.
+     * @param kinds      Accepted client kinds, empty for all.
+     * @param hosts      Host names an assertion may be for; empty means the host the client connected to.
+     * @param deviceOnly Accept only {@code device}-level assertions (platform-attested apps), not {@code registered} clients.
      */
     public ClientAssertions(List<Map<String, Object>> keys, Clock clock, Set<String> kinds, Set<String> hosts, boolean deviceOnly) {
         this(keys, clock, kinds, hosts, deviceOnly, null);
     }
 
     /**
-     * @param licenseId this server's {@code license.id}, or null. An assertion that carries a {@code lid} claim is accepted only
-     *                  when it equals this id, so a server without a licence id accepts none of them.
+     * Creates a verifier that also matches a {@code lid} claim against this server's licence id.
+     *
+     * @param keys       The service's public keys (JWK maps: {@code kty EC, crv P-256, x, y}); several while it rotates.
+     * @param clock      The clock used for expiry and cache decisions.
+     * @param kinds      Accepted client kinds, empty for all.
+     * @param hosts      Host names an assertion may be for; empty means the host the client connected to.
+     * @param deviceOnly Accept only {@code device}-level assertions (platform-attested apps), not {@code registered} clients.
+     * @param licenseId  This server's {@code license.id}, or null. An assertion that carries a {@code lid} claim is accepted only
+     *                   when it equals this id, so a server without a licence id accepts none of them.
      */
     public ClientAssertions(List<Map<String, Object>> keys, Clock clock, Set<String> kinds, Set<String> hosts, boolean deviceOnly, String licenseId) {
         List<PublicKey> parsed = new ArrayList<>();
@@ -87,7 +104,11 @@ public final class ClientAssertions {
         this.licenseId = licenseId == null || licenseId.isBlank() ? null : licenseId;
     }
 
-    /** Whether any key is trusted: without one nothing verifies, which is what an owner who forgot the key must see. */
+    /**
+     * Whether any key is trusted: without one nothing verifies, which is what an owner who forgot the key must see.
+     *
+     * @return True when at least one public key is configured.
+     */
     public boolean hasKeys() {
         return !keys.isEmpty();
     }
@@ -95,8 +116,9 @@ public final class ClientAssertions {
     /**
      * Verifies a token for the connection it arrived on.
      *
-     * @param token the compact JWT, or null
-     * @param host  the host the client connected to ({@code Host} header, port stripped)
+     * @param token The compact JWT, or null.
+     * @param host  The host the client connected to ({@code Host} header, port stripped).
+     * @return A verified assertion, or empty when the token is not acceptable.
      */
     public Optional<Verified> verify(String token, String host) {
         if (token == null || token.isEmpty() || token.length() > MAX_TOKEN || keys.isEmpty()) return Optional.empty();
@@ -144,7 +166,12 @@ public final class ClientAssertions {
         return host != null && aud.equals(normalise(host));
     }
 
-    /** Lower-case host without port or brackets: {@code MC.example.com:1553} becomes {@code mc.example.com}. */
+    /**
+     * Lower-case host without port or brackets: {@code MC.example.com:1553} becomes {@code mc.example.com}.
+     *
+     * @param hostHeader The raw Host header.
+     * @return The normalised host name.
+     */
     public static String normalise(String hostHeader) {
         String h = hostHeader.trim().toLowerCase(Locale.ROOT);
         if (h.startsWith("[")) {

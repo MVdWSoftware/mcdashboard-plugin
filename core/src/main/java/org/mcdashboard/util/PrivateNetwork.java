@@ -20,6 +20,9 @@ public final class PrivateNetwork {
     /**
      * True for {@code localhost} and for IP literals that are loopback, private (RFC 1918, IPv6 ULA) or link local.
      * Host names are never resolved and never count as private: {@code 10.example.com} can point anywhere.
+     *
+     * @param host The host name or IP literal to test.
+     * @return True when the host stays on a private network.
      */
     public static boolean isPrivate(String host) {
         if (host == null || host.isBlank()) return false;

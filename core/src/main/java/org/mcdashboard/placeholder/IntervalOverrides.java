@@ -25,7 +25,10 @@ public final class IntervalOverrides {
         this.byPermissionMs = byPermissionMs;
     }
 
-    /** No overrides at all. */
+    /** No overrides at all.
+     *
+     * @return The shared empty instance.
+     */
     public static IntervalOverrides empty() {
         return EMPTY;
     }
@@ -33,6 +36,10 @@ public final class IntervalOverrides {
     /**
      * Parses a {@code permission: seconds} map ({@code permission: 15} or {@code permission: "15"}). Problems are
      * reported through {@code warn} and the entry is skipped; a non-map yields no overrides.
+     *
+     * @param raw  The parsed YAML value.
+     * @param warn Receives a warning for each entry that is skipped.
+     * @return The parsed overrides, empty when nothing valid was configured.
      */
     public static IntervalOverrides parse(Object raw, Consumer<String> warn) {
         if (raw == null) return EMPTY;
@@ -53,16 +60,29 @@ public final class IntervalOverrides {
         return parsed.isEmpty() ? EMPTY : new IntervalOverrides(Collections.unmodifiableMap(parsed));
     }
 
+    /** Whether no overrides are configured.
+     *
+     * @return True when this instance holds no permissions.
+     */
     public boolean isEmpty() {
         return byPermissionMs.isEmpty();
     }
 
-    /** Every node mentioned here, so the permission snapshots can track them. */
+    /** Every node mentioned here, so the permission snapshots can track them.
+     *
+     * @return The configured permission nodes.
+     */
     public Set<String> permissions() {
         return byPermissionMs.keySet();
     }
 
-    /** The fastest interval the player holds, or {@code fallbackMs} when no node matches (or the player is anonymous). */
+    /** The fastest interval the player holds, or {@code fallbackMs} when no node matches (or the player is anonymous).
+     *
+     * @param fallbackMs  The interval to use when no override applies.
+     * @param playerUuid  The player whose permissions are checked.
+     * @param permissions The permission snapshots to consult.
+     * @return The fastest matching interval in milliseconds, else {@code fallbackMs}.
+     */
     public long select(long fallbackMs, String playerUuid, PermissionCache permissions) {
         long fastest = Long.MAX_VALUE;
         boolean matched = false;

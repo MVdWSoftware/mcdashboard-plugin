@@ -63,7 +63,13 @@ public final class SenMl {
         r.put("vs", raw);
     }
 
-    /** Builds one SenML record for a resolved value. */
+    /**
+     * Builds one SenML record for a resolved value.
+     *
+     * @param def   The placeholder definition that says how to encode it.
+     * @param value The resolved value and when it was updated.
+     * @return The SenML record.
+     */
     public static Map<String, Object> record(PlaceholderDefinition def, PlaceholderService.Value value) {
         Map<String, Object> r = new LinkedHashMap<>();
         r.put("n", def.id());

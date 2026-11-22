@@ -14,7 +14,13 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /** One-time passwords a player creates in game ({@code /mcdashboard link}) to pair a device. */
 public final class OtpService {
-    /** A pending pairing. */
+    /**
+     * A pending pairing.
+     *
+     * @param playerUuid  Player UUID being linked.
+     * @param playerName  Display name of the linking player.
+     * @param expiresAtMs Expiry time in epoch milliseconds.
+     */
     public record Pending(String playerUuid, String playerName, long expiresAtMs) {
     }
 
@@ -27,12 +33,24 @@ public final class OtpService {
     private final Clock clock;
     private final long timeoutSeconds;
 
+    /**
+     * Creates a service with the given timeout for pending codes.
+     *
+     * @param clock          System clock for expiry checks.
+     * @param timeoutSeconds How long each code remains valid; negative means forever.
+     */
     public OtpService(Clock clock, long timeoutSeconds) {
         this.clock = clock;
         this.timeoutSeconds = timeoutSeconds;
     }
 
-    /** Creates a code for the player, replacing any earlier one of that player. */
+    /**
+     * Creates a code for the player, replacing any earlier one of that player.
+     *
+     * @param playerUuid Player UUID being linked.
+     * @param playerName Display name of the linking player.
+     * @return The generated code.
+     */
     public String create(String playerUuid, String playerName) {
         purge();
         pending.values().removeIf(p -> p.playerUuid().equals(playerUuid));
@@ -46,12 +64,22 @@ public final class OtpService {
         return code.toString();
     }
 
-    /** The code as shown to the player: {@code ABCD-2345}, easier to read and type. */
+    /**
+     * The code as shown to the player: {@code ABCD-2345}, easier to read and type.
+     *
+     * @param code The raw code.
+     * @return The code with a hyphen after four characters.
+     */
     public static String display(String code) {
         return code.length() == 8 ? code.substring(0, 4) + "-" + code.substring(4) : code;
     }
 
-    /** Consumes a code. A code can only be used once. */
+    /**
+     * Consumes a code. A code can only be used once.
+     *
+     * @param code The code the client entered.
+     * @return The pairing it created, or empty when it is unknown or expired.
+     */
     public Optional<Pending> redeem(String code) {
         if (code == null) return Optional.empty();
         Pending p = pending.remove(code.trim().toUpperCase(Locale.ROOT).replace("-", ""));

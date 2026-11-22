@@ -27,6 +27,11 @@ mvn -B verify          # compile, unit tests, jars in spigot/target/ and nukkit/
 
 JaCoCo runs with the tests (`<module>/target/site/jacoco/index.html`); `mvn -B verify` fails when a module drops below the limits in its `pom.xml`. Raise a limit when you raise coverage, never lower it.
 
+`mvn -B verify` also runs Javadoc with doclint's `all` checks and fails on any warning: every public and protected type,
+field, constructor and method carries a doc comment, `@param` names match the signature (record components included),
+anything that returns has `@return`, and `{@link}`/`{@code}` are valid. Write tags as `@param name Description.` (no
+` - ` separator) and escape a literal `<` as `{@code &lt;}`.
+
 The tests start the HTTP API and the live feed on random local ports with a fake placeholder source, so no
 Minecraft server is needed. The history tests run against SQLite. To run them against PostgreSQL and MySQL as
 well, start the databases and pass their JDBC URLs:

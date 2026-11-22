@@ -6,7 +6,11 @@ package org.mcdashboard.image;
 
 import java.util.Arrays;
 
-/** A validated image and the time it was fetched or last modified (epoch milliseconds). */
+/** A validated image and the time it was fetched or last modified (epoch milliseconds).
+ *
+ * @param bytes The raw image bytes, already validated by {@link ImageFormat#sniff}.
+ * @param timeMs Epoch milliseconds when the image was obtained or last updated.
+ */
 public record Image(byte[] bytes, long timeMs) {
     @Override
     public boolean equals(Object o) {

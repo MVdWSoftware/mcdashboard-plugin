@@ -28,6 +28,13 @@ public final class JdbcConnector implements JdbcHistoryStore.ConnectionSource {
     private final Path driversDir;
     private Driver external;
 
+    /** Creates a connector for the specified JDBC URL and driver directory.
+     *
+     * @param url        The full JDBC connection string.
+     * @param user       Database authentication username.
+     * @param password   Database authentication password.
+     * @param driversDir Path to a directory containing external JDBC driver jars.
+     */
     public JdbcConnector(String url, String user, String password, Path driversDir) {
         this.url = url;
         this.user = user;

@@ -37,16 +37,28 @@ public final class ImageCache {
     private final Clock clock;
     private volatile HttpClient client;
 
+    /** Creates a cache that stamps entries with the given clock.
+     *
+     * @param clock The clock used for TTL checks and entry timestamps.
+     */
     public ImageCache(Clock clock) {
         this.clock = clock;
     }
 
-    /** The clock the cache stamps entries with; {@code map:} sources use it for their own composite cache. */
+    /** Returns the clock this cache uses for timestamping entries.
+     *
+     * @return The clock this cache was created with.
+     */
     public Clock clock() {
         return clock;
     }
 
-    /** The image at {@code url}, fetched when the cached copy is older than {@code ttlMs}. Empty when unavailable. */
+    /** Fetches the image at {@code url} when the cached copy is older than {@code ttlMs}. Empty when unavailable.
+     *
+     * @param url The HTTP(S) URL to fetch.
+     * @param ttlMs How long a fetched image remains fresh in milliseconds.
+     * @return The cached or newly fetched image, or empty if the origin is unreachable.
+     */
     public Optional<Image> get(String url, long ttlMs) {
         return get(url, ttlMs, ImageFormat.MAX_BYTES);
     }
@@ -54,6 +66,11 @@ public final class ImageCache {
     /**
      * As {@link #get(String, long)} with another size cap; map tiles are larger than what is sent to the app, but they are
      * only an input to the picture that is. A URL is meant to be read with one cap only (it is part of the cache entry).
+     *
+     * @param url The HTTP(S) URL to fetch.
+     * @param ttlMs How long a fetched image remains fresh in milliseconds.
+     * @param maxBytes Maximum accepted body size in bytes.
+     * @return The cached or newly fetched image, or empty if the origin is unreachable.
      */
     public Optional<Image> get(String url, long ttlMs, int maxBytes) {
         Entry e = entries.get(url);

@@ -34,6 +34,14 @@ public final class Federation implements AutoCloseable {
     private volatile long staleAfterMs = 60_000;
     private ScheduledExecutorService timer;
 
+    /**
+     * Creates an instance with the given backends and fetcher.
+     *
+     * @param backends The configured backend servers to read from.
+     * @param fetcher How to fetch placeholder values from each backend.
+     * @param clock The clock used for staleness checks.
+     * @param warn Where to report warnings about unreachable backends.
+     */
     public Federation(List<BackendConfig> backends, BackendFetcher fetcher, Clock clock, Consumer<String> warn) {
         this.backends = List.copyOf(backends);
         this.fetcher = fetcher;
@@ -41,10 +49,20 @@ public final class Federation implements AutoCloseable {
         this.warn = warn;
     }
 
+    /**
+     * Whether federation is active (there are backends configured).
+     *
+     * @return True when at least one backend is configured.
+     */
     public boolean enabled() {
         return !backends.isEmpty();
     }
 
+    /**
+     * Starts the periodic refresh timer with the given interval in seconds (minimum 5).
+     *
+     * @param intervalSeconds How often to refresh backend data, at least 5.
+     */
     public synchronized void start(int intervalSeconds) {
         if (timer != null || backends.isEmpty()) return;
         int interval = Math.max(5, intervalSeconds);
@@ -65,7 +83,12 @@ public final class Federation implements AutoCloseable {
         }
     }
 
-    /** The value for {@code <name>_<id>}; null when the backend is unknown, unreadable or the value is stale. */
+    /**
+     * The value for {@code <name>_<id>}; null when the backend is unknown, unreadable or the value is stale.
+     *
+     * @param nameAndId The placeholder name combined with its id by an underscore.
+     * @return The cached value, or null if not available.
+     */
     public String value(String nameAndId) {
         int cut = nameAndId.indexOf('_');
         if (cut <= 0) return null;
@@ -74,7 +97,11 @@ public final class Federation implements AutoCloseable {
         return s.values().get(nameAndId.substring(cut + 1));
     }
 
-    /** {@code %backend_<name>_<id>%} for everything the backends offered at the last read. */
+    /**
+     * {@code %backend_<name>_<id>%} for everything the backends offered at the last read.
+     *
+     * @return A list of template strings for all known placeholders across all backends.
+     */
     public List<String> templates() {
         List<String> out = new ArrayList<>();
         for (BackendConfig b : backends) {

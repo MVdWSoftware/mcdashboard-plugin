@@ -123,6 +123,31 @@
           </execution>
         </executions>
       </plugin>
+      <!-- Javadoc is part of the build: every public and protected type, field and method is documented, and every
+           tag is valid and complete (@param matches the signature, @return on anything that returns). Doclint's
+           `all` includes `missing`, so an undocumented member or record component fails the build too. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>3.12.0</version>
+        <executions>
+          <execution>
+            <id>javadoc-check</id>
+            <phase>verify</phase>
+            <goals><goal>javadoc</goal></goals>
+            <configuration>
+              <doclint>all</doclint>
+              <failOnWarnings>true</failOnWarnings>
+              <quiet>true</quiet>
+              <!-- Doclint stops after 100 warnings, which would hide most findings in a module this size. -->
+              <additionalOptions>
+                <additionalOption>-Xmaxwarns</additionalOption>
+                <additionalOption>10000</additionalOption>
+              </additionalOptions>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
 </project>

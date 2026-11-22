@@ -37,6 +37,10 @@ public final class PluginStats {
     private volatile IntSupplier placeholders = () -> 0;
     private volatile IntSupplier dashboards = () -> 0;
 
+    /** Creates a stats instance whose uptime starts now.
+     *
+     * @param clock The clock used for timestamps and uptime.
+     */
     public PluginStats(Clock clock) {
         this.clock = clock;
         this.startedMs = clock.millis();
@@ -66,49 +70,93 @@ public final class PluginStats {
 
     // Gauges (set once by the component that owns the state)
 
+    /** Sets the version the plugin reports.
+     *
+     * @param version The plugin version, or null for empty.
+     * @return This instance, for chaining.
+     */
     public PluginStats version(String version) {
         this.version = version == null ? "" : version;
         return this;
     }
 
-    /** {@code sqlite}, {@code mysql}, {@code mariadb}, {@code postgresql} or {@code off} (memory only). */
+    /** Sets the history storage backend name. {@code sqlite}, {@code mysql}, {@code mariadb}, {@code postgresql} or {@code off} (memory only).
+     *
+     * @param storage The storage backend name, or {@code memory} for off.
+     * @return This instance, for chaining.
+     */
     public PluginStats historyStorage(String storage) {
         this.historyStorage = storage == null || storage.isBlank() || storage.equals("memory") ? "off" : storage;
         return this;
     }
 
+    /** Sets whether a licence id is configured.
+     *
+     * @param licensed True when a licence is configured.
+     * @return This instance, for chaining.
+     */
     public PluginStats licensed(boolean licensed) {
         this.licensed = licensed;
         return this;
     }
 
+    /** Registers the gauge that counts paired devices and those seen recently.
+     *
+     * @param paired Supplies the total number of paired devices.
+     * @param seenSince Supplies the number of devices seen recently.
+     * @return This instance, for chaining.
+     */
     public PluginStats devices(IntSupplier paired, LongSupplier seenSince) {
         this.devices = paired;
         this.devicesOnline = seenSince;
         return this;
     }
 
-    /** How many devices reported each entitlement ({@code server}, {@code app}, {@code free}); self-reported, informational. */
+    /** How many devices reported each entitlement ({@code server}, {@code app}, {@code free}); self-reported, informational.
+     *
+     * @param counter Supplies the count for an entitlement name.
+     * @return This instance, for chaining.
+     */
     public PluginStats devicesEntitled(java.util.function.ToIntFunction<String> counter) {
         this.devicesEntitled = counter;
         return this;
     }
 
+    /** Registers the gauge that counts open live-feed clients.
+     *
+     * @param open Supplies the number of open clients.
+     * @return This instance, for chaining.
+     */
     public PluginStats liveClients(IntSupplier open) {
         this.liveClients = open;
         return this;
     }
 
+    /** Registers the gauge that counts written history samples.
+     *
+     * @param written Supplies the number of samples written.
+     * @return This instance, for chaining.
+     */
     public PluginStats historySamples(LongSupplier written) {
         this.historySamples = written;
         return this;
     }
 
+    /** Registers the gauge that counts offered placeholders.
+     *
+     * @param offered Supplies the number of placeholders.
+     * @return This instance, for chaining.
+     */
     public PluginStats placeholders(IntSupplier offered) {
         this.placeholders = offered;
         return this;
     }
 
+    /** Registers the gauge that counts defined dashboards.
+     *
+     * @param defined Supplies the number of dashboards.
+     * @return This instance, for chaining.
+     */
     public PluginStats dashboards(IntSupplier defined) {
         this.dashboards = defined;
         return this;
@@ -116,22 +164,42 @@ public final class PluginStats {
 
     // Reading (any thread, never blocks)
 
+    /** The epoch milliseconds at which this instance was created.
+     *
+     * @return The start time in epoch milliseconds.
+     */
     public long startedMs() {
         return startedMs;
     }
 
+    /** The number of whole seconds since this instance was created.
+     *
+     * @return The uptime in seconds.
+     */
     public long uptimeSeconds() {
         return Math.max(0, (clock.millis() - startedMs) / 1000);
     }
 
+    /** The plugin version reported to placeholders.
+     *
+     * @return The version string.
+     */
     public String version() {
         return version;
     }
 
+    /** The history storage backend name.
+     *
+     * @return The storage name, or {@code off}.
+     */
     public String historyStorage() {
         return historyStorage;
     }
 
+    /** Whether a licence id is configured.
+     *
+     * @return True when licensed.
+     */
     public boolean licensed() {
         return licensed;
     }
@@ -140,12 +208,18 @@ public final class PluginStats {
      * The license state: {@code licensed} when {@code license.id} is configured (config based, as the plugin cannot and does
      * not ask the MVdW service), else {@code free}. This is the hook for refining it from what devices report, which is
      * self-reported and informational: the per-entitlement device counts are {@link #devicesEntitled(String)}.
+     *
+     * @return {@code licensed} or {@code free}.
      */
     public String licenseState() {
         return licensed ? "licensed" : "free";
     }
 
-    /** Devices that reported {@code entitlement} ({@code server}, {@code app} or {@code free}); 0 for anything else. */
+    /** Devices that reported {@code entitlement} ({@code server}, {@code app} or {@code free}); 0 for anything else.
+     *
+     * @param entitlement The entitlement name to count.
+     * @return The number of devices reporting that entitlement.
+     */
     public int devicesEntitled(String entitlement) {
         try {
             return devicesEntitled.applyAsInt(entitlement);
@@ -154,11 +228,18 @@ public final class PluginStats {
         }
     }
 
+    /** The total number of paired devices.
+     *
+     * @return The paired device count.
+     */
     public int devices() {
         return safe(devices);
     }
 
-    /** Paired devices that made a request in the last {@value #ONLINE_MINUTES} minutes. */
+    /** Paired devices that made a request in the last {@value #ONLINE_MINUTES} minutes.
+     *
+     * @return The number of devices seen recently.
+     */
     public long devicesOnline() {
         try {
             return devicesOnline.getAsLong();
@@ -170,11 +251,18 @@ public final class PluginStats {
     /** How long a device counts as online after its last request. */
     public static final int ONLINE_MINUTES = 5;
 
+    /** The total number of API requests since startup.
+     *
+     * @return The cumulative request count.
+     */
     public long apiRequests() {
         return requests.get();
     }
 
-    /** Requests in the last 60 seconds. */
+    /** Requests in the last 60 seconds.
+     *
+     * @return The number of requests in the rolling minute.
+     */
     public long apiRequestsPerMinute() {
         long now = clock.millis() / 1000;
         long sum = 0;
@@ -186,14 +274,26 @@ public final class PluginStats {
         return sum;
     }
 
+    /** The total number of refused requests.
+     *
+     * @return The cumulative rate-limited request count.
+     */
     public long rateLimitedRequests() {
         return limited.get();
     }
 
+    /** The number of currently open live-feed clients.
+     *
+     * @return The open client count.
+     */
     public int liveClients() {
         return safe(liveClients);
     }
 
+    /** The number of history samples written.
+     *
+     * @return The written sample count.
+     */
     public long historySamples() {
         try {
             return historySamples.getAsLong();
@@ -202,10 +302,18 @@ public final class PluginStats {
         }
     }
 
+    /** The number of offered placeholders.
+     *
+     * @return The placeholder count.
+     */
     public int placeholders() {
         return safe(placeholders);
     }
 
+    /** The number of defined dashboards.
+     *
+     * @return The dashboard count.
+     */
     public int dashboards() {
         return safe(dashboards);
     }

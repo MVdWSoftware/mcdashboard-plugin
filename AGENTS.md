@@ -19,6 +19,9 @@
   `skills/` in the jar and `DataFolder` writes them to `plugins/MCDashboard/.agents/skills/` on every start (a file whose
   content changed is replaced; extra files are kept). Change a skill together with the `docs/` page it summarises.
 - Docs: no ASCII repo trees; keep README and `docs/` current in the same change.
+- **Javadoc is validated.** `mvn -B verify` runs doclint `all` and fails on every warning: document public/protected
+  types, fields, constructors and methods, give each record component its `@param`, add `@return` to anything that
+  returns and write tags as `@param name Description.` (no ` - `). Escape `<` inside `{@code ...}` as `{@code &lt;}`.
 - **The marketing site is part of the change.** A new or changed placeholder type, command,
   permission, config key, dashboard feature, history behaviour, licence limit or network
   feature must update `docs/` **and** the public site

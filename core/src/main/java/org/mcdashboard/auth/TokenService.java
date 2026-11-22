@@ -25,9 +25,23 @@ import javax.crypto.spec.SecretKeySpec;
  * carry a serial checked against the {@link DeviceStore} so they can be revoked and rotated.
  */
 public final class TokenService {
-    public enum Type { ACCESS, REFRESH }
+    /** Whether a token grants access or can be exchanged for a new pair. */
+    public enum Type {
+        /** An access token: sent with each request and never stored by the server. */
+        ACCESS,
+        /** A refresh token: exchanged for a new pair, revocable through its serial. */
+        REFRESH
+    }
 
-    /** Verified token contents. */
+    /**
+     * Verified token contents.
+     *
+     * @param type        Whether it is an access or refresh token.
+     * @param deviceId    The paired device ({@code sub}).
+     * @param player      The player UUID ({@code player}).
+     * @param serial      The refresh generation ({@code ser}).
+     * @param expiresAtMs Expiry in epoch milliseconds, or a negative value when it never expires.
+     */
     public record Claims(Type type, String deviceId, String player, long serial, long expiresAtMs) {
     }
 
@@ -39,13 +53,28 @@ public final class TokenService {
     private final byte[] secret;
     private final Clock clock;
 
+    /**
+     * Creates a service from a shared secret and a clock.
+     *
+     * @param secret The HMAC secret; at least 32 bytes.
+     * @param clock  The clock used for issue and expiry times.
+     */
     public TokenService(byte[] secret, Clock clock) {
         if (secret.length < 32) throw new IllegalArgumentException("secret must be at least 32 bytes");
         this.secret = secret.clone();
         this.clock = clock;
     }
 
-    /** Creates a signed token valid for {@code ttlSeconds} (or forever when negative). */
+    /**
+     * Creates a signed token valid for {@code ttlSeconds} (or forever when negative).
+     *
+     * @param type       Whether to issue an access or a refresh token.
+     * @param deviceId   The paired device ({@code sub}).
+     * @param player     The player UUID ({@code player}).
+     * @param serial     The refresh generation ({@code ser}).
+     * @param ttlSeconds How long the token is valid, or a negative value for no expiry.
+     * @return The compact JWT.
+     */
     public String issue(Type type, String deviceId, String player, long serial, long ttlSeconds) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("sub", deviceId);
@@ -59,7 +88,13 @@ public final class TokenService {
         return body + "." + B64.encodeToString(sign(body));
     }
 
-    /** Verifies signature and expiry; empty when the token is invalid, tampered with or expired. */
+    /**
+     * Verifies signature and expiry; empty when the token is invalid, tampered with or expired.
+     *
+     * @param token    The compact JWT to verify.
+     * @param expected The type the caller expects.
+     * @return The claims, or empty when the token does not verify.
+     */
     public Optional<Claims> verify(String token, Type expected) {
         if (token == null) return Optional.empty();
         String[] parts = token.split("\\.", -1);

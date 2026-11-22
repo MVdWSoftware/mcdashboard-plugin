@@ -12,7 +12,11 @@ public final class Json {
     private Json() {
     }
 
-    /** Serializes maps, lists, strings, numbers, booleans and null. */
+    /** Serializes maps, lists, strings, numbers, booleans and null.
+     *
+     * @param value The value to serialise.
+     * @return The JSON text.
+     */
     public static String write(Object value) {
         StringBuilder sb = new StringBuilder();
         write(sb, value);
@@ -72,12 +76,22 @@ public final class Json {
         sb.append('"');
     }
 
-    /** Parses a JSON document; throws {@link IllegalArgumentException} on malformed input. */
+    /** Parses a JSON document; throws {@link IllegalArgumentException} on malformed input.
+     *
+     * @param text The JSON text to parse.
+     * @return The parsed value: a map, list, string, number, boolean or null.
+     * @throws IllegalArgumentException When the input is not valid JSON.
+     */
     public static Object parse(String text) {
         return new JsonParser(text).document();
     }
 
-    /** Parses a JSON object. */
+    /** Parses a JSON object.
+     *
+     * @param text The JSON text to parse.
+     * @return The parsed object.
+     * @throws IllegalArgumentException When the input is not a JSON object.
+     */
     @SuppressWarnings("unchecked")
     public static Map<String, Object> parseObject(String text) {
         Object v = parse(text);

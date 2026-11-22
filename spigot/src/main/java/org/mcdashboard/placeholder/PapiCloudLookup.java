@@ -12,6 +12,10 @@ import java.util.Map;
 
 /** The placeholders listed in PlaceholderAPI's cloud data; yields nothing while that data is not loaded or the server is offline. */
 public final class PapiCloudLookup implements ExpansionLookup {
+    /** Creates the lookup; it keeps no state and reads PlaceholderAPI's cloud data when asked. */
+    public PapiCloudLookup() {
+    }
+
     @Override
     public List<String> placeholders(String identifier) {
         try {

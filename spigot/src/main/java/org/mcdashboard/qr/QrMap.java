@@ -37,7 +37,14 @@ public final class QrMap {
     private QrMap() {
     }
 
-    /** Creates the map item for {@code owner}, valid until {@code expiresAtMs}. Must run on the main thread. */
+    /**
+     * Creates the map item for {@code owner}, valid until {@code expiresAtMs}. Must run on the main thread.
+     *
+     * @param owner The player who will own and be able to read this QR map.
+     * @param text The URL or code encoded in the QR code.
+     * @param expiresAtMs The epoch millisecond when this map stops being valid.
+     * @return A filled map ItemStack containing the QR code.
+     */
     public static ItemStack create(Player owner, String text, long expiresAtMs) {
         QrCode qr = QrCode.encode(text);
         MapView view = Bukkit.createMap(owner.getWorld());
@@ -62,7 +69,12 @@ public final class QrMap {
         return item;
     }
 
-    /** Whether this item is one of our QR maps (not just any filled map). */
+    /**
+     * Whether this item is one of our QR maps (not just any filled map).
+     *
+     * @param item The item stack to check.
+     * @return True if this is a QrMap, false otherwise.
+     */
     public static boolean isQrMap(ItemStack item) {
         if (item == null || item.getType() != Material.FILLED_MAP) return false;
         ItemMeta meta = item.getItemMeta();
@@ -73,7 +85,12 @@ public final class QrMap {
         return name != null && (name.contains("MCDashboard link") || name.contains("MinecraftDashboard link"));
     }
 
-    /** The owner stored in the map, or null when it is not one of ours or the data is unreadable. */
+    /**
+     * The owner stored in the map, or null when it is not one of ours or the data is unreadable.
+     *
+     * @param item The QR map item stack.
+     * @return The owner's UUID, or null if not a valid map.
+     */
     public static UUID ownerOf(ItemStack item) {
         ItemMeta meta = item == null ? null : item.getItemMeta();
         if (meta == null) return null;
@@ -86,7 +103,12 @@ public final class QrMap {
         }
     }
 
-    /** When the map stops being valid, or 0 when it is not tagged. */
+    /**
+     * When the map stops being valid, or 0 when it is not tagged.
+     *
+     * @param item The QR map item stack.
+     * @return The expiry epoch millisecond, or 0 if not tagged.
+     */
     public static long expiresAt(ItemStack item) {
         ItemMeta meta = item == null ? null : item.getItemMeta();
         if (meta == null) return 0;
@@ -96,9 +118,10 @@ public final class QrMap {
 
     /**
      * Removes every QR map from the player's inventory and cursor.
-     * @param player - The player.
-     * @param quiet - Do not tell the player.
-     * @returns Whether anything was removed.
+     *
+     * @param player The player whose inventory to clear.
+     * @param quiet True to suppress the destruction message.
+     * @return True if any maps were removed.
      */
     public static boolean destroyFor(Player player, boolean quiet) {
         boolean removed = false;
@@ -119,8 +142,9 @@ public final class QrMap {
 
     /**
      * Removes maps that expired, or that no longer belong to this player (for example after an inventory handover).
-     * @param player - The player.
-     * @returns Whether anything was removed.
+     *
+     * @param player The player whose inventory to check.
+     * @return True if any expired maps were removed.
      */
     public static boolean destroyExpired(Player player) {
         boolean removed = false;

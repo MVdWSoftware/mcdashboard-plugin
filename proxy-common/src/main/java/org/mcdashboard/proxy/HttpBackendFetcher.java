@@ -46,7 +46,11 @@ public final class HttpBackendFetcher implements BackendFetcher {
     private final String userAgent;
     private final Map<String, HttpClient> clients = new java.util.concurrent.ConcurrentHashMap<>();
 
-    /** The User-Agent is {@code MCDashboard-Proxy/<version> (federation)}. */
+    /**
+     * The User-Agent is {@code MCDashboard-Proxy/<version> (federation)}.
+     *
+     * @param pluginVersion The plugin version to embed in the User-Agent header.
+     */
     public HttpBackendFetcher(String pluginVersion) {
         this.userAgent = "MCDashboard-Proxy/" + pluginVersion + " (federation)";
     }

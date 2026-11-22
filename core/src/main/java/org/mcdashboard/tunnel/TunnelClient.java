@@ -88,7 +88,19 @@ public final class TunnelClient {
     private CompletableFuture<?> sendChain = CompletableFuture.completedFuture(null);
     private final AtomicInteger attempt = new AtomicInteger();
 
-    /** {@code localHost} is where the plugin's own API listens; {@code livePort} is 0 when the live feed is off. */
+    /** Creates a tunnel client for one proxy endpoint.
+     *
+     * @param url The proxy's WebSocket URL.
+     * @param key The bearer key, never logged.
+     * @param localHost Where the plugin's own API listens.
+     * @param httpPort The local HTTP port to relay REST requests to.
+     * @param livePort The local live-feed port, or 0 when the live feed is off.
+     * @param serverName The name this server reports to the proxy.
+     * @param version The plugin version.
+     * @param bus The event bus whose events are forwarded.
+     * @param info Receives informational messages.
+     * @param warn Receives warnings about failed connections.
+     */
     public TunnelClient(URI url, String key, String localHost, int httpPort, int livePort, String serverName, String version,
                         EventBus bus, Consumer<String> info, Consumer<String> warn) {
         this.url = url;
@@ -102,7 +114,14 @@ public final class TunnelClient {
         this.channels = new LiveChannels(localHost, livePort, workers, this::send);
     }
 
-    /** Rejects a configuration that would send the key in the clear or is too weak, with the reason. */
+    /** Rejects a configuration that would send the key in the clear or is too weak, with the reason.
+     *
+     * @param url The proxy's WebSocket URL.
+     * @param key The bearer key.
+     * @param allowInsecure Whether plain {@code ws://} to a public host is allowed.
+     * @return The validated URI.
+     * @throws IllegalArgumentException When the URL or key is unacceptable.
+     */
     public static URI validate(String url, String key, boolean allowInsecure) {
         if (key == null || key.length() < 32) throw new IllegalArgumentException("tunnel.key must be at least 32 random characters");
         URI uri;
@@ -119,7 +138,16 @@ public final class TunnelClient {
         return uri;
     }
 
-    /** What an admin sees with {@code /mcdashboard tunnel}. */
+    /** What an admin sees with {@code /mcdashboard tunnel}.
+     *
+     * @param connected Whether the proxy answered {@code ready}.
+     * @param connectedSinceMs Epoch milliseconds of the last successful connection.
+     * @param attempts The number of failed attempts since the last stable connection.
+     * @param lastError The last error reason, or null.
+     * @param lastErrorMs Epoch milliseconds of the last error.
+     * @param rttMs The last measured round-trip time in milliseconds.
+     * @param channels The number of open live-feed channels.
+     */
     public record Status(boolean connected, long connectedSinceMs, int attempts, String lastError, long lastErrorMs, long rttMs,
                          int channels) {
     }
@@ -135,20 +163,29 @@ public final class TunnelClient {
         return this;
     }
 
+    /** Starts connecting and keeps the connection alive. */
     public void start() {
         connect();
         timer.scheduleWithFixedDelay(this::watchdog, pingMs, pingMs, TimeUnit.MILLISECONDS);
     }
 
-    /** True once the proxy answered {@code ready}. */
+    /** True once the proxy answered {@code ready}.
+     *
+     * @return True when the tunnel is connected and ready.
+     */
     public boolean connected() {
         return ready && ws != null;
     }
 
+    /** A snapshot of the current tunnel state for display.
+     *
+     * @return The current status.
+     */
     public Status status() {
         return new Status(connected(), connectedSince, attempt.get(), lastError, lastErrorMs, rttMs, channels.size());
     }
 
+    /** Stops the tunnel and releases all its threads. */
     public void stop() {
         stopped = true;
         generation.incrementAndGet();
@@ -356,12 +393,18 @@ public final class TunnelClient {
         }
     }
 
-    /** The proxy's tunnel protocol, 0 when it did not say (an older proxy). */
+    /** The proxy's tunnel protocol, 0 when it did not say (an older proxy).
+     *
+     * @return The protocol version, or 0.
+     */
     public int proxyProtocol() {
         return proxyProtocol;
     }
 
-    /** The features the proxy reported it can carry; empty when it reported none (an older proxy). */
+    /** The features the proxy reported it can carry; empty when it reported none (an older proxy).
+     *
+     * @return The reported feature names.
+     */
     public Set<String> proxyFeatures() {
         return proxyFeatures;
     }

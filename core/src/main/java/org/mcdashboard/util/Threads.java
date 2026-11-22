@@ -11,7 +11,11 @@ public final class Threads {
     private Threads() {
     }
 
-    /** Named daemon threads, so a pool that is not shut down never keeps the server from stopping. */
+    /** Named daemon threads, so a pool that is not shut down never keeps the server from stopping.
+     *
+     * @param name The thread name.
+     * @return A factory producing named daemon threads.
+     */
     public static ThreadFactory daemon(String name) {
         return r -> {
             Thread t = new Thread(r, name);

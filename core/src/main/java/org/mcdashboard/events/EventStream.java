@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * dropped instead.
  */
 public final class EventStream {
+    /** The maximum number of concurrent SSE clients. */
     public static final int MAX_CLIENTS = 16;
     private static final int MAX_QUEUE = 500;
 
@@ -33,12 +34,23 @@ public final class EventStream {
     private final ExecutorService writers = Executors.newCachedThreadPool(Threads.daemon("MCDashboard-events"));
     private final ScheduledExecutorService heartbeat = Executors.newSingleThreadScheduledExecutor(Threads.daemon("MCDashboard-events-ping"));
 
+    /** Creates an event stream fed by the given bus.
+     *
+     * @param bus The {@link EventBus} to listen on.
+     * @param heartbeatSeconds How often to send keep-alive pings.
+     */
     public EventStream(EventBus bus, long heartbeatSeconds) {
         this.bus = bus;
         heartbeat.scheduleAtFixedRate(() -> clients.forEach(c -> c.offer(": ping\n\n")), heartbeatSeconds, heartbeatSeconds, TimeUnit.SECONDS);
     }
 
-    /** Starts streaming to {@code out}; {@code onClose} runs once when the client goes away. False when the server is full. */
+    /** Starts streaming to {@code out}; {@code onClose} runs once when the client goes away. False when the server is full.
+     *
+     * @param out The output stream for SSE frames.
+     * @param lastEventId The id of the last event the client already received, or null for a fresh start.
+     * @param onClose Callback invoked when the client disconnects.
+     * @return True if the client was attached successfully.
+     */
     public boolean attach(OutputStream out, String lastEventId, Runnable onClose) {
         if (clients.size() >= MAX_CLIENTS) return false;
         Client c = new Client(out, onClose);
@@ -48,10 +60,15 @@ public final class EventStream {
         return true;
     }
 
+    /** The number of currently connected clients.
+     *
+     * @return The client count.
+     */
     public int clients() {
         return clients.size();
     }
 
+    /** Stops all writers and heartbeat pings, closing every client. */
     public void close() {
         heartbeat.shutdownNow();
         clients.forEach(Client::close);

@@ -9,9 +9,18 @@ import java.util.Locale;
 
 /** The few places where SQLite, MySQL/MariaDB and PostgreSQL differ for the history schema. */
 public enum SqlDialect {
-    SQLITE, MYSQL, POSTGRESQL;
+    /** SQLite embedded database dialect. */
+    SQLITE,
+    /** MySQL or MariaDB server dialect. */
+    MYSQL,
+    /** PostgreSQL server dialect. */
+    POSTGRESQL;
 
-    /** The dialect for a {@code history.storage.type}, or null when it is not a database (or unknown). */
+    /** The dialect for a {@code history.storage.type}, or null when it is not a database (or unknown).
+     *
+     * @param type The storage type string from config.yml.
+     * @return The matching SqlDialect constant, or null when the type is unknown or empty.
+     */
     public static SqlDialect of(String type) {
         if (type == null) return null;
         return switch (type.toLowerCase(Locale.ROOT)) {

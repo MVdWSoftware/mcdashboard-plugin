@@ -61,6 +61,13 @@ public final class MapSource implements ImageSource {
     private final Map<String, Image> lastGood = new ConcurrentHashMap<>();
     private final Map<String, Object> locks = new ConcurrentHashMap<>();
 
+    /** Creates a map image source for the given specification.
+     *
+     * @param spec The parsed {@code map:} block.
+     * @param cache Cache for fetched tile images.
+     * @param values Placeholder expansion service for dynamic coordinates.
+     * @param ttlMs How long a stitched picture remains fresh in milliseconds.
+     */
     public MapSource(MapSpec spec, ImageCache cache, ValueSource values, long ttlMs) {
         this.spec = spec;
         this.cache = cache;

@@ -23,7 +23,12 @@ public final class StatsPlaceholders {
     private StatsPlaceholders() {
     }
 
-    /** The value for the parameter (the part after {@code mcdashboard_}), or null when it is not one of {@link #PARAMS}. */
+    /** The value for the parameter (the part after {@code mcdashboard_}), or null when it is not one of {@link #PARAMS}.
+     *
+     * @param stats The counters to read.
+     * @param param The parameter name, without the {@code mcdashboard_} prefix.
+     * @return The value as text, or null when the parameter is unknown.
+     */
     public static String resolve(PluginStats stats, String param) {
         if (stats == null || param == null) return null;
         return switch (param.toLowerCase(Locale.ROOT)) {
@@ -49,7 +54,11 @@ public final class StatsPlaceholders {
         };
     }
 
-    /** {@code 3d 4h 5m 6s}: leading zero units are left out, {@code 0s} for none. */
+    /** {@code 3d 4h 5m 6s}: leading zero units are left out, {@code 0s} for none.
+     *
+     * @param seconds The number of seconds to format.
+     * @return The formatted duration.
+     */
     public static String format(long seconds) {
         long d = seconds / 86_400, h = seconds % 86_400 / 3600, m = seconds % 3600 / 60, s = seconds % 60;
         StringBuilder sb = new StringBuilder();

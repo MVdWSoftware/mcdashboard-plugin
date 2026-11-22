@@ -44,12 +44,14 @@ public final class LicenseHeartbeat implements AutoCloseable {
     private volatile String lastProblem;
 
     /**
+     * Creates a heartbeat reporter for the licence server.
+     *
      * @param licenseId The public id from {@code config.yml}; null or blank disables the heartbeat.
-     * @param apiUrl    The portal API base (for example {@code https://portal.mcdashboard.org/api}); blank disables it.
-     * @param host      The address players connect to; blank disables it (the plugin cannot know it).
-     * @param minutes   How often to report; 0 disables it.
-     * @param version   The plugin version, so the portal can show it.
-     * @param log       Where warnings go.
+     * @param apiUrl The portal API base (for example {@code https://portal.mcdashboard.org/api}); blank disables it.
+     * @param host The address players connect to; blank disables it (the plugin cannot know it).
+     * @param minutes How often to report; 0 disables it.
+     * @param version The plugin version, so the portal can show it.
+     * @param log Where warnings go.
      */
     public LicenseHeartbeat(String licenseId, String apiUrl, String host, int minutes, String version, Log log) {
         this.licenseId = blankToNull(licenseId);
@@ -128,8 +130,8 @@ public final class LicenseHeartbeat implements AutoCloseable {
      * Derives the address players use: the explicit {@code license.host}, else the host of {@code server.public-url},
      * else the host of the first {@code server.endpoints} entry. Returns null when none of them is usable.
      * @param configured {@code license.host}.
-     * @param publicUrl  {@code server.public-url}.
-     * @param endpoints  {@code server.endpoints}.
+     * @param publicUrl {@code server.public-url}.
+     * @param endpoints {@code server.endpoints}.
      * @return The normalised host, or null.
      */
     public static String hostFor(String configured, String publicUrl, List<String> endpoints) {

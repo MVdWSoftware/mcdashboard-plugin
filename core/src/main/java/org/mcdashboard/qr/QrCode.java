@@ -35,7 +35,12 @@ public final class QrCode {
         drawFormatBits(0);
     }
 
-    /** Encodes text (UTF-8). Throws {@link IllegalArgumentException} when it does not fit version 10. */
+    /** Encodes text (UTF-8). Throws {@link IllegalArgumentException} when it does not fit version 10.
+     *
+     * @param text The text to encode.
+     * @return The rendered QR code.
+     * @throws IllegalArgumentException When the text does not fit in a version 10 code.
+     */
     public static QrCode encode(String text) {
         byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
         for (int version = 1; version <= MAX_VERSION; version++) {
@@ -55,15 +60,28 @@ public final class QrCode {
         throw new IllegalArgumentException("Text too long for a version 10 QR code: " + bytes.length + " bytes");
     }
 
+    /** The code's side length in modules.
+     *
+     * @return The side length in modules.
+     */
     public int size() {
         return size;
     }
 
+    /** The QR version, 1 to 10.
+     *
+     * @return The version number.
+     */
     public int version() {
         return version;
     }
 
-    /** True for a dark module; false outside the code (so the quiet zone can be drawn without bounds checks). */
+    /** True for a dark module; false outside the code (so the quiet zone can be drawn without bounds checks).
+     *
+     * @param x The module column.
+     * @param y The module row.
+     * @return True when the module is dark.
+     */
     public boolean dark(int x, int y) {
         return x >= 0 && y >= 0 && x < size && y < size && modules[y][x];
     }

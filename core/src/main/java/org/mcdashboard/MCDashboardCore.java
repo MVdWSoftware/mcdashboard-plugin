@@ -31,7 +31,13 @@ public final class MCDashboardCore {
     private volatile boolean developerMode;
     private final PluginStats stats = new PluginStats(java.time.Clock.systemUTC());
 
-    /** {@code dataDir} is {@code plugins/MCDashboard/}: the configuration, the signing key, the dashboards and the history live there. */
+    /**
+     * Creates a core instance backed by the given platform and YAML codec.
+     *
+     * @param platform The server platform providing logger, placeholders, permissions and main thread access.
+     * @param yaml Codec for reading and writing config.yml.
+     * @param dataDir {@code plugins/MCDashboard/}: where configuration, keys, dashboards and history reside.
+     */
     public MCDashboardCore(Platform platform, YamlCodec yaml, Path dataDir) {
         this.platform = platform;
         this.log = platform.log();
@@ -59,25 +65,39 @@ public final class MCDashboardCore {
         services.start();
     }
 
+    /** Stops all services. */
     public void stop() {
         if (services != null) services.stop();
     }
 
-    /** The plugin's own counters, for the platform's {@code %mcdashboard_*%} placeholders. Never null; reads memory only. */
+    /** The plugin's own counters, for the platform's {@code %mcdashboard_*%} placeholders. Never null; reads memory only.
+     *
+     * @return The plugin stats instance.
+     */
     public PluginStats stats() {
         return stats;
     }
 
-    /** The version of the plugin, as the platform reports it. */
+    /** The version of the plugin, as the platform reports it.
+     *
+     * @return The plugin version string.
+     */
     public String pluginVersion() {
         return platform.pluginVersion();
     }
 
+    /** Whether developer mode is currently active.
+     *
+     * @return True when developer mode is on.
+     */
     public boolean developerMode() {
         return developerMode;
     }
 
-    /** Turns developer mode on or off until it is changed again, surviving restarts. */
+    /** Turns developer mode on or off until it is changed again, surviving restarts.
+     *
+     * @param enabled True to enable developer mode, false to disable it.
+     */
     public void setDeveloperMode(boolean enabled) {
         developerMode = enabled;
         try {
@@ -87,35 +107,58 @@ public final class MCDashboardCore {
         }
     }
 
-    /** Null while the web server is off or failed to start. */
+    /** The OTP service, or null while the web server is off or failed to start.
+     *
+     * @return The OTP service, or null.
+     */
     public OtpService otps() {
         return services == null ? null : services.otps();
     }
 
+    /** The device store, or null while the web server is off or failed to start.
+     *
+     * @return The device store, or null.
+     */
     public DeviceStore devices() {
         return services == null ? null : services.devices();
     }
 
-    /** Null when the tunnel is off. */
+    /** The tunnel client, or null when the tunnel is off.
+     *
+     * @return The tunnel client, or null.
+     */
     public TunnelClient tunnel() {
         return services == null ? null : services.tunnel();
     }
 
+    /** The OTP timeout in seconds, as read from configuration.
+     *
+     * @return The OTP timeout in seconds.
+     */
     public long otpTimeoutSeconds() {
         return settings.otpTimeoutSeconds();
     }
 
-    /** SHA-256 fingerprint of the self-signed certificate the API serves, or null (CA-signed, custom or no TLS): a client pins it. */
+    /** SHA-256 fingerprint of the self-signed certificate the API serves, or null (CA-signed, custom or no TLS): a client pins it.
+     *
+     * @return The lower-case hex fingerprint, or null when there is nothing to pin.
+     */
     public String pinnedFingerprint() {
         return services == null || !settings.tls().mode().equals("self-signed") ? null : services.tlsFingerprint();
     }
 
-    /** {@code messages.prefix} with {@code &} colour codes turned into {@code §}; empty means no prefix. */
+    /** {@code messages.prefix} with {@code &} colour codes turned into {@code §}; empty means no prefix.
+     *
+     * @return The rendered chat prefix.
+     */
     public String chatPrefix() {
         return settings.prefix();
     }
 
-    /** {@code server.public-url}, or null when it is not set. */
+    /** {@code server.public-url}, or null when it is not set.
+     *
+     * @return The configured public URL, or null.
+     */
     public String publicUrl() {
         return settings.publicUrl();
     }

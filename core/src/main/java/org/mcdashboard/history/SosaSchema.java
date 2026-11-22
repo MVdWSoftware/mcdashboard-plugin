@@ -19,19 +19,32 @@ import java.util.List;
  * {@code ssn:implements}). Its {@code sosa:phenomenonTime} equals its {@code sosa:resultTime}: a sample is instantaneous.
  */
 public final class SosaSchema {
+    /** Current schema version number. */
     public static final int VERSION = 1;
+    /** W3C SOSA ontology namespace URI. */
     public static final String SOSA = "http://www.w3.org/ns/sosa/";
+    /** W3C SSN ontology namespace URI. */
     public static final String SSN = "http://www.w3.org/ns/ssn/";
+    /** RDF Schema namespace URI used for label references. */
     public static final String RDFS = "http://www.w3.org/2000/01/rdf-schema#";
+    /** MCDashboard custom namespace URI prefix. */
     public static final String MCD = "https://mcdashboard.org/ns#";
 
+    /** Database table storing the {@code sosa:Platform} entity (the Minecraft server). */
     public static final String PLATFORM = "mcd_platform";
+    /** Database table storing the {@code sosa:FeatureOfInterest} entity. */
     public static final String FEATURE = "mcd_feature_of_interest";
+    /** Database table storing the {@code sosa:ObservableProperty} entity. */
     public static final String PROPERTY = "mcd_observable_property";
+    /** Database table storing the {@code sosa:Procedure} entity. */
     public static final String PROCEDURE = "mcd_procedure";
+    /** Database table storing the {@code ssn:System} supertype. */
     public static final String SYSTEM = "mcd_system";
+    /** Database table storing the {@code sosa:Sensor} entities. */
     public static final String SENSOR = "mcd_sensor";
+    /** Database table storing the {@code sosa:Observation} records. */
     public static final String OBSERVATION = "mcd_observation";
+    /** Database table tracking applied schema versions. */
     public static final String VERSION_TABLE = "mcd_schema";
 
     private SosaSchema() {

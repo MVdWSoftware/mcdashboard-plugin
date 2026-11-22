@@ -71,11 +71,21 @@ public final class HttpApi implements HttpHandler {
     /** The features the reverse-tunnel proxy can carry; null when no tunnel uses this API (or it is the public listener). */
     private volatile Supplier<Set<String>> proxyFeatures;
 
-    /** An API that accepts only the official app's User-Agent, with the default limits. */
+    /**
+     * An API that accepts only the official app's User-Agent, with the default limits.
+     *
+     * @param ctx The shared API context.
+     */
     public HttpApi(ApiContext ctx) {
         this(ctx, ClientPolicy.defaults(Clock.systemUTC()));
     }
 
+    /**
+     * An API that uses the given client policy.
+     *
+     * @param ctx     The shared API context.
+     * @param clients The client policy that decides who may connect and how often.
+     */
     public HttpApi(ApiContext ctx, ClientPolicy clients) {
         this.ctx = ctx;
         this.clients = clients;
@@ -84,7 +94,12 @@ public final class HttpApi implements HttpHandler {
         this.dashboards = new DashboardRoutes(ctx);
     }
 
-    /** Counts the requests this API serves and the ones it refuses for exceeding a rate limit. */
+    /**
+     * Counts the requests this API serves and the ones it refuses for exceeding a rate limit.
+     *
+     * @param stats The plugin statistics to count in.
+     * @return This API, for chaining.
+     */
     public HttpApi stats(org.mcdashboard.stats.PluginStats stats) {
         this.stats = stats;
         return this;
@@ -94,7 +109,14 @@ public final class HttpApi implements HttpHandler {
         if (stats != null) stats.rateLimited();
     }
 
-    /** Starts listening; pass an {@link SSLContext} to serve HTTPS directly. Port 0 picks a free port. */
+    /**
+     * Starts listening; pass an {@link SSLContext} to serve HTTPS directly. Port 0 picks a free port.
+     *
+     * @param host The address to bind, or null or blank for all interfaces.
+     * @param port The port to listen on, or 0 for a free one.
+     * @param ssl  The TLS context to serve HTTPS, or null for plain HTTP.
+     * @throws java.io.IOException When the server cannot be created or bound.
+     */
     public void start(String host, int port, SSLContext ssl) throws IOException {
         InetSocketAddress addr = host == null || host.isBlank() ? new InetSocketAddress(port) : new InetSocketAddress(host, port);
         if (ssl != null) {
@@ -110,7 +132,12 @@ public final class HttpApi implements HttpHandler {
         server.start();
     }
 
-    /** Enables {@code GET /v1/events} for callers presenting {@code token}; without it the endpoint does not exist. */
+    /**
+     * Enables {@code GET /v1/events} for callers presenting {@code token}; without it the endpoint does not exist.
+     *
+     * @param stream The event stream to attach listeners to.
+     * @param token  The token clients must present to read the stream.
+     */
     public void events(EventStream stream, String token) {
         this.events = stream;
         this.eventsToken = token.getBytes(StandardCharsets.UTF_8);
@@ -119,18 +146,28 @@ public final class HttpApi implements HttpHandler {
     /**
      * This server terminates TLS itself, for the API and the live feed ({@code websocketTls} in {@code /v1/info}).
      * {@code selfSignedFingerprint} is published as {@code tlsFingerprint} when the certificate is the plugin's own, else null.
+     *
+     * @param selfSignedFingerprint The fingerprint of the plugin's own certificate, or null.
      */
     public void tls(String selfSignedFingerprint) {
         this.tls = true;
         this.tlsFingerprint = selfSignedFingerprint;
     }
 
-    /** Requires every request (but {@code /v1/info}) to carry a valid client assertion. */
+    /**
+     * Requires every request (but {@code /v1/info}) to carry a valid client assertion.
+     *
+     * @param verifier The assertion verifier, or null to stop requiring assertions.
+     */
     public void verifyClients(ClientAssertions verifier) {
         this.assertions = verifier;
     }
 
-    /** Whether clients may poll in the background (notifications, home-screen widgets); published as the {@code background} feature. */
+    /**
+     * Whether clients may poll in the background (notifications, home-screen widgets); published as the {@code background} feature.
+     *
+     * @param enabled Whether background polling is allowed.
+     */
     public void background(boolean enabled) {
         this.background = enabled;
     }
@@ -146,16 +183,28 @@ public final class HttpApi implements HttpHandler {
         this.proxyFeatures = features;
     }
 
+    /**
+     * The port the API is listening on.
+     *
+     * @return The bound port.
+     */
     public int port() {
         return server.getAddress().getPort();
     }
 
+    /** Stops the server and its worker threads. */
     public void stop() {
         if (server != null) server.stop(0);
         if (executor != null) executor.shutdownNow();
     }
 
-    /** Validates a bearer access token and that its device was not revoked. */
+    /**
+     * Validates a bearer access token and that its device was not revoked.
+     *
+     * @param ctx   The context whose tokens and devices are checked.
+     * @param token The bearer token to validate.
+     * @return The claims when the token is valid and its device still paired, or empty otherwise.
+     */
     public static Optional<TokenService.Claims> authenticate(ApiContext ctx, String token) {
         return ctx.tokens().verify(token, TokenService.Type.ACCESS).filter(c -> ctx.devices().get(c.deviceId()).isPresent());
     }

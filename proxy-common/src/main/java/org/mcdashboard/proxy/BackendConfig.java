@@ -19,12 +19,23 @@ import org.mcdashboard.util.Text;
  * One entry of {@code network.backends}: a backend server that runs MCDashboard. The URL is the only address the proxy
  * ever contacts for it. {@code key} is sent as a bearer token when set; {@code pin} is the SHA-256 fingerprint of its
  * self-signed certificate (hex, colons optional) that replaces the normal certificate check.
+ *
+ * @param name The backend's name, used in placeholder ids.
+ * @param url The base URL the proxy contacts.
+ * @param key The bearer token to send, or empty when none.
+ * @param pin The SHA-256 certificate fingerprint to trust, or empty when none.
  */
 public record BackendConfig(String name, URI url, String key, String pin) {
     private static final Pattern NAME_PATTERN = Pattern.compile("[A-Za-z0-9.-]{1,32}");
     private static final Pattern PIN_PATTERN = Pattern.compile("[0-9a-fA-F]{64}");
 
-    /** Parses the entries; a bad or duplicate one is reported through {@code warn} and skipped. */
+    /**
+     * Parses the entries; a bad or duplicate one is reported through {@code warn} and skipped.
+     *
+     * @param entries The parsed map list from the YAML file.
+     * @param warn Where to report warnings about invalid or duplicate entries.
+     * @return A list of valid backend configurations in order.
+     */
     public static List<BackendConfig> parseAll(List<? extends Map<?, ?>> entries, Consumer<String> warn) {
         List<BackendConfig> out = new ArrayList<>();
         Set<String> names = new HashSet<>();

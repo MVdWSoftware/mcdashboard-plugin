@@ -21,6 +21,10 @@ import org.mcdashboard.proxy.ProxyYaml;
 
 /** The network dashboard for the MCDashboard app, on BungeeCord (and Waterfall). */
 public final class MCDashboardBungee extends Plugin implements Listener {
+    /** Creates the plugin; BungeeCord instantiates it once on start-up. */
+    public MCDashboardBungee() {
+    }
+
     private ProxyRuntime runtime;
 
     @Override
@@ -37,11 +41,21 @@ public final class MCDashboardBungee extends Plugin implements Listener {
         if (runtime != null) runtime.stop();
     }
 
+    /**
+     * A player logged in: register them with the core so their permissions are snapshotted.
+     *
+     * @param event The post-login event.
+     */
     @EventHandler
     public void onLogin(PostLoginEvent event) {
         runtime.playerChanged(event.getPlayer().getUniqueId(), true);
     }
 
+    /**
+     * A player disconnected: unregister them from the core.
+     *
+     * @param event The disconnect event.
+     */
     @EventHandler
     public void onDisconnect(PlayerDisconnectEvent event) {
         runtime.playerChanged(event.getPlayer().getUniqueId(), false);

@@ -32,10 +32,15 @@ import java.util.function.Consumer;
  * and reads fall back to memory: the dashboard never breaks because of the history.
  */
 public final class HistoryService implements AutoCloseable {
-    /** One sample. */
+    /** One sample.
+     *
+     * @param timeMs The time the sample was taken, in epoch milliseconds.
+     * @param value  The sampled value as text.
+     */
     public record Point(long timeMs, String value) {
     }
 
+    /** Upper bound on the in-memory points kept per placeholder. */
     public static final int MAX_POINTS = 2000;
     private static final int MAX_BACKLOG = 50_000;
     private static final long PRUNE_EVERY_MS = 3_600_000;
@@ -56,13 +61,24 @@ public final class HistoryService implements AutoCloseable {
     private long lastWarn;
     private ScheduledExecutorService writer;
 
-    /** Memory only, tracking the placeholders that have {@code history}. */
+    /** Memory only, tracking the placeholders that have {@code history}.
+     *
+     * @param clock The clock used for sample timestamps.
+     * @param defs  The placeholder definitions to track.
+     */
     public HistoryService(Clock clock, Collection<PlaceholderDefinition> defs) {
         this(clock, defs, HistorySettings.defaults(), null, m -> {
         });
     }
 
-    /** {@code store} keeps samples beyond memory (null: memory only); {@code log} receives warnings. */
+    /** {@code store} keeps samples beyond memory (null: memory only); {@code log} receives warnings.
+     *
+     * @param clock    The clock used for sample timestamps.
+     * @param defs     The placeholder definitions to track.
+     * @param settings The history configuration.
+     * @param store    The persistent store, or null to keep samples in memory only.
+     * @param log      Receives warnings about the history database.
+     */
     public HistoryService(Clock clock, Collection<PlaceholderDefinition> defs, HistorySettings settings, HistoryStore store,
                           Consumer<String> log) {
         this.clock = clock;
@@ -75,6 +91,8 @@ public final class HistoryService implements AutoCloseable {
     /**
      * Starts or extends what is recorded: every PUBLIC definition with a history window. Called again when the
      * placeholder catalog has loaded; sensors that are new reach the database with the next write.
+     *
+     * @param defs The placeholder definitions to start tracking.
      */
     public void track(Collection<PlaceholderDefinition> defs) {
         for (PlaceholderDefinition d : defs) {
@@ -86,21 +104,39 @@ public final class HistoryService implements AutoCloseable {
         }
     }
 
+    /** Whether this placeholder has a history window.
+     *
+     * @param id The placeholder identifier to check.
+     * @return True when the placeholder is tracked.
+     */
     public boolean tracked(String id) {
         return windowMs.containsKey(id);
     }
 
-    /** Ids that have history enabled. */
+    /** Ids that have history enabled.
+     *
+     * @return The tracked placeholder identifiers.
+     */
     public Collection<String> trackedIds() {
         return List.copyOf(windowMs.keySet());
     }
 
-    /** The time between two samples of this placeholder (see {@link HistorySettings#stepMs}). */
+    /** The time between two samples of this placeholder (see {@link HistorySettings#stepMs}).
+     *
+     * @param d                The placeholder definition.
+     * @param sourceIntervalMs The minimum interval enforced by the data source.
+     * @return The effective sampling interval in milliseconds.
+     */
     public long stepMs(PlaceholderDefinition d, long sourceIntervalMs) {
         return settings.stepMs(d, sourceIntervalMs);
     }
 
-    /** Records a value if the previous sample is old enough; trims by age and count, and queues it for the database. */
+    /** Records a value if the previous sample is old enough; trims by age and count, and queues it for the database.
+     *
+     * @param id     The placeholder identifier.
+     * @param value  The sampled value.
+     * @param stepMs The minimum interval between samples, in milliseconds.
+     */
     public void record(String id, String value, long stepMs) {
         ArrayDeque<Point> q = series.get(id);
         if (q == null || value == null) return;
@@ -118,12 +154,23 @@ public final class HistoryService implements AutoCloseable {
         }
     }
 
-    /** Samples at or after {@code sinceMs}, oldest first, at most {@link #MAX_POINTS}. */
+    /** Samples at or after {@code sinceMs}, oldest first, at most {@link #MAX_POINTS}.
+     *
+     * @param id      The placeholder identifier.
+     * @param sinceMs The minimum timestamp in milliseconds.
+     * @return The samples in time order.
+     */
     public List<Point> since(String id, long sinceMs) {
         return since(id, sinceMs, MAX_POINTS);
     }
 
-    /** Samples at or after {@code sinceMs}, oldest first, reduced to at most {@code points} (2 to {@link #MAX_POINTS}). */
+    /** Samples at or after {@code sinceMs}, oldest first, reduced to at most {@code points} (2 to {@link #MAX_POINTS}).
+     *
+     * @param id      The placeholder identifier.
+     * @param sinceMs The minimum timestamp in milliseconds.
+     * @param points  The maximum number of points to return.
+     * @return The samples in time order, reduced to {@code points}.
+     */
     public List<Point> since(String id, long sinceMs, int points) {
         int max = Math.max(2, Math.min(points, MAX_POINTS));
         if (store != null && store.ready()) {
@@ -143,7 +190,10 @@ public final class HistoryService implements AutoCloseable {
         return Samples.reduce(out, max);
     }
 
-    /** Samples written to the database since start (0 without a store). In memory, safe on any thread. */
+    /** Samples written to the database since start (0 without a store). In memory, safe on any thread.
+     *
+     * @return The number of samples persisted since startup.
+     */
     public long samplesWritten() {
         return written.get();
     }

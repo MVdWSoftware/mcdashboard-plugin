@@ -39,10 +39,18 @@ public final class SelfSignedCertificate {
         this.certificate = certificate;
     }
 
+    /** The generated key pair.
+     *
+     * @return The ECDSA key pair.
+     */
     public KeyPair keys() {
         return keys;
     }
 
+    /** The generated certificate.
+     *
+     * @return The self-signed X.509 certificate.
+     */
     public X509Certificate certificate() {
         return certificate;
     }
@@ -50,8 +58,11 @@ public final class SelfSignedCertificate {
     /**
      * A new key pair and certificate valid from one day ago for {@code validDays}.
      *
-     * @param commonName the subject
-     * @param names      DNS names and IP literals for the subjectAltName extension
+     * @param commonName The subject common name.
+     * @param names DNS names and IP literals for the subjectAltName extension.
+     * @param validDays How many days from one day ago the certificate stays valid.
+     * @return The generated certificate and its key pair.
+     * @throws GeneralSecurityException When key generation or signing fails.
      */
     public static SelfSignedCertificate create(String commonName, List<String> names, int validDays) throws GeneralSecurityException {
         KeyPairGenerator gen = KeyPairGenerator.getInstance("EC");

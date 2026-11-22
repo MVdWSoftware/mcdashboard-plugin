@@ -32,6 +32,11 @@ import org.bukkit.plugin.Plugin;
  * placed in an item frame or lost on death. The map also self-destructs when its code expires (see {@link QrMap}).
  */
 public final class QrMapGuard implements Listener {
+    /**
+     * Creates a new guard and starts the periodic expiry checker.
+     *
+     * @param plugin The main plugin instance for scheduling.
+     */
     public QrMapGuard(Plugin plugin) {
         // The code is short-lived even if the item is never touched (for example while the player is AFK).
         Bukkit.getScheduler().runTaskTimer(plugin, () -> {
@@ -39,6 +44,11 @@ public final class QrMapGuard implements Listener {
         }, 20L, 40L);
     }
 
+    /**
+     * Cancels dropping a QR map and destroys it instead.
+     *
+     * @param e The drop event.
+     */
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onDrop(PlayerDropItemEvent e) {
         if (!QrMap.isQrMap(e.getItemDrop().getItemStack())) return;
@@ -47,6 +57,11 @@ public final class QrMapGuard implements Listener {
         QrMap.destroyFor(e.getPlayer(), false);
     }
 
+    /**
+     * Cancels picking up a QR map and removes the dropped item.
+     *
+     * @param e The pickup event.
+     */
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onPickup(EntityPickupItemEvent e) {
         if (!QrMap.isQrMap(e.getItem().getItemStack())) return;
@@ -54,11 +69,21 @@ public final class QrMapGuard implements Listener {
         e.getItem().remove();
     }
 
+    /**
+     * Removes a QR map that spawned as a dropped item.
+     *
+     * @param e The item spawn event.
+     */
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onItemSpawn(ItemSpawnEvent e) {
         if (QrMap.isQrMap(e.getEntity().getItemStack())) e.getEntity().remove();
     }
 
+    /**
+     * Cancels moving a QR map into a container or crafting grid and destroys it.
+     *
+     * @param e The inventory click event.
+     */
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onClick(InventoryClickEvent e) {
         if (!(e.getWhoClicked() instanceof Player player)) return;
@@ -81,6 +106,11 @@ public final class QrMapGuard implements Listener {
         }
     }
 
+    /**
+     * Cancels dragging a QR map into a container and destroys it.
+     *
+     * @param e The inventory drag event.
+     */
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onDrag(InventoryDragEvent e) {
         if (!(e.getWhoClicked() instanceof Player player) || !QrMap.isQrMap(e.getOldCursor())) return;
@@ -91,6 +121,11 @@ public final class QrMapGuard implements Listener {
         }
     }
 
+    /**
+     * Cancels hopper or plugin moves of a QR map and clears it from the source.
+     *
+     * @param e The item move event.
+     */
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onMove(InventoryMoveItemEvent e) {
         if (!QrMap.isQrMap(e.getItem())) return;
@@ -101,6 +136,11 @@ public final class QrMapGuard implements Listener {
         }
     }
 
+    /**
+     * Cancels placing a QR map in an item frame and destroys it.
+     *
+     * @param e The entity interact event.
+     */
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onItemFrame(PlayerInteractEntityEvent e) {
         if (!(e.getRightClicked() instanceof ItemFrame)) return;
@@ -110,6 +150,11 @@ public final class QrMapGuard implements Listener {
         QrMap.destroyFor(e.getPlayer(), false);
     }
 
+    /**
+     * Clears a crafting result that would involve a QR map.
+     *
+     * @param e The prepare craft event.
+     */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onCraft(PrepareItemCraftEvent e) {
         if (QrMap.isQrMap(e.getInventory().getResult())) {
@@ -124,23 +169,43 @@ public final class QrMapGuard implements Listener {
         }
     }
 
+    /**
+     * Removes QR maps from a player's drops and destroys any that remain.
+     *
+     * @param e The player death event.
+     */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onDeath(PlayerDeathEvent e) {
         e.getDrops().removeIf(QrMap::isQrMap);
         QrMap.destroyFor(e.getEntity(), true);
     }
 
+    /**
+     * Destroys any QR maps when a player quits.
+     *
+     * @param e The quit event.
+     */
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
         QrMap.destroyFor(e.getPlayer(), true);
     }
 
+    /**
+     * Destroys any leftover QR maps when a player joins.
+     *
+     * @param e The join event.
+     */
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
         // A leftover from a crash or a server stop must not survive; the player can generate a new map.
         QrMap.destroyFor(e.getPlayer(), true);
     }
 
+    /**
+     * Destroys a QR map left on the player's cursor when an inventory closes.
+     *
+     * @param e The inventory close event.
+     */
     @EventHandler
     public void onClose(InventoryCloseEvent e) {
         if (e.getPlayer() instanceof Player player && QrMap.isQrMap(player.getItemOnCursor())) {

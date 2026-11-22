@@ -18,13 +18,25 @@ public final class RateLimiter {
     private final long windowMs;
     private volatile long lastSweep;
 
+    /**
+     * Creates a limiter with a fixed number of attempts per window.
+     *
+     * @param clock    The clock used for timestamps.
+     * @param max      The most attempts allowed in one window.
+     * @param windowMs The length of the sliding window in milliseconds.
+     */
     public RateLimiter(Clock clock, int max, long windowMs) {
         this.clock = clock;
         this.max = max;
         this.windowMs = windowMs;
     }
 
-    /** Records an attempt; false when the key has exceeded the limit. */
+    /**
+     * Records an attempt; false when the key has exceeded the limit.
+     *
+     * @param key The caller the attempt is counted for.
+     * @return True when the attempt is within the limit, false when it is over.
+     */
     public boolean allow(String key) {
         long now = clock.millis();
         if (now - lastSweep > windowMs && hits.size() > 1024) sweep(now);

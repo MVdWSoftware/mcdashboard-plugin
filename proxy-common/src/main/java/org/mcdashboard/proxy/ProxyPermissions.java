@@ -32,6 +32,12 @@ public final class ProxyPermissions implements Permissions {
     private volatile Set<String> nodes = Set.of();
     private ProxyAdapter.Cancellable task;
 
+    /**
+     * Creates a new permissions manager backed by the given adapter and dashboard store.
+     *
+     * @param adapter The proxy adapter for permission checks.
+     * @param dashboards The dashboard registry to check against.
+     */
     public ProxyPermissions(ProxyAdapter adapter, DashboardStore dashboards) {
         this.adapter = adapter;
         this.dashboards = dashboards;
@@ -81,11 +87,16 @@ public final class ProxyPermissions implements Permissions {
         }, 0, 0);
     }
 
-    /** A player joined or left: their snapshot is current (a join is snapshotted again a second later, when permission plugins have loaded their data). */
+    /**
+     * A player joined or left: their snapshot is current (a join is snapshotted again a second later, when permission plugins have loaded their data).
+     *
+     * @param player The UUID of the player who joined or left.
+     */
     public void playerChanged(UUID player) {
         snapshot(player);
     }
 
+    /** Snapshots permissions for every online player at the time of call. */
     public void snapshotAll() {
         for (ProxyAdapter.PlayerView p : adapter.players()) snapshot(p.uuid());
     }

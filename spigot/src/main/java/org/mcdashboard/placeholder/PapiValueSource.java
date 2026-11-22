@@ -16,6 +16,11 @@ import java.util.concurrent.TimeUnit;
 public final class PapiValueSource implements ValueSource {
     private final Plugin plugin;
 
+    /**
+     * Creates a new value source that resolves through PlaceholderAPI.
+     *
+     * @param plugin The Spigot plugin instance used for scheduling.
+     */
     public PapiValueSource(Plugin plugin) {
         this.plugin = plugin;
     }

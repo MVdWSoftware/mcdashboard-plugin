@@ -28,9 +28,17 @@ public final class ServerPinger implements AutoCloseable {
     /** Decides whether one server is up; the default opens a TCP connection. */
     @FunctionalInterface
     public interface Probe {
+        /**
+         * Checks if the given host and port are reachable.
+         *
+         * @param host The hostname or IP address to check.
+         * @param port The port number to check.
+         * @return True if the server is reachable, false otherwise.
+         */
         boolean up(String host, int port);
     }
 
+    /** Timeout in milliseconds for each individual TCP connection attempt. */
     public static final int CONNECT_TIMEOUT_MS = 2000;
 
     private final ProxyAdapter adapter;
@@ -39,10 +47,21 @@ public final class ServerPinger implements AutoCloseable {
     private ScheduledExecutorService timer;
     private ExecutorService workers;
 
+    /**
+     * Creates an instance with the default TCP probe.
+     *
+     * @param adapter The proxy adapter providing server information.
+     */
     public ServerPinger(ProxyAdapter adapter) {
         this(adapter, ServerPinger::connect);
     }
 
+    /**
+     * Creates an instance with a custom probe for server reachability checks.
+     *
+     * @param adapter The proxy adapter providing server information.
+     * @param probe The probe function to test server reachability.
+     */
     public ServerPinger(ProxyAdapter adapter, Probe probe) {
         this.adapter = adapter;
         this.probe = probe;
@@ -58,7 +77,11 @@ public final class ServerPinger implements AutoCloseable {
         }
     }
 
-    /** Checks now and then every {@code intervalSeconds}, off every proxy thread. */
+    /**
+     * Checks now and then every {@code intervalSeconds}, off every proxy thread.
+     *
+     * @param intervalSeconds How often to check servers, in seconds (minimum 5).
+     */
     public synchronized void start(int intervalSeconds) {
         if (timer != null) return;
         timer = Executors.newSingleThreadScheduledExecutor(Threads.daemon("MCDashboard-ping"));
@@ -94,7 +117,12 @@ public final class ServerPinger implements AutoCloseable {
         }
     }
 
-    /** True or false from the last check; null before the first one finished or for an unknown server. */
+    /**
+     * True or false from the last check; null before the first one finished or for an unknown server.
+     *
+     * @param server The lowercase server name to look up.
+     * @return True if reachable, false otherwise, or null when no check has completed yet.
+     */
     public Boolean isUp(String server) {
         return server == null ? null : state.get(server.toLowerCase(java.util.Locale.ROOT));
     }

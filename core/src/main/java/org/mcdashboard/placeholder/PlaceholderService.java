@@ -30,15 +30,29 @@ import java.util.function.Predicate;
  * Lookups are by id; the catalog search uses a lowercase haystack computed once per definition.
  */
 public final class PlaceholderService {
-    /** A resolved value. IMAGE values are the image bytes as base64url without padding. */
+    /** A resolved value. IMAGE values are the image bytes as base64url without padding.
+     *
+     * @param id        The placeholder identifier.
+     * @param value     The resolved value; IMAGE values are base64url image bytes.
+     * @param updatedMs When the value was resolved, in epoch milliseconds.
+     */
     public record Value(String id, String value, long updatedMs) {
     }
 
-    /** A group with the number of placeholders in it. */
+    /** A group with the number of placeholders in it.
+     *
+     * @param name  The group name.
+     * @param count The number of placeholders in the group.
+     */
     public record Group(String name, int count) {
     }
 
-    /** One page of a catalog search. */
+    /** One page of a catalog search.
+     *
+     * @param items  The definitions on this page.
+     * @param total  The total number of matches.
+     * @param groups The number of matches per group.
+     */
     public record Page(List<PlaceholderDefinition> items, int total, List<Group> groups) {
     }
 
@@ -69,17 +83,44 @@ public final class PlaceholderService {
     private final Path imagesDir;
     private final ImageCache images;
 
+    /** A service without permission overrides or image cache, ready with the given definitions.
+     *
+     * @param source              Resolves the raw placeholder templates.
+     * @param clock               The clock used for cache timestamps.
+     * @param globalMinIntervalMs The default refresh interval in milliseconds.
+     * @param defs                The placeholder definitions to serve.
+     */
     public PlaceholderService(ValueSource source, Clock clock, long globalMinIntervalMs,
                               Collection<PlaceholderDefinition> defs) {
         this(source, clock, globalMinIntervalMs, IntervalOverrides.empty(), new PermissionCache(), defs,
                 Path.of("images"), new ImageCache(clock));
     }
 
+    /** A service with an images directory and image cache instead of the defaults.
+     *
+     * @param source              Resolves the raw placeholder templates.
+     * @param clock               The clock used for cache timestamps.
+     * @param globalMinIntervalMs The default refresh interval in milliseconds.
+     * @param defs                The placeholder definitions to serve.
+     * @param imagesDir           The directory where fetched images are cached.
+     * @param images              The image cache to use.
+     */
     public PlaceholderService(ValueSource source, Clock clock, long globalMinIntervalMs,
                               Collection<PlaceholderDefinition> defs, Path imagesDir, ImageCache images) {
         this(source, clock, globalMinIntervalMs, IntervalOverrides.empty(), new PermissionCache(), defs, imagesDir, images);
     }
 
+    /** A service with full control over permission overrides, image storage and definitions.
+     *
+     * @param source                  Resolves the raw placeholder templates.
+     * @param clock                   The clock used for cache timestamps.
+     * @param globalMinIntervalMs     The default refresh interval in milliseconds.
+     * @param globalIntervalOverrides Global per-permission interval overrides.
+     * @param permissions             The permission snapshots to consult.
+     * @param defs                    The placeholder definitions to serve.
+     * @param imagesDir               The directory where fetched images are cached.
+     * @param images                  The image cache to use.
+     */
     public PlaceholderService(ValueSource source, Clock clock, long globalMinIntervalMs,
                               IntervalOverrides globalIntervalOverrides, PermissionCache permissions,
                               Collection<PlaceholderDefinition> defs, Path imagesDir, ImageCache images) {
@@ -93,7 +134,10 @@ public final class PlaceholderService {
         setDefinitions(defs);
     }
 
-    /** Atomically replaces all definitions (used once the expansion catalog is loaded). The first one per id wins. */
+    /** Atomically replaces all definitions (used once the expansion catalog is loaded). The first one per id wins.
+     *
+     * @param defs The placeholder definitions to serve.
+     */
     public void setDefinitions(Collection<PlaceholderDefinition> defs) {
         Map<String, Entry> byId = new HashMap<>();
         for (PlaceholderDefinition d : defs) {
@@ -115,12 +159,20 @@ public final class PlaceholderService {
         snapshot = new Snapshot(byId, sorted);
     }
 
+    /** The definition with this id, if any.
+     *
+     * @param id The placeholder identifier.
+     * @return The definition, or empty when no such placeholder is served.
+     */
     public Optional<PlaceholderDefinition> definition(String id) {
         Entry e = snapshot.byId().get(id);
         return e == null ? Optional.empty() : Optional.of(e.def());
     }
 
-    /** All definitions sorted by group, then name. */
+    /** All definitions sorted by group, then name.
+     *
+     * @return The definitions in display order.
+     */
     public Collection<PlaceholderDefinition> all() {
         return snapshot.sorted().stream().map(Entry::def).toList();
     }
@@ -128,6 +180,13 @@ public final class PlaceholderService {
     /**
      * Searches the placeholders {@code visible} to the caller. {@code q} is a case-insensitive substring of id, name,
      * description or group; {@code group} is an exact group name. {@code groups} counts the matches of {@code q} only.
+     *
+     * @param visible Decides whether a definition is visible to the caller.
+     * @param q       The search text, or null for everything.
+     * @param group   An exact group name to restrict to, or null.
+     * @param limit   The maximum number of items on the page.
+     * @param offset  The number of matches to skip before filling the page.
+     * @return One page of matching definitions with their total and group counts.
      */
     public Page search(Predicate<PlaceholderDefinition> visible, String q, String group, int limit, int offset) {
         String needle = q == null ? "" : q.trim().toLowerCase(Locale.ROOT);
@@ -147,7 +206,11 @@ public final class PlaceholderService {
         return new Page(items, total, counts);
     }
 
-    /** Effective refresh interval for a placeholder, in milliseconds, without a player's permission overrides. */
+    /** Effective refresh interval for a placeholder, in milliseconds, without a player's permission overrides.
+     *
+     * @param d The placeholder definition.
+     * @return The effective refresh interval in milliseconds.
+     */
     public long intervalMs(PlaceholderDefinition d) {
         return intervalMs(d, null);
     }
@@ -156,6 +219,10 @@ public final class PlaceholderService {
      * Effective refresh interval for this caller, in milliseconds. A permission override replaces the configured
      * interval (the fastest node the player holds wins); the global and the placeholder interval are combined by
      * taking the larger, so a placeholder can stay slower than the global default.
+     *
+     * @param d          The placeholder definition.
+     * @param playerUuid The caller's player UUID, or null for an anonymous caller.
+     * @return The effective refresh interval in milliseconds.
      */
     public long intervalMs(PlaceholderDefinition d, String playerUuid) {
         long global = globalIntervalOverrides.select(globalMinIntervalMs, playerUuid, permissions);
@@ -215,6 +282,10 @@ public final class PlaceholderService {
     /**
      * Reads a value. PUBLIC placeholders resolve without a player; PLAYER placeholders need
      * {@code playerUuid} (the paired device's player) and are otherwise refused.
+     *
+     * @param id         The placeholder identifier to read.
+     * @param playerUuid The paired player's UUID, or null for an anonymous caller.
+     * @return The value, or empty when the placeholder is unknown or not readable.
      */
     public Optional<Value> read(String id, String playerUuid) {
         Entry entry = snapshot.byId().get(id);

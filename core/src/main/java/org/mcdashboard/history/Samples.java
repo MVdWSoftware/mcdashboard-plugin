@@ -16,25 +16,42 @@ import java.util.regex.Pattern;
  * Decoration that SenML ignores (colour codes, a leading {@code *}, a trailing {@code %}) is dropped from numbers.
  */
 public final class Samples {
-    /** One recorded value of a placeholder. */
+    /** One recorded value of a placeholder.
+     *
+     * @param id     The placeholder identifier that produced this sample.
+     * @param timeMs The timestamp when the sample was taken.
+     * @param value  The raw placeholder value string.
+     */
     public record Sample(String id, long timeMs, String value) {
     }
 
-    /** A stored value: exactly one of {@code number} and {@code text} is set. */
+    /** A stored value: exactly one of {@code number} and {@code text} is set.
+     *
+     * @param number Numeric value when the sample represents a number.
+     * @param text   Text value when the sample is not numeric.
+     */
     public record Result(Double number, String text) {
-        /** The string a reader sees: the number in plain notation, or the text. */
+        /** The string a reader sees: the number in plain notation, or the text.
+         *
+         * @return The formatted numeric string, or the original text value.
+         */
         public String asString() {
             return number != null ? BigDecimal.valueOf(number).stripTrailingZeros().toPlainString() : text;
         }
     }
 
+    /** Maximum length for a text sample stored in the observation table. */
     public static final int MAX_TEXT = 255;
     private static final Pattern NUMBER = Pattern.compile("[-+]?\\d+([.,]\\d+)?");
 
     private Samples() {
     }
 
-    /** Splits a raw placeholder value into its stored form. */
+    /** Splits a raw placeholder value into its stored form.
+     *
+     * @param raw The original placeholder value string, possibly with decoration codes.
+     * @return A Result containing either the parsed numeric value or the cleaned text.
+     */
     public static Result encode(String raw) {
         String cleaned = raw.replaceAll("[§&][0-9a-fk-orA-FK-OR]", "").trim();
         String n = cleaned.replaceFirst("^[*~<>≈ ]+", "").replace(" ", "").replace("%", "");
@@ -52,6 +69,10 @@ public final class Samples {
     /**
      * Reduces a series to at most {@code points} by averaging the numbers in equal time buckets (text: the last value
      * of the bucket). Each bucket keeps the time of its last sample. Series that are short enough pass through as is.
+     *
+     * @param in     The input list of data points, sorted by timestamp.
+     * @param points Maximum number of output points desired.
+     * @return A new list with at most {@code points} elements after reduction.
      */
     public static List<Point> reduce(List<Point> in, int points) {
         if (points < 1 || in.size() <= points) return in;

@@ -15,11 +15,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-/** The {@code network:} section of {@code config.yml}: how often servers are checked and which backends are federated. */
+/**
+ * The {@code network:} section of {@code config.yml}: how often servers are checked and which backends are federated.
+ *
+ * @param pingIntervalSeconds How often to check backend servers, in seconds.
+ * @param federationIntervalSeconds How often to refresh federation data, in seconds.
+ * @param backends The list of configured backend servers.
+ */
 public record ProxyConfig(int pingIntervalSeconds, int federationIntervalSeconds, List<BackendConfig> backends) {
     public static final ProxyConfig DEFAULTS = new ProxyConfig(15, 15, List.of());
 
-    /** Reads {@code dataDir/config.yml}; a missing or unreadable file gives the defaults (federation off). */
+    /**
+     * Reads {@code dataDir/config.yml}; a missing or unreadable file gives the defaults (federation off).
+     *
+     * @param dataDir The plugin's data directory path.
+     * @param yaml The YAML codec to parse with.
+     * @param warn Where to report warnings about read failures.
+     * @return The loaded configuration, or defaults if unavailable.
+     */
     public static ProxyConfig load(Path dataDir, YamlCodec yaml, Consumer<String> warn) {
         Path file = dataDir.resolve("config.yml");
         if (!Files.isRegularFile(file)) return DEFAULTS;

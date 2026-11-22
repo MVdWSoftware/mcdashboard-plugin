@@ -71,7 +71,12 @@ public final class ProxyLink {
         return new Advertised(List.copyOf(out), allowPlayerNames && proxyFeatures.contains("player-names"));
     }
 
-    /** The features of {@code /v1/info} for one connection. */
+    /**
+     * The features of {@code /v1/info} for one connection.
+     *
+     * @param features         The features to publish.
+     * @param allowPlayerNames Whether a typed player name can be used over this connection.
+     */
     public record Advertised(List<String> features, boolean allowPlayerNames) {
     }
 }

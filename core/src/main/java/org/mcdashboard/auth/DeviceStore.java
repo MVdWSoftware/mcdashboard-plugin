@@ -30,6 +30,15 @@ public final class DeviceStore {
      * with (e.g. {@code MCDashboard/1.2.3 (android)}), null for devices paired before the plugin recorded it.
      * {@code entitlement} is what the app says it runs under ({@link #ENTITLEMENTS}), null while it has not said. It is
      * self-reported by the app, informational only and never used to decide anything.
+     *
+     * @param id          The device id.
+     * @param playerUuid  The player it is paired to.
+     * @param playerName  The player's name at pairing.
+     * @param label       The name the owner gave it.
+     * @param serial      The current refresh-token generation.
+     * @param createdMs   When it paired, in epoch milliseconds.
+     * @param client      The User-Agent it paired with, or null.
+     * @param entitlement What the app reports it runs under, or null.
      */
     public record Device(String id, String playerUuid, String playerName, String label, long serial, long createdMs,
                          String client, String entitlement) {
@@ -38,7 +47,12 @@ public final class DeviceStore {
     /** The values a device may report: the server's licence, the app unlock bought on the device, or neither. */
     public static final List<String> ENTITLEMENTS = List.of("server", "app", "free");
 
-    /** The value if it is one of {@link #ENTITLEMENTS} (case and surrounding space ignored), else null. */
+    /**
+     * The value if it is one of {@link #ENTITLEMENTS} (case and surrounding space ignored), else null.
+     *
+     * @param raw The entitlement a device reported.
+     * @return The normalised value, or null when it is not one of {@link #ENTITLEMENTS}.
+     */
     public static String parseEntitlement(String raw) {
         if (raw == null) return null;
         String v = raw.trim().toLowerCase(java.util.Locale.ROOT);
@@ -60,17 +74,39 @@ public final class DeviceStore {
     private final Path file;
     private final SecureRandom random = new SecureRandom();
 
+    /**
+     * Creates the store, reading the devices from {@code file}.
+     *
+     * @param file The JSON file the paired devices are persisted in.
+     */
     public DeviceStore(Path file) {
         this.file = file;
         load();
     }
 
-    /** Registers a device for the player; fails when the player is at the device limit. */
+    /**
+     * Registers a device for the player; fails when the player is at the device limit.
+     *
+     * @param playerUuid The player the device belongs to.
+     * @param playerName The player's name.
+     * @param label      The label to show for the device.
+     * @param maxDevices The most devices a player may pair, or a negative value for no limit.
+     * @return The new device, or empty when the player is at the limit.
+     */
     public Optional<Device> add(String playerUuid, String playerName, String label, int maxDevices) {
         return add(playerUuid, playerName, label, maxDevices, null);
     }
 
-    /** Registers a device for the player and remembers which client it paired with. */
+    /**
+     * Registers a device for the player and remembers which client it paired with.
+     *
+     * @param playerUuid The player the device belongs to.
+     * @param playerName The player's name.
+     * @param label      The label to show for the device.
+     * @param maxDevices The most devices a player may pair, or a negative value for no limit.
+     * @param client     The User-Agent of the client that paired, or null.
+     * @return The new device, or empty when the player is at the limit.
+     */
     public synchronized Optional<Device> add(String playerUuid, String playerName, String label, int maxDevices, String client) {
         if (maxDevices >= 0 && devicesOf(playerUuid).size() >= maxDevices) return Optional.empty();
         byte[] raw = new byte[12];
@@ -83,7 +119,11 @@ public final class DeviceStore {
         return Optional.of(d);
     }
 
-    /** Records that the device just made an authenticated request. */
+    /**
+     * Records that the device just made an authenticated request.
+     *
+     * @param id The device that made the request.
+     */
     public void touch(String id) {
         if (id != null) seen.put(id, System.currentTimeMillis());
     }
@@ -91,6 +131,9 @@ public final class DeviceStore {
     /**
      * Records what the device says it runs under. Anything but {@link #ENTITLEMENTS} is ignored. The file is written only
      * when the value changed, which is rare, not on every request. Self-reported: informational, never a basis for a decision.
+     *
+     * @param id  The device that reported it.
+     * @param raw The entitlement it reported.
      */
     public void entitle(String id, String raw) {
         String value = parseEntitlement(raw);
@@ -104,30 +147,55 @@ public final class DeviceStore {
         }
     }
 
-    /** How many devices reported {@code entitlement} ({@code server}, {@code app} or {@code free}). Lock free and in memory. */
+    /**
+     * How many devices reported {@code entitlement} ({@code server}, {@code app} or {@code free}). Lock free and in memory.
+     *
+     * @param entitlement The value to count.
+     * @return The number of devices that reported it.
+     */
     public int countEntitled(String entitlement) {
         int n = 0;
         for (String v : reportedEntitlements.values()) if (v.equals(entitlement)) n++;
         return n;
     }
 
-    /** When the device was last seen (epoch ms), or empty when it has not been since it paired (or before the plugin recorded it). */
+    /**
+     * When the device was last seen (epoch ms), or empty when it has not been since it paired (or before the plugin recorded it).
+     *
+     * @param id The device id from the pairing, which the token carries as {@code sub}.
+     * @return The last-seen time, or empty when it is unknown.
+     */
     public Optional<Long> lastSeen(String id) {
         return Optional.ofNullable(seen.get(id));
     }
 
-    /** How many devices are paired. Lock free and in memory: safe on any thread, including the server's main thread. */
+    /**
+     * How many devices are paired. Lock free and in memory: safe on any thread, including the server's main thread.
+     *
+     * @return The number of paired devices.
+     */
     public int count() {
         return count;
     }
 
-    /** How many paired devices made a request at or after {@code sinceMs} (epoch ms). Lock free and in memory. */
+    /**
+     * How many paired devices made a request at or after {@code sinceMs} (epoch ms). Lock free and in memory.
+     *
+     * @param sinceMs The earliest time to count, in epoch milliseconds.
+     * @return The number of devices seen at or after that time.
+     */
     public long countSeenSince(long sinceMs) {
         long n = 0;
         for (long t : seen.values()) if (t >= sinceMs) n++;
         return n;
     }
 
+    /**
+     * The device with the given id.
+     *
+     * @param id The device id.
+     * @return The device, or empty when it is not paired.
+     */
     public synchronized Optional<Device> get(String id) {
         return Optional.ofNullable(devices.get(id));
     }
@@ -135,6 +203,10 @@ public final class DeviceStore {
     /**
      * Rotates the refresh token generation; the previous refresh token stops working after a short grace period, so a
      * client whose answer got lost can retry with the token it still has.
+     *
+     * @param id             The device to rotate.
+     * @param expectedSerial The generation the client is rotating from.
+     * @return The device with the next generation, or empty when it is unknown or was already rotated past this one.
      */
     public synchronized Optional<Device> rotate(String id, long expectedSerial) {
         Device d = devices.get(id);
@@ -151,11 +223,21 @@ public final class DeviceStore {
         return Optional.of(n);
     }
 
-    /** Called after a device was revoked, whoever did it (command, the device itself); must not block. */
+    /**
+     * Registers a listener called after a device was revoked, whoever did it (command, the device itself); must not block.
+     *
+     * @param listener The listener to call with the revoked device.
+     */
     public void onRemoved(Consumer<Device> listener) {
         removalListeners.add(listener);
     }
 
+    /**
+     * Revokes a device, writes the store and notifies the removal listeners.
+     *
+     * @param id The device to remove.
+     * @return True when a device was removed, false when it was not paired.
+     */
     public synchronized boolean remove(String id) {
         Device d = devices.remove(id);
         if (d == null) return false;
@@ -174,6 +256,12 @@ public final class DeviceStore {
         return true;
     }
 
+    /**
+     * The devices paired to the player.
+     *
+     * @param playerUuid The player's UUID.
+     * @return The player's devices, possibly empty.
+     */
     public synchronized List<Device> devicesOf(String playerUuid) {
         List<Device> out = new ArrayList<>();
         for (Device d : devices.values()) if (d.playerUuid().equals(playerUuid)) out.add(d);

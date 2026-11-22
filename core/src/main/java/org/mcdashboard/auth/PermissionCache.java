@@ -16,7 +16,16 @@ import java.util.concurrent.ConcurrentHashMap;
 public class PermissionCache {
     private final Map<String, Set<String>> granted = new ConcurrentHashMap<>();
 
-    /** Records the nodes the player holds. */
+    /** Creates an empty cache. */
+    public PermissionCache() {
+    }
+
+    /**
+     * Records the nodes the player holds.
+     *
+     * @param player The player the nodes belong to.
+     * @param nodes  The permission nodes they held at the snapshot.
+     */
     public void update(UUID player, Set<String> nodes) {
         granted.put(player.toString(), Set.copyOf(nodes));
     }
@@ -24,6 +33,10 @@ public class PermissionCache {
     /**
      * Whether the paired player holds the node. A null node means "no permission needed" and is always true; a
      * node without a known player (anonymous caller, or never seen) is false.
+     *
+     * @param playerUuid The paired player, or null for an anonymous caller.
+     * @param node       The permission node, or null when no permission is needed.
+     * @return True when the player holds the node or no node is required.
      */
     public boolean has(String playerUuid, String node) {
         if (node == null || node.isBlank()) return true;

@@ -15,6 +15,10 @@ import java.util.Locale;
 
 /** Publishes an allowlist of PlaceholderAPI placeholders to the MCDashboard app, on PowerNukkitX. */
 public final class MCDashboardNukkit extends PluginBase {
+    /** Creates the plugin; PowerNukkitX instantiates it once on start-up. */
+    public MCDashboardNukkit() {
+    }
+
     private MCDashboardCore core;
     private DashboardCommands commands;
 

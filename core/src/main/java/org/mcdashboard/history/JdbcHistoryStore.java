@@ -23,6 +23,11 @@ import java.util.Map;
 public final class JdbcHistoryStore implements HistoryStore {
     /** Opens a connection to the database. */
     public interface ConnectionSource {
+        /** Opens a new database connection.
+         *
+         * @return An open JDBC connection that can be used for queries.
+         * @throws java.sql.SQLException When the connection cannot be established.
+         */
         Connection open() throws SQLException;
     }
 
@@ -34,7 +39,14 @@ public final class JdbcHistoryStore implements HistoryStore {
     private Connection connection;
     private boolean ready;
 
-    /** {@code baseUri} is the IRI the platform, sensors, properties and procedures are minted under. */
+    /** Creates a new history store backed by a SQL database. {@code baseUri} is the IRI the platform, sensors, properties and procedures are minted under.
+     *
+     * @param dialect       The SQL dialect to use for generating queries.
+     * @param source        Factory for obtaining JDBC connections.
+     * @param baseUri       Base URI used to construct sensor URIs in the SOSA schema.
+     * @param platformLabel Human-readable label identifying this server/platform instance.
+     * @param clock         Clock used for timestamps; null uses system default.
+     */
     public JdbcHistoryStore(SqlDialect dialect, ConnectionSource source, String baseUri, String platformLabel, Clock clock) {
         this.dialect = dialect;
         this.source = source;
