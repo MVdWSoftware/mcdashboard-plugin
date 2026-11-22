@@ -1,0 +1,15 @@
+# Copyright (c) 2026 MVdW-Software
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Reviewed false positives (history scan 2026-11-22): test sources and fixtures only. The hits are
+# dummy PEM bodies ("AAAA") that exercise the key-format errors, the Sec-WebSocket-Key handshake
+# header, "secret" test constants, and ES256 client-attestation fixtures (iat 1800000000, aud
+# mc.example.com) signed with a throwaway test key. No production credential is in the history.
+title = "MCDashboard plugin"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "test sources and fixtures"
+paths = ['''(^|/)src/test/''']

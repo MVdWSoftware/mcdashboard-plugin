@@ -1,0 +1,44 @@
+name: Bug report
+description: Something in the plugin does not work as documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please search the existing issues first. **Do not post secrets**: remove the tunnel key, events
+        token, database password and device tokens from logs and config. Security problems go to
+        security@mvdw-software.com, not here (see SECURITY.md).
+  - type: input
+    id: version
+    attributes:
+      label: Plugin version
+      placeholder: "e.g. 0.9.0 (/version MCDashboard)"
+    validations: { required: true }
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options: [Spigot / Paper, PowerNukkitX, Velocity, BungeeCord]
+    validations: { required: true }
+  - type: input
+    id: server
+    attributes:
+      label: Server and Java version
+      placeholder: "e.g. Paper 1.21.4, Java 21"
+    validations: { required: true }
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations: { required: true }
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations: { required: true }
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and relevant config
+      description: Secrets removed, please.
+      render: text

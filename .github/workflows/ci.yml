@@ -1,0 +1,37 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with: { persist-credentials: false }
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
+        with: { distribution: temurin, java-version: '21', cache: maven }
+      - name: Build, test and check coverage limits
+        run: mvn -B -ntp verify
+      - name: Jars contain only org/mcdashboard
+        run: |
+          for jar in spigot/target/MCDashboard.jar nukkit/target/MCDashboard-Nukkit.jar velocity/target/MCDashboard-Velocity.jar bungee/target/MCDashboard-Bungee.jar; do
+            if jar tf "$jar" | grep -vE '^(org/mcdashboard/|META-INF/|dashboards/|lang/|nukkit/|proxy/|skills/|[a-z-]+\.(yml|json)|org/$|dashboards/$|lang/$|nukkit/$|proxy/$)'; then
+              echo "::error::unexpected entries in $jar (nothing may be shaded)"; exit 1
+            fi
+          done
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: jars
+          path: |
+            spigot/target/MCDashboard.jar
+            nukkit/target/MCDashboard-Nukkit.jar
+            velocity/target/MCDashboard-Velocity.jar
+            bungee/target/MCDashboard-Bungee.jar
+          retention-days: 7
