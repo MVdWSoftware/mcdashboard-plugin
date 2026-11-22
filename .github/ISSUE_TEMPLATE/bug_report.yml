@@ -8,7 +8,7 @@ body:
         ## Scope: MCDashboard plugin (the Minecraft server plugin)
         This tracker is **only** for the MCDashboard plugin (the Minecraft server plugin).
         For the MCDashboard app, the portal (accounts, licences, billing), the website, the WordPress plugin or the proxy, use https://mcdashboard.org/en/support/ or write to
-        support+mcdashboard@mvdw-software.com. Such issues are closed here without a reply.
+        support@mcdashboard.org. Such issues may be closed without a reply.
   - type: checkboxes
     id: scope
     attributes:
