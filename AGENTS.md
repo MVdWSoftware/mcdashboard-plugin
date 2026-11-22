@@ -26,3 +26,9 @@
   `src/nl/docs/` (both languages) and, when the change is visible in the product story, the
   marketing copy in `src/_data/i18n.json`. Change an `.agents/skills/` entry together with its
   `docs/` page. The site describes what the plugin can do; stale copy is a bug.
+- **Store artwork comes from the app.** `docs/store-page/` holds the SpigotMC listing and `generate.py`, which draws the
+  logo banner, buttons, section headers, feature icons, plan cards and phone collages from the marketing screenshots in
+  `../mcdashboard-server/docs/website/src/assets/media/`. When the app's UI, navigation or dashboard styles change,
+  recapture those screenshots, then run `python3 docs/store-page/generate.py --publish` and update the copy and prices in
+  `listing.bbcode`. The output in `mcdashboard-server/docs/website/src/assets/store/` is generated: never hand-edit it,
+  and bump the `?v=` query in the listing when an image is replaced at the same URL.

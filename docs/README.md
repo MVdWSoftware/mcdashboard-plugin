@@ -15,6 +15,7 @@
 - [Tunnel and endpoint discovery](tunnel.md)
 - [Client verification and background updates](client-verification.md)
 - [Versioning and compatibility](versioning.md)
+- [Store page for SpigotMC](store-page/README.md) (BBCode listing and artwork)
 - [API](../openapi.yaml) (OpenAPI 3.1, SenML values)
 
 The plugin is licensed under the GNU AGPL v3; using the MCDashboard app and the licence service is governed by the
