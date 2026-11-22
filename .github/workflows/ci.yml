@@ -26,6 +26,21 @@ jobs:
               echo "::error::unexpected entries in $jar (nothing may be shaded)"; exit 1
             fi
           done
+      - name: Coverage summary
+        if: always()
+        run: |
+          {
+            echo "### Test and coverage summary"
+            echo
+            echo "| Module | Instruction coverage |"
+            echo "|---|---|"
+            for csv in */target/site/jacoco/jacoco.csv; do
+              [ -f "$csv" ] || continue
+              awk -F, -v m="$(echo "$csv" | cut -d/ -f1)" 'NR>1 {miss+=$4; cov+=$5} END {if (miss+cov>0) printf "| %s | %.1f %% |\n", m, 100*cov/(miss+cov)}' "$csv"
+            done
+            echo
+            echo "Test results: $(cat */target/surefire-reports/*.txt 2>/dev/null | awk '/Tests run:/ {r+=$3; f+=$5; e+=$7} END {printf "%d run, %d failed, %d errors", r, f, e}')"
+          } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: jars
