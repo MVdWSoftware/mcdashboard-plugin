@@ -51,6 +51,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
   clients mark such requests with `X-MCDashboard-Purpose: background`, and `features` lists `background` while they are allowed.
 - `/v1/info` reports `features`, and the protocol and client versioning rules are in [docs/versioning.md](docs/versioning.md).
   `ClientPolicy.BUILT_IN_MIN_CLIENT` lets a release require a newer app.
+- The reverse tunnel's handshake is versioned: `hello` carries the plugin's tunnel protocol and `ready` the proxy's, plus
+  the API features the proxy can carry; a proxy that forwards over plain HTTP sends the same list in
+  `X-MCDashboard-Proxy-Features`. `/v1/info` publishes only the intersection, so an older proxy hides a feature instead of
+  advertising a route, header or query parameter it would drop ([docs/versioning.md](docs/versioning.md),
+  [docs/tunnel.md](docs/tunnel.md)). The loopback API now forwards `X-MCDashboard-Attestation`, `-Player`, `-Purpose` and
+  `-Entitlement` from the proxy, so client verification, player names and background limits work through the tunnel.
 - Spigot: the plugin registers its own PlaceholderAPI expansion `%mcdashboard_...%` (paired and online devices, licence state, API
   requests, rate limited requests, live clients, history samples and storage, placeholders, dashboards, uptime, version), fed by the
   new thread safe `PluginStats` in core (memory reads only, never blocks the main thread). The shipped `placeholders.yml` lists them in

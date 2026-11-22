@@ -4,6 +4,8 @@
  */
 package org.mcdashboard.tunnel;
 
+import org.mcdashboard.web.ProxyLink;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -24,7 +26,8 @@ final class LoopbackRequests {
     private static final int MAX_BODY = 2 * 1024 * 1024;
     private static final Set<String> METHODS = Set.of("GET", "HEAD", "POST", "DELETE");
     private static final Set<String> FORWARDED = Set.of("accept", "accept-language", "authorization", "content-type",
-            "if-none-match", "user-agent", "x-forwarded-for");
+            "if-none-match", "user-agent", "x-forwarded-for", "x-mcdashboard-attestation", "x-mcdashboard-entitlement",
+            "x-mcdashboard-player", "x-mcdashboard-purpose");
 
     private final HttpClient http;
     private final String base;
@@ -41,6 +44,8 @@ final class LoopbackRequests {
         if (!METHODS.contains(method) || !allowed(path)) return error(id, 404, "not found");
         try {
             HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(base + path)).timeout(Duration.ofSeconds(8));
+            // Tells /v1/info that the proxy in front of this request decides which features it can carry.
+            b.header(ProxyLink.HEADER, ProxyLink.TUNNEL);
             if (req.get("h") instanceof Map<?, ?> headers) {
                 for (Map.Entry<?, ?> h : headers.entrySet()) {
                     String name = String.valueOf(h.getKey()).toLowerCase(Locale.ROOT);

@@ -26,7 +26,12 @@ class LoopbackRequestsTest {
     void start() throws Exception {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/v1/", x -> {
-            lastHeader = x.getRequestHeaders().getFirst("Authorization") + "|" + x.getRequestHeaders().getFirst("X-Other");
+            lastHeader = x.getRequestHeaders().getFirst("Authorization") + "|" + x.getRequestHeaders().getFirst("X-Other")
+                    + "|" + x.getRequestHeaders().getFirst("X-MCDashboard-Via")
+                    + "|" + x.getRequestHeaders().getFirst("X-MCDashboard-Player")
+                    + "|" + x.getRequestHeaders().getFirst("X-MCDashboard-Purpose")
+                    + "|" + x.getRequestHeaders().getFirst("X-MCDashboard-Attestation")
+                    + "|" + x.getRequestHeaders().getFirst("X-MCDashboard-Entitlement");
             lastBody = new String(x.getRequestBody().readAllBytes());
             byte[] out = x.getRequestURI().getPath().equals("/v1/big") ? new byte[3 * 1024 * 1024] : "ok".getBytes();
             x.getResponseHeaders().add("ETag", "\"a\"");
@@ -57,16 +62,24 @@ class LoopbackRequestsTest {
     @Test
     void forwardsAllowedHeadersAndBodyAndMapsTheResponse() {
         Map<String, Object> r = req("POST", "/v1/created");
-        r.put("h", Map.of("Authorization", "Bearer a\r\nb", "X-Other", "no", "accept", 5));
+        r.put("h", Map.of("Authorization", "Bearer a\r\nb", "X-Other", "no", "accept", 5,
+                "x-mcdashboard-attestation", "a.b.c", "x-mcdashboard-entitlement", "app",
+                "x-mcdashboard-player", "Steve", "x-mcdashboard-purpose", "background"));
         r.put("b", Base64.getEncoder().encodeToString("payload".getBytes()));
         Map<String, Object> res = requests.answer(r, 7);
         assertEquals(7L, res.get("id"));
         assertEquals(201, res.get("s"));
         assertEquals("ok", bodyOf(res));
-        assertEquals("Bearer ab|null", lastHeader);
+        assertEquals("Bearer ab|null|tunnel|Steve|background|a.b.c|app", lastHeader);
         assertEquals("payload", lastBody);
         assertEquals("\"a\"", ((Map<?, ?>) res.get("h")).get("etag"));
         assertEquals(200, requests.answer(req("GET", "/v1/info"), 1).get("s"));
+    }
+
+    @Test
+    void alwaysMarksARequestAsComingThroughTheTunnel() {
+        requests.answer(req("GET", "/v1/info"), 1);
+        assertEquals("null|null|tunnel|null|null|null|null", lastHeader);
     }
 
     @Test

@@ -18,8 +18,11 @@ import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
@@ -40,6 +43,12 @@ import java.util.function.Consumer;
 public final class TunnelClient {
     /** Largest message either side sends (the proxy enforces the same). */
     static final int MAX_MESSAGE = 4 * 1024 * 1024;
+
+    /**
+     * Version of the plugin↔proxy tunnel protocol. The proxy ignores message types it does not know and reports the
+     * features it can carry, so an older proxy keeps working; bump this only for a change an older proxy cannot relay.
+     */
+    public static final int PROTOCOL = 1;
 
     private final URI url;
     private final String key;
@@ -64,6 +73,8 @@ public final class TunnelClient {
     private long deadMs = 60_000;
     private long pingMs = 20_000;
     private volatile boolean ready;
+    private volatile int proxyProtocol;
+    private volatile Set<String> proxyFeatures = Set.of();
     private volatile long connectedSince;
     private volatile String lastError;
     private volatile long lastErrorMs;
@@ -172,7 +183,9 @@ public final class TunnelClient {
                         ws = socket;
                         ready = false;
                         lastActivity = System.currentTimeMillis();
-                        send(Map.of("t", "hello", "server", serverName, "version", version));
+                        proxyProtocol = 0;
+                        proxyFeatures = Set.of();
+                        send(Map.of("t", "hello", "server", serverName, "version", version, "protocol", PROTOCOL));
                         // The proxy answers `ready` at once; silence means it is not (or no longer) a working tunnel endpoint.
                         timer.schedule(() -> {
                             if (generation.get() == g && !ready) giveUp(g, "the proxy did not answer the hello");
@@ -258,6 +271,8 @@ public final class TunnelClient {
         };
         channels.closeAll();
         ready = false;
+        proxyProtocol = 0;
+        proxyFeatures = Set.of();
         if (stopped) return;
         lastError = reason;
         lastErrorMs = System.currentTimeMillis();
@@ -318,6 +333,8 @@ public final class TunnelClient {
         Object t = m.get("t");
         if ("ready".equals(t)) {
             ready = true;
+            proxyProtocol = m.get("protocol") instanceof Number n ? n.intValue() : 0;
+            proxyFeatures = features(m.get("features"));
             connectedSince = System.currentTimeMillis();
             timer.schedule(() -> {
                 if (generation.get() == g && ready) attempt.set(0);
@@ -339,11 +356,34 @@ public final class TunnelClient {
         }
     }
 
+    /** The proxy's tunnel protocol, 0 when it did not say (an older proxy). */
+    public int proxyProtocol() {
+        return proxyProtocol;
+    }
+
+    /** The features the proxy reported it can carry; empty when it reported none (an older proxy). */
+    public Set<String> proxyFeatures() {
+        return proxyFeatures;
+    }
+
+    /** Reads the proxy's feature list, ignoring anything malformed rather than trusting it. */
+    static Set<String> features(Object raw) {
+        if (!(raw instanceof List<?> list)) return Set.of();
+        Set<String> out = new LinkedHashSet<>();
+        for (Object o : list) {
+            if (o instanceof String s && !s.isBlank() && s.length() <= 64 && out.size() < 64) out.add(s);
+        }
+        return Set.copyOf(out);
+    }
+
     /** The proxy is ready: stream device events, replaying what it missed since {@code since}. */
     private void onReady(String since) {
         unsubscribe.run();
         unsubscribe = bus.subscribe(since, this::event, () -> send(Map.of("t", "reset")));
-        info.accept("Tunnel connected to " + url.getHost() + (attempt.get() > 0 ? " (after " + attempt.get() + " failed attempt(s))." : "."));
+        String limited = proxyProtocol == 0 && proxyFeatures.isEmpty()
+                ? " The proxy does not report its tunnel protocol: features it cannot carry stay hidden until it is updated."
+                : "";
+        info.accept("Tunnel connected to " + url.getHost() + (attempt.get() > 0 ? " (after " + attempt.get() + " failed attempt(s))." : ".") + limited);
     }
 
     private void event(DeviceEvent e) {

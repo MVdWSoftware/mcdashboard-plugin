@@ -25,8 +25,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Supplier;
 import javax.net.ssl.SSLContext;
 
 import static org.mcdashboard.web.Exchanges.bearer;
@@ -66,6 +68,8 @@ public final class HttpApi implements HttpHandler {
     private ClientAssertions assertions;
     private boolean background = true;
     private org.mcdashboard.stats.PluginStats stats;
+    /** The features the reverse-tunnel proxy can carry; null when no tunnel uses this API (or it is the public listener). */
+    private volatile Supplier<Set<String>> proxyFeatures;
 
     /** An API that accepts only the official app's User-Agent, with the default limits. */
     public HttpApi(ApiContext ctx) {
@@ -131,6 +135,17 @@ public final class HttpApi implements HttpHandler {
         this.background = enabled;
     }
 
+    /**
+     * The features the proxy that reaches this API over the reverse tunnel reported it can carry. Until it reports them
+     * (an older proxy) the carried ones stay hidden; only plugin-local features such as {@code tls} and {@code background}
+     * are published. See {@link ProxyLink#CARRIED}.
+     *
+     * @param features The proxy's features, read when a request arrives through the tunnel.
+     */
+    public void proxyFeatures(Supplier<Set<String>> features) {
+        this.proxyFeatures = features;
+    }
+
     public int port() {
         return server.getAddress().getPort();
     }
@@ -164,7 +179,7 @@ public final class HttpApi implements HttpHandler {
             } else if (info) {
                 // Open to every client, so the app can read minClientVersion before it is refused.
                 ex.getResponseHeaders().set("Cache-Control", "public, max-age=60");
-                respond(ex, 200, info());
+                respond(ex, 200, info(ex));
             } else if (path.equals("/v1/events") && method.equals("GET")) {
                 if (events == null) error(ex, 404, "not found");
                 else keepOpen = eventStream(ex);
@@ -320,7 +335,7 @@ public final class HttpApi implements HttpHandler {
         return name;
     }
 
-    private Map<String, Object> info() {
+    private Map<String, Object> info(HttpExchange ex) {
         Map<String, Object> o = new LinkedHashMap<>();
         o.put("name", ctx.serverName());
         o.put("plugin", "MCDashboard");
@@ -330,10 +345,25 @@ public final class HttpApi implements HttpHandler {
         if (tls) features.add("tls");
         if (background) features.add("background");
         if (assertions != null) features.add("client-verification");
-        if (ctx.allowPlayerNames()) features.add("player-names");
+        boolean allowPlayerNames = ctx.allowPlayerNames();
+        if (allowPlayerNames) features.add("player-names");
+        // Through a proxy, only what that proxy can carry is usable: an older proxy reports nothing and hides the rest.
+        String via = ex.getRequestHeaders().getFirst(ProxyLink.HEADER);
+        Set<String> carried = null;
+        if (ProxyLink.TUNNEL.equalsIgnoreCase(via)) {
+            Supplier<Set<String>> supplier = proxyFeatures;
+            carried = supplier == null ? Set.of() : supplier.get();
+        } else if (ProxyLink.PROXY.equalsIgnoreCase(via)) {
+            carried = ProxyLink.parse(ex.getRequestHeaders().getFirst(ProxyLink.FEATURES_HEADER));
+        }
+        if (carried != null) {
+            ProxyLink.Advertised advertised = ProxyLink.advertised(features, carried, allowPlayerNames);
+            features = advertised.features();
+            allowPlayerNames = advertised.allowPlayerNames();
+        }
         o.put("features", features);
         o.put("authRequired", ctx.requireAuthentication());
-        o.put("allowPlayerNames", ctx.allowPlayerNames());
+        o.put("allowPlayerNames", allowPlayerNames);
         if (!ctx.polling()) o.put("polling", false);
         o.put("defaultLanguage", ctx.defaultLanguage());
         o.put("languages", ctx.languages());

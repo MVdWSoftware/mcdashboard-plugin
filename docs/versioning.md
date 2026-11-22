@@ -13,7 +13,13 @@ The app and the plugin are released separately, so every change must work across
 - **Forcing an update.** A plugin release that needs a newer app sets `ClientPolicy.BUILT_IN_MIN_CLIENT` to that app version. Owners
   can raise it further with `security.min-client-version`, never lower it. The plugin never asks for a plugin update: an older plugin
   just lacks features, and the app degrades.
+- **Proxies.** A proxy is a separate release that only routes what it knows. It reports the API features it can carry:
+  over the reverse tunnel in `ready` (with its tunnel protocol), and over plain HTTP in `X-MCDashboard-Proxy-Features`.
+  `/v1/info` publishes only the intersection with the plugin's own list, so an older proxy hides a feature instead of
+  advertising a route, header or query parameter it would drop. A proxy that reports nothing is treated as one that
+  carries no optional features. The tunnel protocol is separate from the API protocol: additive message types are ignored
+  by an older proxy, so a newer plugin keeps working through it.
 
 New response fields are additive and optional; a field is never removed or given a new meaning within a `protocol`.
-Code: `ApiContext.PROTOCOL` and `FEATURES`, `ClientPolicy`, and in the app `checkCompatibility`, `hasFeature`
-(`packages/protocol`).
+Code: `ApiContext.PROTOCOL` and `FEATURES`, `ClientPolicy`, `ProxyLink` and `TunnelClient.PROTOCOL`, and in the app
+`checkCompatibility`, `hasFeature` (`packages/protocol`).

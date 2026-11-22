@@ -42,6 +42,13 @@ and reconnects with exponential backoff (1 s to 60 s, forever). The backoff rese
 30 s, so a flapping proxy cannot cause a reconnect storm. An outage is logged once, not on every attempt. `/mcdashboard tunnel`
 (permission `mcdashboard.admin`) shows whether it is connected, the last error, the attempt number and the ping.
 
+Protocol: the `hello` frame carries the plugin's tunnel protocol (`TunnelClient.PROTOCOL`), and `ready` carries the proxy's
+protocol and the API features it can carry (`features`). The two protocols are independent of the plugin's and app's API
+`protocol`: unknown frame types are ignored on both sides, so a newer plugin works through an older proxy. The plugin
+publishes only the features the proxy can carry in `/v1/info`, so an older proxy hides `presets`, `history-points`,
+`upload`, `client-verification` or `player-names` instead of advertising what it would drop. A proxy that reports nothing
+is treated as carrying no optional features. See [docs/versioning.md](versioning.md).
+
 Protocol and the proxy's settings: [MCDashboard-proxy `docs/tunnel.md`](https://git.mvdw-software.com/mcdashboard/mcdashboard-proxy).
 
 ## With TLS

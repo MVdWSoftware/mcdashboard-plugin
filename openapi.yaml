@@ -283,13 +283,14 @@ components:
           x-known: [presets, history-points, upload, tls, background, client-verification, player-names]
           type: array
           items: { type: string }
-          description: 'optional capabilities of this plugin (for example presets, history-points, upload, tls). Absent on older plugins. A client gates features that need the plugin on this list and works without them'
+          description: 'optional capabilities of this connection (for example presets, history-points, upload, tls). Additions never bump `protocol`. Through a proxy this is the intersection with what that proxy can carry, so an older proxy hides a feature instead of advertising a route, header or query parameter it would drop. Absent on older plugins. A client gates features that need the plugin on this list and works without them'
         authRequired: { type: boolean }
         allowPlayerNames:
           type: boolean
           description: >-
             `security.allow-player-names`: an unpaired client may pick a player with the `X-MCDashboard-Player` header.
             Not authentication; the app only offers the field when this is true (or `player-names` is in `features`).
+            False through a proxy that cannot forward the player header, even when the owner enabled it.
         defaultLanguage: { type: string, enum: [en, nl, fr, de, es], description: 'language used when the app asks for one a dashboard does not provide' }
         languages: { type: array, items: { type: string, enum: [en, nl, fr, de, es] }, description: 'languages the server publishes dashboards in, sorted' }
         websocketPort: { type: integer }

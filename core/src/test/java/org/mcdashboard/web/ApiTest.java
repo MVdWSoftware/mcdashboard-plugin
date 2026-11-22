@@ -686,6 +686,31 @@ class ApiTest {
     }
 
     @Test
+    void infoThroughAForwardingProxyHonoursItsFeatureHeader() throws Exception {
+        var info = Json.parseObject(get("/v1/info", ProxyLink.HEADER, ProxyLink.PROXY,
+                ProxyLink.FEATURES_HEADER, "presets,upload").body());
+        List<?> features = (List<?>) info.get("features");
+        assertTrue(features.contains("presets"));
+        assertTrue(features.contains("upload"));
+        assertFalse(features.contains("history-points"));
+    }
+
+    @Test
+    void infoThroughAProxyOnlyOffersTheFeaturesThatProxyCarries() throws Exception {
+        api.proxyFeatures(() -> Set.of("presets", "upload"));
+        // A direct client is not limited by the proxy.
+        assertTrue(((List<?>) Json.parseObject(get("/v1/info").body()).get("features")).contains("history-points"));
+        var info = Json.parseObject(get("/v1/info", ProxyLink.HEADER, ProxyLink.TUNNEL).body());
+        List<?> features = (List<?>) info.get("features");
+        assertTrue(features.contains("presets"));
+        assertTrue(features.contains("upload"));
+        assertFalse(features.contains("history-points"));
+        // An answer for a proxy does not depend on the supplier being there (an API without a tunnel).
+        api.proxyFeatures(null);
+        assertEquals(200, get("/v1/info", ProxyLink.HEADER, ProxyLink.TUNNEL).statusCode());
+    }
+
+    @Test
     void theBuiltInMinimumClientVersionCanOnlyBeRaisedByTheOwner() {
         assertEquals("1.4.0", ClientPolicy.higher("1.4.0", null));
         assertEquals("2.0.0", ClientPolicy.higher("1.4.0", "2.0.0"));

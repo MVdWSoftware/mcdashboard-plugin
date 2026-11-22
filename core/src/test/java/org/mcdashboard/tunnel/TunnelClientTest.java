@@ -34,6 +34,22 @@ import org.mcdashboard.web.*;
 
 class TunnelClientTest {
     @Test
+    void readsOnlyUsableTunnelFeatureNames() {
+        assertEquals(Set.of("presets", "history-points"), TunnelClient.features(List.of("presets", 5, "", "history-points")));
+        assertEquals(Set.of(), TunnelClient.features("nope"));
+        assertEquals(Set.of(), TunnelClient.features(null));
+        List<Object> many = new java.util.ArrayList<>();
+        many.add("x".repeat(65)); // too long
+        many.add("    "); // blank
+        for (int i = 0; i < 70; i++) many.add("f" + i);
+        Set<String> kept = TunnelClient.features(many);
+        assertEquals(64, kept.size());
+        assertFalse(kept.contains("x".repeat(65)));
+        assertTrue(kept.contains("f63"));
+        assertFalse(kept.contains("f64"));
+    }
+
+    @Test
     void refusesInsecureOrWeakConfiguration() {
         String key = "k".repeat(40);
         assertThrows(IllegalArgumentException.class, () -> TunnelClient.validate("wss://p.example.com/tunnel", "short", false));
@@ -55,6 +71,28 @@ class TunnelClientTest {
         for (String path : new String[]{"/v1/events", "/v1/events?x=1", "/v1/%65vents", "/v1/./events", "/v1/x/../events",
                 "/v1/../secret", "/v2/info", "v1/info", "http://other/v1/info"}) {
             assertFalse(LoopbackRequests.allowed(path), path);
+        }
+    }
+
+    @Test
+    void anOlderProxyWithoutProtocolKeepsConnectingAndOffersNoExtraFeatures() throws Exception {
+        String key = "k".repeat(40);
+        List<String> infos = new java.util.concurrent.CopyOnWriteArrayList<>();
+        try (ServerSocket proxy = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
+            TunnelClient client = new TunnelClient(TunnelClient.validate("ws://127.0.0.1:" + proxy.getLocalPort() + "/tunnel", key, false),
+                    key, "127.0.0.1", 1, 0, "Test", "1.0", new EventBus(Clock.systemUTC()), infos::add, m -> {})
+                    .timing(50, 200, 300, 400, 600, 100);
+            client.start();
+            try (Socket ignored = accept(proxy, key, true)) {
+                long deadline = System.currentTimeMillis() + 3000;
+                while (!client.connected() && System.currentTimeMillis() < deadline) Thread.sleep(20);
+                assertTrue(client.connected());
+                assertEquals(0, client.proxyProtocol());
+                assertTrue(client.proxyFeatures().isEmpty());
+                assertTrue(infos.stream().anyMatch(m -> m.contains("does not report its tunnel protocol")), infos.toString());
+            } finally {
+                client.stop();
+            }
         }
     }
 
@@ -89,8 +127,15 @@ class TunnelClientTest {
                         + WebSocketFrames.acceptKey(wsKey) + "\r\n\r\n").getBytes(StandardCharsets.UTF_8));
                 out.flush();
 
-                assertEquals("hello", next(in).get("t"));
-                send(out, Map.of("t", "ready", "since", ""));
+                Map<String, Object> hello = next(in);
+                assertEquals("hello", hello.get("t"));
+                assertEquals(TunnelClient.PROTOCOL, ((Number) hello.get("protocol")).intValue());
+                send(out, Map.of("t", "ready", "since", "", "protocol", 7,
+                        "features", java.util.Arrays.asList("presets", 5, "history-points")));
+                long protocolDeadline = System.currentTimeMillis() + 3000;
+                while (client.proxyProtocol() != 7 && System.currentTimeMillis() < protocolDeadline) Thread.sleep(20);
+                assertEquals(7, client.proxyProtocol());
+                assertEquals(Set.of("presets", "history-points"), client.proxyFeatures());
 
                 // a REST request is answered by the plugin's own API
                 send(out, Map.of("t", "req", "id", 1, "m", "GET", "p", "/v1/values?ids=online",

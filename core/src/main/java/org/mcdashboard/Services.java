@@ -355,6 +355,8 @@ final class Services {
             LiveServer feed = loopbackLive != null ? loopbackLive : live;
             tunnel = new TunnelClient(uri, settings.tunnelKey(), settings.localHost(), api.port(), feed == null ? 0 : feed.port(),
                     name, platform.pluginVersion(), bus, log::info, log::warning);
+            // /v1/info may only promise what the proxy in front of it can carry.
+            api.proxyFeatures(tunnel::proxyFeatures);
             tunnel.start();
         } catch (IllegalArgumentException e) {
             log.severe("Tunnel not started: " + e.getMessage());

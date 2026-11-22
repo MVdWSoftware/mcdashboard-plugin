@@ -76,6 +76,10 @@ tunnel:
   (`allow-insecure` exists, do not use it on a public host). The key never goes in the URL and is never logged.
 - Health: ping every 20 s, reconnect with backoff 1 s to 60 s forever; `/mcdashboard tunnel` (admin) shows state,
   attempt and ping. The proxy can restrict peers with `TUNNEL_ALLOWED_IPS` (a refused peer gets `404`).
+- Versions: the handshake carries a tunnel protocol on both sides and the API features the proxy can carry (a proxy
+  that forwards over plain HTTP sends the same list in `X-MCDashboard-Proxy-Features`). `/v1/info` through an older proxy
+  hides `presets`, `history-points`, `upload`, `client-verification` or `player-names` instead of advertising what the
+  proxy would drop; update the proxy to get them back. A newer plugin works through an older proxy.
 - Events: with the tunnel the proxy needs neither `events.token` nor `events.webhooks`. Without a tunnel, a caching
   proxy needs one of them to learn about revocations; prefer the stream, both are off until configured, and the
   webhooks are retried and then dropped, so a receiver must be idempotent.
