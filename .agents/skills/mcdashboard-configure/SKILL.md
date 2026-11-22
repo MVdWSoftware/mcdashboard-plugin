@@ -1,6 +1,6 @@
 ---
 name: MCDashboard configuration
-description: Change the MCDashboard plugin settings in config.yml (server, security, history, tunnel, events, developer, stats, messages, license) and pick ports, TLS, rate limits and refresh intervals. Use when a server owner asks to change a setting, tighten security, limit traffic, keep history in a database or grant permissions for MCDashboard.
+description: Change the MCDashboard plugin settings in config.yml (server, security, history, tunnel, events, developer, diagnostics, stats, messages, license) and pick ports, TLS, rate limits and refresh intervals. Use when a server owner asks to change a setting, tighten security, limit traffic, keep history in a database, turn on opt-in error reports or grant permissions for MCDashboard.
 license: AGPL-3.0-or-later
 ---
 
@@ -26,6 +26,7 @@ One file: `plugins/MCDashboard/config.yml` (`plugins/mcdashboard/` on Velocity).
 | `tunnel` | dial out to MCDashboard-proxy over one WebSocket | off; needs `url` and a 32+ character `key` |
 | `events` | device revocation stream (`token`) and signed `webhooks` | off; the tunnel carries the events without either |
 | `developer` | allow dashboard uploads from the app (also `/mcdashboard developer`, which writes `developer.yml` and wins) | `false` |
+| `diagnostics` | opt-in error reports: an **unexpected** plugin error goes to MVdW's own error tracker, never a placeholder value or player data | `error-reports: false` |
 | `stats` | also offer the plugin's own `%mcdashboard_*%` counters to the app | `offer-to-app: false` |
 | `messages` | `messages.prefix` (chat prefix, `&` codes) | MCDashboard prefix |
 | `license` | `license.id` (`mcl_...`) registered for this server's address in the portal | empty = free limits |

@@ -8,6 +8,7 @@ import org.mcdashboard.auth.DeviceStore;
 import org.mcdashboard.auth.OtpService;
 import org.mcdashboard.config.YamlCodec;
 import org.mcdashboard.dashboard.DashboardStore;
+import org.mcdashboard.diagnostics.ErrorReporter;
 import org.mcdashboard.platform.Log;
 import org.mcdashboard.platform.Platform;
 import org.mcdashboard.stats.PluginStats;
@@ -28,6 +29,7 @@ public final class MCDashboardCore {
     private final YamlCodec yaml;
     private Settings settings;
     private Services services;
+    private ErrorReporter errorReporter;
     private volatile boolean developerMode;
     private final PluginStats stats = new PluginStats(java.time.Clock.systemUTC());
 
@@ -54,6 +56,8 @@ public final class MCDashboardCore {
             return;
         }
         settings = Settings.load(files.config(), log::warning);
+        // Opt-in: only unexpected plugin errors, never placeholder values or player data (see diagnostics.error-reports).
+        errorReporter = ErrorReporter.start(settings.errorReports(), platform.pluginVersion(), log);
         developerMode = files.developerMode(settings.developerMode());
         stats.version(platform.pluginVersion()).licensed(settings.licenseId() != null);
         if (!settings.enabled()) {
@@ -61,13 +65,14 @@ public final class MCDashboardCore {
             return;
         }
         DashboardStore dashboards = new DashboardStore(files.resolve("dashboards"), yaml, log::warning);
-        services = new Services(platform, settings, files, dashboards, this::developerMode, stats);
+        services = new Services(platform, settings, files, dashboards, this::developerMode, stats, errorReporter);
         services.start();
     }
 
     /** Stops all services. */
     public void stop() {
         if (services != null) services.stop();
+        if (errorReporter != null) errorReporter.close();
     }
 
     /** The plugin's own counters, for the platform's {@code %mcdashboard_*%} placeholders. Never null; reads memory only.

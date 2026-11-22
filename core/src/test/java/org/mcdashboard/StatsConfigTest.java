@@ -39,6 +39,14 @@ class StatsConfigTest {
         }).offerStatsToApp());
     }
 
+    @Test
+    void errorReportsAreOptIn() {
+        assertFalse(Settings.load(ConfigView.of(Map.of()), m -> {
+        }).errorReports());
+        assertTrue(Settings.load(ConfigView.of(Map.of("diagnostics", Map.of("error-reports", true))), m -> {
+        }).errorReports());
+    }
+
     private String placeholders(String stats) throws Exception {
         int port;
         try (ServerSocket s = new ServerSocket(0)) {

@@ -146,6 +146,12 @@ limits:
 developer:
   enabled: false
 
+# Off by default. When on, only an unexpected plugin error (an uncaught exception or a failed start) is sent to
+# MVdW's own error tracker, with the exception and its stack. Placeholder values, player names and server addresses
+# are never sent, and a placeholder that does not resolve is not reported. Privacy: https://mcdashboard.org/en/privacy-statement/
+diagnostics:
+  error-reports: false
+
 # The %mcdashboard_*% counters (devices, requests, ...) always exist in PlaceholderAPI. true also offers the "MCDashboard"
 # group of placeholders.yml to every paired app as PUBLIC placeholders (counts only, no player data).
 stats:

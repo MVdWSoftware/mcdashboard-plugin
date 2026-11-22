@@ -129,6 +129,12 @@ end from it either. A reminder needs a deliberate contract change first (for exa
 field in the heartbeat answer, or a field in the check response that the app reports with the entitlement header), designed
 together with the portal; until then the portal's own trial emails are the reminder.
 
+## `diagnostics`
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `error-reports` | `false` | Opt-in. When on, an **unexpected** plugin error (an uncaught exception or a failed start) is sent to MVdW's own GlitchTip (`monitor.mvdw-software.com`): the exception type, message and stack trace, the plugin version and `startup`/`uncaught`. Placeholder values, player names, server addresses and e-mail addresses are never sent, and a placeholder that does not resolve is not reported (those stay in the server log). Reports are deduplicated (one per error a minute, at most 20 an hour), kept 30 days and stored on MVdW's server in the EU. Off by default; see the [privacy statement](https://mcdashboard.org/en/privacy-statement/). |
+
 ## `stats`
 
 | Key | Default | Meaning |

@@ -32,7 +32,7 @@ record Settings(boolean enabled, String name, String defaultLanguage, String pub
                 boolean verifyClients, boolean verifyDeviceOnly, List<String> verifyKinds, List<String> verifyHosts,
                 List<Map<String, Object>> verifyKeys, boolean backgroundEnabled, int backgroundRequestsPerMinute, boolean offerStatsToApp,
                 int maxDashboards, int maxTiles, String chatPrefix,
-                String licenseApiUrl, String licenseHost, int licenseHeartbeatMinutes) {
+                String licenseApiUrl, String licenseHost, int licenseHeartbeatMinutes, boolean errorReports) {
 
     static final String DEFAULT_CHAT_PREFIX = "&8[&bMCDashboard&8] &r";
 
@@ -104,7 +104,8 @@ record Settings(boolean enabled, String name, String defaultLanguage, String pub
                 cfg.getString("messages.prefix", DEFAULT_CHAT_PREFIX),
                 blankToNull(cfg.getString("license.api-url", "https://portal.mcdashboard.org/api")),
                 blankToNull(cfg.getString("license.host", "")),
-                Math.max(0, cfg.getInt("license.heartbeat-minutes", 60)));
+                Math.max(0, cfg.getInt("license.heartbeat-minutes", 60)),
+                cfg.getBoolean("diagnostics.error-reports", false));
     }
 
     /** {@code limits.max-*}: a whole number of at least 1 caps, 0 (or absent) means no cap; negatives and garbage become 0. */

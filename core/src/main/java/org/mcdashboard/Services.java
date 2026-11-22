@@ -10,6 +10,7 @@ import org.mcdashboard.auth.OtpService;
 import org.mcdashboard.auth.RateLimiter;
 import org.mcdashboard.auth.TokenService;
 import org.mcdashboard.dashboard.DashboardStore;
+import org.mcdashboard.diagnostics.ErrorReporter;
 import org.mcdashboard.events.DeviceEvent;
 import org.mcdashboard.events.EventBus;
 import org.mcdashboard.events.EventStream;
@@ -56,6 +57,7 @@ final class Services {
     private final DataFolder files;
     private final DashboardStore dashboards;
     private final BooleanSupplier developerMode;
+    private final ErrorReporter errorReporter;
     private final Clock clock = Clock.systemUTC();
     private volatile ServerStatus status = ServerStatus.EMPTY;
     private OtpService otps;
@@ -74,7 +76,8 @@ final class Services {
     private final PluginStats stats;
     private volatile int dashboardCount;
 
-    Services(Platform platform, Settings settings, DataFolder files, DashboardStore dashboards, BooleanSupplier developerMode, PluginStats stats) {
+    Services(Platform platform, Settings settings, DataFolder files, DashboardStore dashboards, BooleanSupplier developerMode, PluginStats stats,
+             ErrorReporter errorReporter) {
         this.stats = stats;
         this.platform = platform;
         this.log = platform.log();
@@ -82,6 +85,7 @@ final class Services {
         this.files = files;
         this.dashboards = dashboards;
         this.developerMode = developerMode;
+        this.errorReporter = errorReporter;
     }
 
     /** Starts everything; a failure is logged and leaves the rest of the server untouched. */
@@ -174,6 +178,7 @@ final class Services {
                         + "only enable this on a private or trusted network.");
             }
         } catch (IOException | RuntimeException e) {
+            if (errorReporter != null) errorReporter.report(e, "startup");
             log.severe("Could not start MCDashboard: " + e.getMessage());
         }
     }

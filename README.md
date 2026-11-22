@@ -71,6 +71,11 @@ The plugin's source code is licensed under the GNU AGPL v3 ([LICENSE](LICENSE)).
 licence service is governed by the [terms of service](https://mcdashboard.org/en/terms-of-service/) and the
 [privacy statement](https://mcdashboard.org/en/privacy-statement/).
 
+Error reports are **opt-in** (`diagnostics.error-reports`, default `false`). When enabled, only an unexpected plugin
+error (an uncaught exception or a failed start) is sent to MVdW's own error tracker, with the exception and its stack;
+placeholder values, player names and server addresses are never included, and a placeholder that does not resolve is
+not reported.
+
 ## Placeholder catalog
 
 `placeholders.yml` lists what the app may read. Entries take an optional `group` (default `General`) and `description`,
