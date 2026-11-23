@@ -38,6 +38,10 @@ class TicksTest {
         assertEquals(0, adapter.scheduled.get(1).periodMs());
         assertEquals(5000, adapter.scheduled.get(2).periodMs());
         assertEquals(50, adapter.scheduled.get(3).periodMs(), "a repeat is never faster than one tick");
+        var repeating = platform.runSyncRepeating(() -> { }, 100);
+        assertEquals(5, adapter.scheduled.size());
+        repeating.cancel();
+        assertEquals(4, adapter.scheduled.size(), "a reload must be able to cancel the repeating task");
         platform.close();
     }
 }

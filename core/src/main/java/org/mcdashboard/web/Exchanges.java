@@ -56,7 +56,7 @@ final class Exchanges {
         }
     }
 
-    /** The decoded query parameters; the first of a repeated name wins. */
+    /** The decoded query parameters; the first of a repeated name wins. Throws {@link BadRequest} on a malformed escape. */
     static Map<String, String> query(HttpExchange ex) {
         Map<String, String> out = new LinkedHashMap<>();
         String raw = ex.getRequestURI().getRawQuery();
@@ -64,11 +64,20 @@ final class Exchanges {
         for (String pair : raw.split("&")) {
             if (pair.isEmpty()) continue;
             int i = pair.indexOf('=');
-            String k = URLDecoder.decode(i < 0 ? pair : pair.substring(0, i), StandardCharsets.UTF_8);
-            String v = i < 0 ? "" : URLDecoder.decode(pair.substring(i + 1), StandardCharsets.UTF_8);
+            String k = decode(i < 0 ? pair : pair.substring(0, i));
+            String v = i < 0 ? "" : decode(pair.substring(i + 1));
             out.putIfAbsent(k, v);
         }
         return out;
+    }
+
+    /** Percent-decodes one query part, turning a malformed escape such as {@code %zz} into a 400 rather than a 500. */
+    static String decode(String value) {
+        try {
+            return URLDecoder.decode(value, StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException e) {
+            throw new BadRequest("invalid query string");
+        }
     }
 
     static int intParam(Map<String, String> q, String name, int fallback) {
@@ -81,10 +90,15 @@ final class Exchanges {
         }
     }
 
-    /** The bearer token, or null. */
+    /** The bearer token, or null. The scheme is case-insensitive (RFC 6750). */
     static String bearer(HttpExchange ex) {
         String h = ex.getRequestHeaders().getFirst("Authorization");
-        return h != null && h.startsWith("Bearer ") ? h.substring(7).trim() : null;
+        if (h == null) return null;
+        String value = h.trim();
+        if (value.length() <= 7 || !value.regionMatches(true, 0, "Bearer", 0, 6)
+                || !Character.isWhitespace(value.charAt(6))) return null;
+        String token = value.substring(7).trim();
+        return token.isEmpty() ? null : token;
     }
 
     static List<String> languages(HttpExchange ex) {

@@ -49,7 +49,7 @@ publishes only the features the proxy can carry in `/v1/info`, so an older proxy
 `upload`, `client-verification` or `player-names` instead of advertising what it would drop. A proxy that reports nothing
 is treated as carrying no optional features. See [docs/versioning.md](versioning.md).
 
-Protocol and the proxy's settings: [MCDashboard-proxy `docs/tunnel.md`](https://git.mvdw-software.com/mcdashboard/mcdashboard-proxy).
+Protocol and the proxy's settings: [MCDashboard-proxy `docs/tunnel.md`](https://github.com/MVdWSoftware/mcdashboard-proxy).
 
 ## With TLS
 

@@ -10,12 +10,14 @@ import net.md_5.bungee.api.chat.HoverEvent;
 import net.md_5.bungee.api.chat.TextComponent;
 import net.md_5.bungee.api.chat.hover.content.Text;
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.mcdashboard.MCDashboard;
 import org.mcdashboard.auth.DeviceStore;
 import org.mcdashboard.auth.OtpService;
@@ -24,6 +26,7 @@ import org.mcdashboard.qr.QrMap;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /** {@code /mcdashboard link [player]|qr|devices|revoke|developer|tunnel|about}; {@code link <player>} is for admins and the console. */
 public final class MCDashboardCommand implements CommandExecutor, TabCompleter {
@@ -129,11 +132,11 @@ public final class MCDashboardCommand implements CommandExecutor, TabCompleter {
         }
         switch (sub) {
             case "qr" -> {
-                if (player.getInventory().firstEmpty() == -1) {
+                QrMap.destroyFor(player, true); // one live map per player, and it may free the only slot
+                if (!hasStorageRoom(player)) {
                     commands.error(who, "Make room in your inventory for the QR map, then run §f/" + label + " qr§c again.");
                     return true;
                 }
-                QrMap.destroyFor(player, true); // one live map per player
                 String code = plugin.otps().create(player.getUniqueId().toString(), player.getName());
                 String link = commands.connectLink(code);
                 if (link == null) {
@@ -141,7 +144,13 @@ public final class MCDashboardCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
                 long seconds = plugin.otpTimeoutSeconds() < 0 ? 300 : Math.min(300, plugin.otpTimeoutSeconds());
-                player.getInventory().addItem(QrMap.create(player, link, System.currentTimeMillis() + seconds * 1000));
+                ItemStack map = QrMap.create(player, link, System.currentTimeMillis() + seconds * 1000);
+                Map<Integer, ItemStack> leftover = player.getInventory().addItem(map);
+                if (!leftover.isEmpty()) {
+                    // Never drop a pairing code on the ground and never claim a map the player did not receive.
+                    commands.error(who, "Make room in your inventory for the QR map, then run §f/" + label + " qr§c again.");
+                    return true;
+                }
                 commands.success(who, "Here is your QR map. Scan it with the MCDashboard app; it self-destructs in "
                         + Math.max(1, seconds / 60) + " min or as soon as you drop or store it.");
             }
@@ -167,6 +176,20 @@ public final class MCDashboardCommand implements CommandExecutor, TabCompleter {
             default -> commands.usageOverview(who, label, DashboardCommands.SUBCOMMANDS);
         }
         return true;
+    }
+
+    /**
+     * Whether the inventory has an empty storage slot for the QR map. The storage contents are checked because those
+     * are the slots {@code addItem} fills; the armour and offhand slots cannot hold a map.
+     *
+     * @param player The player who is about to receive the map.
+     * @return True if {@code addItem} can store the map without dropping it.
+     */
+    private static boolean hasStorageRoom(Player player) {
+        for (ItemStack item : player.getInventory().getStorageContents()) {
+            if (item == null || item.getType() == Material.AIR) return true;
+        }
+        return false;
     }
 
     /** A player links themselves; an admin (or the console) can link any player by name. */

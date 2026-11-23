@@ -29,6 +29,10 @@ class QrCodeTest {
                 img.setRGB(x, y, dark ? 0x000000 : 0xFFFFFF);
             }
         }
+        return decode(img);
+    }
+
+    static String decode(BufferedImage img) throws Exception {
         var bitmap = new BinaryBitmap(new HybridBinarizer(new BufferedImageLuminanceSource(img)));
         return new MultiFormatReader().decode(bitmap, Map.of(DecodeHintType.PURE_BARCODE, Boolean.TRUE)).getText();
     }
@@ -63,6 +67,35 @@ class QrCodeTest {
     @Test
     void refusesTextThatDoesNotFit() {
         assertThrows(IllegalArgumentException.class, () -> QrCode.encode("x".repeat(214)));
+    }
+
+    /** The map draws the app logo in the middle; the hole it leaves must stay inside the error correction. */
+    @Test
+    void decodesWithTheMapLogo() throws Exception {
+        int[] lengths = {5, 14, 26, 42, 62, 84, 106, 122, 146, 152, 180, 213};
+        Random rnd = new Random(11);
+        for (int len : lengths) {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < len; i++) sb.append((char) ('a' + rnd.nextInt(26)));
+            QrCode qr = QrCode.encode(sb.toString());
+            QrMapLayout layout = new QrMapLayout(qr.size());
+            int scale = 5;
+            int dim = QrMapLayout.MAP_SIZE * scale;
+            BufferedImage img = new BufferedImage(dim, dim, BufferedImage.TYPE_INT_RGB);
+            for (int y = 0; y < dim; y++) {
+                for (int x = 0; x < dim; x++) {
+                    int px = x / scale;
+                    int py = y / scale;
+                    boolean dark = !layout.logo(px, py) && layout.dark(qr, px, py);
+                    img.setRGB(x, y, dark ? 0x000000 : 0xFFFFFF);
+                }
+            }
+            try {
+                assertEquals(sb.toString(), decode(img), "length " + len + " (version " + qr.version() + ")");
+            } catch (Exception e) {
+                fail("length " + len + " (version " + qr.version() + ")", e);
+            }
+        }
     }
 
     @Test

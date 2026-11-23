@@ -121,8 +121,9 @@ public interface Platform {
      *
      * @param task The task to run.
      * @param ticks The interval in ticks.
+     * @return A handle that stops the task; a reload must cancel it.
      */
-    void runSyncRepeating(Runnable task, long ticks);
+    ScheduledTask runSyncRepeating(Runnable task, long ticks);
 
     /** Tells the player in game that a device was linked, with the way to undo it; {@code prefix} starts each line (colour codes as §).
      *

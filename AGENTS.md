@@ -1,6 +1,6 @@
 # AGENTS.md
 
-- **No runtime dependencies.** spigot-api, PlaceholderAPI, velocity-api and bungeecord-api are `provided`; JDK only otherwise (the one exception: `velocity/` shades SnakeYAML relocated to `org/mcdashboard/libs/`, because Velocity has no YAML library for plugins). CI fails if the
+- **No runtime dependencies.** spigot-api, PlaceholderAPI, velocity-api and bungeecord-api are `provided`; JDK only otherwise (two exceptions: `velocity/` shades SnakeYAML relocated to `org/mcdashboard/libs/`, because Velocity has no YAML library for plugins, and `spigot/`, `bungee/` and `velocity/` shade bStats relocated to `org/mcdashboard/lib/bstats` for anonymous usage metrics; Nukkit has no bStats adapter). CI fails if the
   jar contains anything but `org/mcdashboard`. JDBC drivers are never shaded (`history/JdbcConnector`).
 - **`core/` knows no server platform.** It must not import `org.bukkit` or `me.clip`; everything it needs from the
   server (logger, placeholder engine, permissions, main thread, player count) comes through `platform/Platform`,

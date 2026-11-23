@@ -321,6 +321,26 @@ class ApiTest {
     }
 
     @Test
+    void infoIsCacheablePerProxyHeaders() throws Exception {
+        var info = get("/v1/info");
+        assertEquals("public, max-age=60", info.headers().firstValue("Cache-Control").orElseThrow());
+        assertEquals("X-MCDashboard-Via, X-MCDashboard-Proxy-Features", info.headers().firstValue("Vary").orElseThrow(),
+                "the body depends on the proxy headers, so a shared cache must not reuse it across them");
+    }
+
+    @Test
+    void theBearerSchemeIsCaseInsensitive() throws Exception {
+        // A token that is not recognised as a bearer token would fall back to the anonymous answer (200 here), so a
+        // 401 proves the scheme matched.
+        assertEquals(401, get("/v1/placeholders/tps", "Authorization", "bEaReR nope").statusCode());
+        assertEquals(401, get("/v1/placeholders/tps", "Authorization", "BEARER nope").statusCode());
+        for (String header : List.of("NotBearer nope", "Bearer", "BearerX nope", "Bearer    ")) {
+            assertEquals(200, get("/v1/placeholders/tps", "Authorization", header).statusCode(),
+                    header + " is not a usable bearer token");
+        }
+    }
+
+    @Test
     void aPresetThatIsNotOfferedCanNotBeFetchedEither() throws Exception {
         PermissionCache perms = new PermissionCache();
         presetServer(perms);

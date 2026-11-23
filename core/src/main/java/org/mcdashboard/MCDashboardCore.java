@@ -12,6 +12,7 @@ import org.mcdashboard.diagnostics.ErrorReporter;
 import org.mcdashboard.platform.Log;
 import org.mcdashboard.platform.Platform;
 import org.mcdashboard.stats.PluginStats;
+import org.mcdashboard.stats.SetupSummary;
 import org.mcdashboard.tunnel.TunnelClient;
 
 import java.io.IOException;
@@ -66,7 +67,8 @@ public final class MCDashboardCore {
         }
         DashboardStore dashboards = new DashboardStore(files.resolve("dashboards"), yaml, log::warning);
         services = new Services(platform, settings, files, dashboards, this::developerMode, stats, errorReporter);
-        services.start();
+        // On a partial start Services has already stopped what it started; treat the plugin as not running.
+        if (!services.start()) services = null;
     }
 
     /** Stops all services. */
@@ -81,6 +83,20 @@ public final class MCDashboardCore {
      */
     public PluginStats stats() {
         return stats;
+    }
+
+    /**
+     * The anonymous configuration summary for bStats custom charts: whether the web server, the licence and the
+     * tunnel are on, and which history backend is configured. It never contains a server name, address, licence id
+     * or placeholder value. Before {@link #start()} (or when the configuration could not be read) every flag is off.
+     *
+     * @return The setup summary; never null.
+     */
+    public SetupSummary setupSummary() {
+        Settings current = settings;
+        if (current == null) return new SetupSummary(false, false, false, "unknown");
+        return new SetupSummary(current.enabled(), current.licenseId() != null, current.tunnelEnabled(),
+                current.history().storage().type());
     }
 
     /** The version of the plugin, as the platform reports it.

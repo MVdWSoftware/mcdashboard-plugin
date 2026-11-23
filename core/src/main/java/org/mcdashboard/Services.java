@@ -27,6 +27,7 @@ import org.mcdashboard.placeholder.PlaceholderService;
 import org.mcdashboard.platform.Log;
 import org.mcdashboard.platform.Permissions;
 import org.mcdashboard.platform.Platform;
+import org.mcdashboard.platform.ScheduledTask;
 import org.mcdashboard.stats.PluginStats;
 import org.mcdashboard.tls.TlsSupport;
 import org.mcdashboard.tunnel.TunnelClient;
@@ -73,6 +74,7 @@ final class Services {
     private HistoryService history;
     private LicenseHeartbeat licenseHeartbeat;
     private ScheduledExecutorService sampler;
+    private ScheduledTask statusTask;
     private final PluginStats stats;
     private volatile int dashboardCount;
 
@@ -88,105 +90,115 @@ final class Services {
         this.errorReporter = errorReporter;
     }
 
-    /** Starts everything; a failure is logged and leaves the rest of the server untouched. */
-    void start() {
+    /** Starts everything; a failure stops whatever started already and returns false, so commands report it as not running. */
+    boolean start() {
         if (!platform.placeholdersAvailable()) {
             log.severe("PlaceholderAPI is required. Install it and restart.");
-            return;
+            return false;
         }
         try {
-            otps = new OtpService(clock, settings.otpTimeoutSeconds());
-            devices = new DeviceStore(files.resolve("devices.json"));
-            TokenService tokens = new TokenService(files.secret(), clock);
-
-            var yaml = files.placeholders();
-            HistorySettings historySettings = settings.history();
-            List<PlaceholderDefinition> parsed = historySettings.apply(PlaceholderDefinition.parseAll(yaml.getMapList("placeholders"),
-                    msg -> log.warning("placeholders.yml: " + msg)));
-            List<PlaceholderDefinition> defs = offeredDefinitions(parsed);
-            Path images = files.resolve("images");
-            Files.createDirectories(images);
-            Permissions permissions = platform.permissions(dashboards);
-            PlaceholderService placeholders = new PlaceholderService(platform.values(), clock,
-                    settings.minIntervalMs(), settings.minIntervalOverrides(), permissions.cache(),
-                    defs, images, new ImageCache(clock));
-
-            history = new HistoryService(clock, defs, historySettings, historyStore(historySettings), log::warning);
-            history.start();
-            stats.historyStorage(historySettings.storage().type()).placeholders(defs::size)
-                    .devicesEntitled(devices::countEntitled)
-                    .devices(devices::count, () -> devices.countSeenSince(clock.millis() - PluginStats.ONLINE_MINUTES * 60_000L))
-                    .historySamples(history::samplesWritten).dashboards(() -> dashboardCount);
-            refreshDashboardCount();
-            permissions.start(defs);
-            permissions.addPermissions(settings.minIntervalOverrides().permissions());
-            List<ExpansionCatalog.Entry> catalog = ExpansionCatalog.parseAll(yaml.getMapList("catalog"),
-                    msg -> log.warning("placeholders.yml: " + msg));
-            new CatalogLoader(platform, placeholders, history, historySettings, permissions, defs, catalog).start();
-            platform.runSyncRepeating(this::refreshStatus, 100L);
-            startSampler(placeholders);
-
-            String name = settings.nameOr(platform.serverName());
-            ApiContext ctx = new ApiContext(name, platform.pluginVersion(), () -> status,
-                    settings.requireAuthentication(), settings.maxDevices(),
-                    settings.accessTokenSeconds(), settings.refreshTokenSeconds(), settings.websocketPort(),
-                    placeholders, tokens, devices, otps,
-                    new RateLimiter(clock, settings.authAttemptsPerMinute(), 60_000), dashboards,
-                    settings.trustedProxies(), history, settings.licenseId(), d -> platform.notifyLinked(d, settings.prefix()), permissions.cache(),
-                    settings.defaultLanguage(), developerMode, permissions::dashboardsChanged,
-                    settings.endpoints(), settings.discoveryOnly(), settings.polling(), stats,
-                    settings.maxDashboards(), settings.maxTiles(), settings.allowPlayerNames(), platform::playerUuid);
-            ClientPolicy clients = ClientPolicy.of(clock, settings.allowedClients(), settings.minClientVersion(),
-                    settings.requestsPerMinute(), settings.anonymousRequestsPerMinute(), log::warning);
-            // Slow or idle connections must not hold the API's worker threads: the JDK server has no timeouts unless told.
-            System.getProperties().putIfAbsent("sun.net.httpserver.maxReqTime", "30");
-            System.getProperties().putIfAbsent("sun.net.httpserver.maxRspTime", "30");
-            TlsSupport.Identity tls = settings.tls().enabled() ? loadTls() : null;
-            if (settings.tls().enabled() && tls == null) return; // reported; never fall back to serving in the clear
-            tlsFingerprint = tls == null ? null : tls.fingerprint();
-            clients.background(new RateLimiter(clock, settings.backgroundRequestsPerMinute(), 60_000));
-            ClientAssertions assertions = clientAssertions();
-            http = new HttpApi(ctx, clients).stats(stats);
-            http.background(settings.backgroundEnabled());
-            if (assertions != null) http.verifyClients(assertions);
-            if (tls != null) http.tls(tls.selfSigned() ? tls.fingerprint() : null);
-            EventBus bus = startEvents();
-            http.start(settings.host(), settings.port(), tls == null ? null : tls.context());
-            log.info("REST API listening on port " + http.port() + (tls == null ? " (plain HTTP)" : " (HTTPS)"));
-            // UI/UX only: tell the portal which licence and address this server uses. The app's signed, host-bound
-            // check is the enforcement; this heartbeat is open-source code and can be removed by a fork.
-            licenseHeartbeat = new LicenseHeartbeat(settings.licenseId(), settings.licenseApiUrl(),
-                    LicenseHeartbeat.hostFor(settings.licenseHost(), settings.publicUrl(), settings.endpoints()),
-                    settings.licenseHeartbeatMinutes(), platform.pluginVersion(), log);
-            licenseHeartbeat.start();
-            if (settings.websocketPort() > 0) {
-                live = new LiveServer(ctx, settings.maxLiveConnections(), clients);
-                stats.liveClients(this::liveConnections);
-                if (assertions != null) live.verifyClients(assertions);
-                live.start(settings.host(), settings.websocketPort(), tls == null ? null : tls.context());
-                log.info("Live feed listening on port " + live.port() + (tls == null ? " (plain)" : " (TLS)"));
-            }
-            if (tls != null && settings.tunnelEnabled()) startLoopback(ctx, clients);
-            startTunnel(name, bus);
-            log.info(defs.size() + " placeholder(s) exposed.");
-            if (!settings.requireAuthentication()) {
-                log.warning("security.require-authentication is off: anyone who can reach this server can read its PUBLIC placeholders without pairing.");
-            }
-            if (settings.allowPlayerNames()) {
-                log.warning("security.allow-player-names is on: anyone who can reach this server can read PLAYER placeholders "
-                        + "and permission-gated dashboards as any player by typing that player's name. There is no authentication; "
-                        + "only enable this on a private or trusted network.");
-            }
+            startServices();
+            return true;
         } catch (IOException | RuntimeException e) {
             if (errorReporter != null) errorReporter.report(e, "startup");
             log.severe("Could not start MCDashboard: " + e.getMessage());
+            // Never leave history, the sampler, the licence heartbeat or the tunnel running behind a dead API.
+            stop();
+            return false;
+        }
+    }
+
+    /** Starts the services; a failure propagates so {@link #start()} can undo the parts that did start. */
+    private void startServices() throws IOException {
+        otps = new OtpService(clock, settings.otpTimeoutSeconds());
+        devices = new DeviceStore(files.resolve("devices.json"));
+        TokenService tokens = new TokenService(files.secret(), clock);
+
+        var yaml = files.placeholders();
+        HistorySettings historySettings = settings.history();
+        List<PlaceholderDefinition> parsed = historySettings.apply(PlaceholderDefinition.parseAll(yaml.getMapList("placeholders"),
+                msg -> log.warning("placeholders.yml: " + msg)));
+        List<PlaceholderDefinition> defs = offeredDefinitions(parsed);
+        Path images = files.resolve("images");
+        Files.createDirectories(images);
+        Permissions permissions = platform.permissions(dashboards);
+        PlaceholderService placeholders = new PlaceholderService(platform.values(), clock,
+                settings.minIntervalMs(), settings.minIntervalOverrides(), permissions.cache(),
+                defs, images, new ImageCache(clock));
+
+        history = new HistoryService(clock, defs, historySettings, historyStore(historySettings), log::warning);
+        history.start();
+        stats.historyStorage(historySettings.storage().type()).placeholders(defs::size)
+                .devicesEntitled(devices::countEntitled)
+                .devices(devices::count, () -> devices.countSeenSince(clock.millis() - PluginStats.ONLINE_MINUTES * 60_000L))
+                .historySamples(history::samplesWritten).dashboards(() -> dashboardCount);
+        refreshDashboardCount();
+        permissions.start(defs);
+        permissions.addPermissions(settings.minIntervalOverrides().permissions());
+        List<ExpansionCatalog.Entry> catalog = ExpansionCatalog.parseAll(yaml.getMapList("catalog"),
+                msg -> log.warning("placeholders.yml: " + msg));
+        new CatalogLoader(platform, placeholders, history, historySettings, permissions, defs, catalog).start();
+        statusTask = platform.runSyncRepeating(this::refreshStatus, 100L);
+        startSampler(placeholders);
+
+        String name = settings.nameOr(platform.serverName());
+        ApiContext ctx = new ApiContext(name, platform.pluginVersion(), () -> status,
+                settings.requireAuthentication(), settings.maxDevices(),
+                settings.accessTokenSeconds(), settings.refreshTokenSeconds(), settings.websocketPort(),
+                placeholders, tokens, devices, otps,
+                new RateLimiter(clock, settings.authAttemptsPerMinute(), 60_000), dashboards,
+                settings.trustedProxies(), history, settings.licenseId(), d -> platform.notifyLinked(d, settings.prefix()), permissions.cache(),
+                settings.defaultLanguage(), developerMode, permissions::dashboardsChanged,
+                settings.endpoints(), settings.discoveryOnly(), settings.polling(), stats,
+                settings.maxDashboards(), settings.maxTiles(), settings.allowPlayerNames(), platform::playerUuid);
+        ClientPolicy clients = ClientPolicy.of(clock, settings.allowedClients(), settings.minClientVersion(),
+                settings.requestsPerMinute(), settings.anonymousRequestsPerMinute(), log::warning);
+        // Slow or idle connections must not hold the API's worker threads: the JDK server has no timeouts unless told.
+        System.getProperties().putIfAbsent("sun.net.httpserver.maxReqTime", "30");
+        System.getProperties().putIfAbsent("sun.net.httpserver.maxRspTime", "30");
+        TlsSupport.Identity tls = settings.tls().enabled() ? loadTls() : null;
+        // loadTls() has already reported the reason; never fall back to serving in the clear.
+        if (settings.tls().enabled() && tls == null) throw new IOException("TLS could not be loaded");
+        tlsFingerprint = tls == null ? null : tls.fingerprint();
+        clients.background(new RateLimiter(clock, settings.backgroundRequestsPerMinute(), 60_000));
+        ClientAssertions assertions = clientAssertions();
+        http = new HttpApi(ctx, clients).stats(stats);
+        http.background(settings.backgroundEnabled());
+        if (assertions != null) http.verifyClients(assertions);
+        if (tls != null) http.tls(tls.selfSigned() ? tls.fingerprint() : null);
+        EventBus bus = startEvents();
+        http.start(settings.host(), settings.port(), tls == null ? null : tls.context());
+        log.info("REST API listening on port " + http.port() + (tls == null ? " (plain HTTP)" : " (HTTPS)"));
+        // UI/UX only: tell the portal which licence and address this server uses. The app's signed, host-bound
+        // check is the enforcement; this heartbeat is open-source code and can be removed by a fork.
+        licenseHeartbeat = new LicenseHeartbeat(settings.licenseId(), settings.licenseApiUrl(),
+                LicenseHeartbeat.hostFor(settings.licenseHost(), settings.publicUrl(), settings.endpoints()),
+                settings.licenseHeartbeatMinutes(), platform.pluginVersion(), log);
+        licenseHeartbeat.start();
+        if (settings.websocketPort() > 0) {
+            live = new LiveServer(ctx, settings.maxLiveConnections(), clients);
+            stats.liveClients(this::liveConnections);
+            if (assertions != null) live.verifyClients(assertions);
+            live.start(settings.host(), settings.websocketPort(), tls == null ? null : tls.context());
+            log.info("Live feed listening on port " + live.port() + (tls == null ? " (plain)" : " (TLS)"));
+        }
+        if (tls != null && settings.tunnelEnabled()) startLoopback(ctx, clients);
+        startTunnel(name, bus);
+        log.info(defs.size() + " placeholder(s) exposed.");
+        if (!settings.requireAuthentication()) {
+            log.warning("security.require-authentication is off: anyone who can reach this server can read its PUBLIC placeholders without pairing.");
+        }
+        if (settings.allowPlayerNames()) {
+            log.warning("security.allow-player-names is on: anyone who can reach this server can read PLAYER placeholders "
+                    + "and permission-gated dashboards as any player by typing that player's name. There is no authentication; "
+                    + "only enable this on a private or trusted network.");
         }
     }
 
     /**
      * The client verifier when {@code security.client-verification.mode} is {@code required}, else null. The service's public
-     * keys are the ones shipped in {@code vendor-keys.json} plus the owner's {@code keys}; with none, every request is refused
-     * and the log says why, rather than quietly accepting everybody.
+     * keys are the vendor keys in {@code vendor-keys.json} (empty in this release) plus the owner's {@code keys}; with none,
+     * every request is refused and the log says why, rather than quietly accepting everybody.
      */
     private ClientAssertions clientAssertions() {
         if (!settings.verifyClients()) return null;
@@ -200,7 +212,8 @@ final class Services {
             log.severe("security.client-verification.keys: " + e.getMessage() + ". Every client is refused until this is fixed.");
             v = new ClientAssertions(List.of(), clock, java.util.Set.of(), java.util.Set.of(), true);
         }
-        if (!v.hasKeys()) log.severe("security.client-verification is required but no public key is trusted: every client is refused. Add the verification service's key to security.client-verification.keys.");
+        if (!v.hasKeys()) log.severe("security.client-verification is required but no public key is trusted: every client is refused. "
+                + "This release ships no vendor keys (Android/iOS verification is not available yet); add the verification service's key to security.client-verification.keys, or set mode: off.");
         else log.info("Client verification is required (" + (settings.verifyDeviceOnly() ? "platform-attested apps only" : "attested apps and registered clients") + ").");
         return v;
     }
@@ -281,16 +294,50 @@ final class Services {
     }
 
     void stop() {
-        if (loopbackHttp != null) loopbackHttp.stop();
-        if (loopbackLive != null) loopbackLive.stop();
-        if (tunnel != null) tunnel.stop();
-        if (webhooks != null) webhooks.stop();
-        if (eventStream != null) eventStream.close();
-        if (http != null) http.stop();
-        if (live != null) live.stop();
-        if (licenseHeartbeat != null) licenseHeartbeat.close();
-        if (sampler != null) sampler.shutdownNow();
-        if (history != null) history.close();
+        if (statusTask != null) {
+            statusTask.cancel();
+            statusTask = null;
+        }
+        if (loopbackHttp != null) {
+            loopbackHttp.stop();
+            loopbackHttp = null;
+        }
+        if (loopbackLive != null) {
+            loopbackLive.stop();
+            loopbackLive = null;
+        }
+        if (tunnel != null) {
+            tunnel.stop();
+            tunnel = null;
+        }
+        if (webhooks != null) {
+            webhooks.stop();
+            webhooks = null;
+        }
+        if (eventStream != null) {
+            eventStream.close();
+            eventStream = null;
+        }
+        if (http != null) {
+            http.stop();
+            http = null;
+        }
+        if (live != null) {
+            live.stop();
+            live = null;
+        }
+        if (licenseHeartbeat != null) {
+            licenseHeartbeat.close();
+            licenseHeartbeat = null;
+        }
+        if (sampler != null) {
+            sampler.shutdownNow();
+            sampler = null;
+        }
+        if (history != null) {
+            history.close();
+            history = null;
+        }
     }
 
     OtpService otps() {

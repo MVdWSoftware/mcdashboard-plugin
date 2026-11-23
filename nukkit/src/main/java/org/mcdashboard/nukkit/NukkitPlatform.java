@@ -11,6 +11,7 @@ import org.mcdashboard.placeholder.ValueSource;
 import org.mcdashboard.platform.Log;
 import org.mcdashboard.platform.Permissions;
 import org.mcdashboard.platform.Platform;
+import org.mcdashboard.platform.ScheduledTask;
 import org.mcdashboard.web.ServerStatus;
 import org.powernukkitx.placeholderapi.PlaceholderAPI;
 import org.powernukkitx.plugin.PluginBase;
@@ -117,8 +118,9 @@ final class NukkitPlatform implements Platform {
     }
 
     @Override
-    public void runSyncRepeating(Runnable task, long ticks) {
-        plugin.getServer().getScheduler().scheduleDelayedRepeatingTask(plugin, task, 1, (int) ticks);
+    public ScheduledTask runSyncRepeating(Runnable task, long ticks) {
+        var handler = plugin.getServer().getScheduler().scheduleDelayedRepeatingTask(plugin, task, 1, (int) ticks);
+        return handler::cancel;
     }
 
     @Override

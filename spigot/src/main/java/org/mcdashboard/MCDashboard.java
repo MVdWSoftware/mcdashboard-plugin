@@ -6,6 +6,7 @@ package org.mcdashboard;
 
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bstats.bukkit.Metrics;
 import org.mcdashboard.auth.DeviceStore;
 import org.mcdashboard.auth.OtpService;
 import org.mcdashboard.commands.DashboardCommands;
@@ -22,11 +23,14 @@ public final class MCDashboard extends JavaPlugin {
 
     private MCDashboardCore core;
     private McDashboardExpansion expansion;
+    private Metrics metrics;
 
     @Override
     public void onEnable() {
         core = new MCDashboardCore(new SpigotPlatform(this), new BukkitYaml(), getDataFolder().toPath());
         core.start();
+        // Anonymous bStats metrics; server owners can turn them off in plugins/bStats/config.yml.
+        metrics = MetricsHook.start(this, core);
         // The counters exist whether or not the web server runs; they are only offered to the app with stats.offer-to-app.
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
             expansion = new McDashboardExpansion(core::stats, "MVdW-Software");
@@ -43,6 +47,7 @@ public final class MCDashboard extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (metrics != null) metrics.shutdown();
         if (expansion != null) expansion.unregister();
         if (core != null) core.stop();
     }

@@ -70,6 +70,11 @@ public final class HttpApi implements HttpHandler {
     private org.mcdashboard.stats.PluginStats stats;
     /** The features the reverse-tunnel proxy can carry; null when no tunnel uses this API (or it is the public listener). */
     private volatile Supplier<Set<String>> proxyFeatures;
+    /** How long the dashboard language list is reused; matches the {@code max-age} of the info response. */
+    private static final long LANGUAGES_TTL_MS = 60_000;
+    /** The cached dashboard languages and when they were read; null before the first info request. */
+    private volatile List<String> languages;
+    private volatile long languagesAt;
 
     /**
      * An API that accepts only the official app's User-Agent, with the default limits.
@@ -226,8 +231,11 @@ public final class HttpApi implements HttpHandler {
             if (ctx.discoveryOnly() && !info && !ctx.trustedProxies().contains(Exchanges.peer(ex))) {
                 error(ex, 404, "not found");
             } else if (info) {
-                // Open to every client, so the app can read minClientVersion before it is refused.
-                ex.getResponseHeaders().set("Cache-Control", "public, max-age=60");
+                // Open to every client, so the app can read minClientVersion before it is refused. The body depends on
+                // the proxy headers, so a shared cache must key on them too.
+                Headers infoHeaders = ex.getResponseHeaders();
+                infoHeaders.set("Cache-Control", "public, max-age=60");
+                infoHeaders.set("Vary", ProxyLink.HEADER + ", " + ProxyLink.FEATURES_HEADER);
                 respond(ex, 200, info(ex));
             } else if (path.equals("/v1/events") && method.equals("GET")) {
                 if (events == null) error(ex, 404, "not found");
@@ -384,6 +392,20 @@ public final class HttpApi implements HttpHandler {
         return name;
     }
 
+    /**
+     * The dashboard languages for {@code /v1/info}, cached for the response's {@code max-age}. Without the cache every
+     * unauthenticated request would re-read and parse every dashboard file.
+     */
+    private List<String> languages() {
+        long now = System.currentTimeMillis();
+        List<String> cached = languages;
+        if (cached != null && now - languagesAt < LANGUAGES_TTL_MS) return cached;
+        List<String> fresh = ctx.languages();
+        languages = fresh;
+        languagesAt = now;
+        return fresh;
+    }
+
     private Map<String, Object> info(HttpExchange ex) {
         Map<String, Object> o = new LinkedHashMap<>();
         o.put("name", ctx.serverName());
@@ -415,7 +437,7 @@ public final class HttpApi implements HttpHandler {
         o.put("allowPlayerNames", allowPlayerNames);
         if (!ctx.polling()) o.put("polling", false);
         o.put("defaultLanguage", ctx.defaultLanguage());
-        o.put("languages", ctx.languages());
+        o.put("languages", languages());
         if (ctx.websocketPort() > 0 && !ctx.discoveryOnly()) o.put("websocketPort", ctx.websocketPort());
         if (!ctx.endpoints().isEmpty()) o.put("endpoints", ctx.endpoints());
         ServerStatus st = ctx.status().get();

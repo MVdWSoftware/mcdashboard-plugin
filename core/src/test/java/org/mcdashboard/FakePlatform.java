@@ -17,12 +17,14 @@ import org.mcdashboard.placeholder.ValueSource;
 import org.mcdashboard.platform.Log;
 import org.mcdashboard.platform.Permissions;
 import org.mcdashboard.platform.Platform;
+import org.mcdashboard.platform.ScheduledTask;
 import org.mcdashboard.web.ServerStatus;
 
 /** A platform that records what the core asks of it and runs "main thread" work at once. */
 public class FakePlatform implements Platform {
     public final List<String> logged = new CopyOnWriteArrayList<>();
     public final AtomicInteger repeating = new AtomicInteger();
+    public final AtomicInteger cancelled = new AtomicInteger();
     public final List<String> permissionCalls = new CopyOnWriteArrayList<>();
     public final PermissionCache cache = new PermissionCache();
     public boolean available = true;
@@ -118,9 +120,10 @@ public class FakePlatform implements Platform {
     }
 
     @Override
-    public void runSyncRepeating(Runnable task, long ticks) {
+    public ScheduledTask runSyncRepeating(Runnable task, long ticks) {
         repeating.incrementAndGet();
         task.run();
+        return cancelled::incrementAndGet;
     }
 
     @Override

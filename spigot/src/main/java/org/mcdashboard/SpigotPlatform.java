@@ -18,6 +18,7 @@ import org.mcdashboard.placeholder.ValueSource;
 import org.mcdashboard.platform.Log;
 import org.mcdashboard.platform.Permissions;
 import org.mcdashboard.platform.Platform;
+import org.mcdashboard.platform.ScheduledTask;
 import org.mcdashboard.qr.QrMap;
 import org.mcdashboard.web.ServerStatus;
 
@@ -95,8 +96,9 @@ final class SpigotPlatform implements Platform {
     }
 
     @Override
-    public void runSyncRepeating(Runnable task, long ticks) {
-        Bukkit.getScheduler().runTaskTimer(plugin, task, 0L, ticks);
+    public ScheduledTask runSyncRepeating(Runnable task, long ticks) {
+        var scheduled = Bukkit.getScheduler().runTaskTimer(plugin, task, 0L, ticks);
+        return scheduled::cancel;
     }
 
     @Override

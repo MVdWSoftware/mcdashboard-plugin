@@ -14,30 +14,40 @@ import net.md_5.bungee.api.plugin.Listener;
 import net.md_5.bungee.api.plugin.Plugin;
 import net.md_5.bungee.api.plugin.TabExecutor;
 import net.md_5.bungee.event.EventHandler;
+import org.bstats.bungeecord.Metrics;
 import org.mcdashboard.commands.DashboardCommands;
 import org.mcdashboard.platform.Log;
+import org.mcdashboard.proxy.ProxyMetrics;
 import org.mcdashboard.proxy.ProxyRuntime;
 import org.mcdashboard.proxy.ProxyYaml;
 
 /** The network dashboard for the MCDashboard app, on BungeeCord (and Waterfall). */
 public final class MCDashboardBungee extends Plugin implements Listener {
+    /** The bStats plugin id of the BungeeCord jar. */
+    private static final int BSTATS_ID = 35536;
+
     /** Creates the plugin; BungeeCord instantiates it once on start-up. */
     public MCDashboardBungee() {
     }
 
     private ProxyRuntime runtime;
+    private Metrics metrics;
 
     @Override
     public void onEnable() {
         runtime = new ProxyRuntime(new BungeeAdapter(this), Log.of(getLogger()), getDescription().getVersion(),
                 getDataFolder().toPath(), new ProxyYaml());
         runtime.start();
+        // Anonymous bStats metrics; server owners can turn them off in plugins/bStats/config.yml.
+        metrics = new Metrics(this, BSTATS_ID);
+        ProxyMetrics.register(metrics::addCustomChart, runtime::setupSummary);
         getProxy().getPluginManager().registerCommand(this, new Cmd());
         getProxy().getPluginManager().registerListener(this, this);
     }
 
     @Override
     public void onDisable() {
+        if (metrics != null) metrics.shutdown();
         if (runtime != null) runtime.stop();
     }
 

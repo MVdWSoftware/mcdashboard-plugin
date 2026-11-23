@@ -68,6 +68,20 @@ class SettingsGapsTest {
     }
 
     @Test
+    void tokenTimeoutsAreAtLeastOneSecond() {
+        List<String> w = new ArrayList<>();
+        Settings s = load(w, "security.access-token-timeout", -5, "security.refresh-token-timeout", 0);
+        assertEquals(900, s.accessTokenSeconds(), "a negative lifetime would issue a token without exp");
+        assertEquals(31_536_000, s.refreshTokenSeconds());
+        assertEquals(2, w.size(), w.toString());
+        assertTrue(w.stream().allMatch(m -> m.contains("at least 1 second")), w.toString());
+
+        Settings ok = load(new ArrayList<>(), "security.access-token-timeout", 60, "security.refresh-token-timeout", 3600);
+        assertEquals(60, ok.accessTokenSeconds());
+        assertEquals(3600, ok.refreshTokenSeconds());
+    }
+
+    @Test
     void capsAreWholeNumbers() {
         List<String> w = new ArrayList<>();
         assertEquals(5, Settings.cap(ConfigView.of(nested("limits.max-tiles", 5.0)), "limits.max-tiles", w::add));

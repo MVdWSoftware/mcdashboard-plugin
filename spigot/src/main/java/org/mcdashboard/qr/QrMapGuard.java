@@ -32,12 +32,15 @@ import org.bukkit.plugin.Plugin;
  * placed in an item frame or lost on death. The map also self-destructs when its code expires (see {@link QrMap}).
  */
 public final class QrMapGuard implements Listener {
+    private final Plugin plugin;
+
     /**
      * Creates a new guard and starts the periodic expiry checker.
      *
      * @param plugin The main plugin instance for scheduling.
      */
     public QrMapGuard(Plugin plugin) {
+        this.plugin = plugin;
         // The code is short-lived even if the item is never touched (for example while the player is AFK).
         Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             for (Player player : Bukkit.getOnlinePlayers()) QrMap.destroyExpired(player);
@@ -45,7 +48,8 @@ public final class QrMapGuard implements Listener {
     }
 
     /**
-     * Cancels dropping a QR map and destroys it instead.
+     * Cancels dropping a QR map and destroys it instead. The server takes the stack out of the inventory before firing
+     * this event and only puts it back when the event is cancelled, so the map is cleared on the next tick.
      *
      * @param e The drop event.
      */
@@ -54,7 +58,12 @@ public final class QrMapGuard implements Listener {
         if (!QrMap.isQrMap(e.getItemDrop().getItemStack())) return;
         e.setCancelled(true);
         e.getItemDrop().remove();
-        QrMap.destroyFor(e.getPlayer(), false);
+        Player player = e.getPlayer();
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            // The event is cancelled, so the stack has been restored by now; if the server already discarded it there is
+            // nothing left to clear, but the player still gets told that the map is gone.
+            if (!QrMap.destroyFor(player, false)) player.sendMessage("§7The MCDashboard QR map was destroyed.");
+        });
     }
 
     /**

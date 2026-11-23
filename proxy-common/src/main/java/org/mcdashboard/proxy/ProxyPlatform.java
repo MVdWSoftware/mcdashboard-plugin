@@ -11,6 +11,7 @@ import org.mcdashboard.placeholder.ValueSource;
 import org.mcdashboard.platform.Log;
 import org.mcdashboard.platform.Permissions;
 import org.mcdashboard.platform.Platform;
+import org.mcdashboard.platform.ScheduledTask;
 import org.mcdashboard.web.ServerStatus;
 
 import java.nio.file.Path;
@@ -187,8 +188,9 @@ public final class ProxyPlatform implements Platform, AutoCloseable {
     }
 
     @Override
-    public void runSyncRepeating(Runnable task, long ticks) {
-        adapter.schedule(task, 0, Math.max(1, ticks) * Ticks.MILLIS_PER_TICK);
+    public ScheduledTask runSyncRepeating(Runnable task, long ticks) {
+        var scheduled = adapter.schedule(task, 0, Math.max(1, ticks) * Ticks.MILLIS_PER_TICK);
+        return scheduled::cancel;
     }
 
     @Override

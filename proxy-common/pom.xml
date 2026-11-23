@@ -33,6 +33,13 @@
       <version>2.2</version>
       <scope>provided</scope>
     </dependency>
+    <!-- Compiles the shared bStats chart helper; each proxy jar shades bstats-base plus its own adapter. -->
+    <dependency>
+      <groupId>org.bstats</groupId>
+      <artifactId>bstats-base</artifactId>
+      <version>${bstats.version}</version>
+      <scope>provided</scope>
+    </dependency>
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>

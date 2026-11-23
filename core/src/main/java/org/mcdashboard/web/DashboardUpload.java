@@ -19,8 +19,8 @@ import java.util.Set;
 /** Validates the body of {@code POST /v1/dashboards}. Server-owned fields (id, order, permission) are never taken from it. */
 final class DashboardUpload {
     /** The widgets and backgrounds the app knows. */
-    private static final Set<String> WIDGETS = Set.of("text", "image", "number", "progress", "list", "status",
-            "gauge", "ring", "line", "area", "bar", "pie", "stat", "stacked", "heatmap");
+    private static final Set<String> WIDGETS = Set.of("text", "ticker", "image", "number", "countdown", "progress", "list",
+            "heads", "leaderboard", "status", "gauge", "ring", "line", "area", "bar", "pie", "stat", "stacked", "heatmap", "sky");
     private static final Set<String> BACKGROUNDS = Set.of("grid", "dirt", "stone", "planks", "checker", "cobble", "creeper");
     private static final int MAX_ITEMS = 40;
     private static final int MAX_ITEM_PLACEHOLDERS = 12;

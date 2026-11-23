@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
 # MCDashboard: every setting is explained in docs/configuration.md
-# (https://git.mvdw-software.com/mcdashboard/mcdashboard-plugin/blob/main/docs/configuration.md).
+# (https://github.com/MVdWSoftware/mcdashboard-plugin/blob/main/docs/configuration.md).
 # Terms: https://mcdashboard.org/en/terms-of-service/  Privacy: https://mcdashboard.org/en/privacy-statement/
 
 server:
@@ -79,7 +79,9 @@ security:
     kinds: []
     # Host names the assertion may be for; empty = the host the client connected to (the Host header).
     hosts: []
-    # Extra trusted public keys (JWK: kty EC, crv P-256, x, y), besides the ones this release ships.
+    # This release ships no vendor keys: client verification for the Android and iOS apps is not available yet, so
+    # keep mode: off. Add the attestation service's public keys here (JWK: kty EC, crv P-256, x, y) before enabling
+    # mode: required; with no key every client is refused and the log says why.
     keys: []
   # Regular expressions for User-Agents besides the official app. Identification, not a password.
   allowed-clients: []
@@ -151,6 +153,11 @@ developer:
 # are never sent, and a placeholder that does not resolve is not reported. Privacy: https://mcdashboard.org/en/privacy-statement/
 diagnostics:
   error-reports: false
+
+# The Spigot jar reports anonymous usage metrics through bStats (plugin id 35535; BungeeCord 35536 and Velocity 35537):
+# server and player counts, server/Java versions, OS and country, and whether the web server, licence and tunnel are on
+# and which history backend is used. Never a server name, address, licence id or placeholder value. Disable it for all
+# plugins in plugins/BStats/config.yml (config.txt on Velocity).
 
 # The %mcdashboard_*% counters (devices, requests, ...) always exist in PlaceholderAPI. true also offers the "MCDashboard"
 # group of placeholders.yml to every paired app as PUBLIC placeholders (counts only, no player data).

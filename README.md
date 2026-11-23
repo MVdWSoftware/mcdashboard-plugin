@@ -13,7 +13,7 @@ Only placeholders you list in `placeholders.yml` are ever resolved, and nothing 
   WebSocket and JSON are the JDK's own.
 - HTTPS built in (self-signed or your own certificate), pairing with one-time codes and QR maps, signed tokens, per-device revocation, rate limits.
 - Optional history for charts, in memory or in SQLite, MySQL/MariaDB or PostgreSQL with a SOSA/SSN schema ([docs/history.md](docs/history.md)).
-- Optional reverse tunnel and caching proxy support ([MCDashboard-proxy](https://git.mvdw-software.com/mcdashboard/mcdashboard-proxy)).
+- Optional reverse tunnel and caching proxy support ([MCDashboard-proxy](https://github.com/MVdWSoftware/mcdashboard-proxy)).
 
 ## Install
 
@@ -75,6 +75,12 @@ Error reports are **opt-in** (`diagnostics.error-reports`, default `false`). Whe
 error (an uncaught exception or a failed start) is sent to MVdW's own error tracker, with the exception and its stack;
 placeholder values, player names and server addresses are never included, and a placeholder that does not resolve is
 not reported.
+
+The Spigot/Paper, BungeeCord/Waterfall and Velocity jars report **anonymous usage metrics** through
+[bStats](https://bstats.org) (ids `35535`, `35536` and `35537`): server and player counts, software and Java version, OS
+and country, and whether the web server, a licence, the tunnel and which history backend are on. No server name, address,
+licence id, player name or placeholder value is sent. Nukkit does not report (bStats has no adapter). Turn it off in
+`plugins/BStats/config.yml` (`enabled: false`; `config.txt` on Velocity).
 
 ## Placeholder catalog
 

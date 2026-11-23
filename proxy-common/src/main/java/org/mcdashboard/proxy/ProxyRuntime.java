@@ -8,6 +8,7 @@ import org.mcdashboard.MCDashboardCore;
 import org.mcdashboard.commands.DashboardCommands;
 import org.mcdashboard.config.YamlCodec;
 import org.mcdashboard.platform.Log;
+import org.mcdashboard.stats.SetupSummary;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -59,6 +60,17 @@ public final class ProxyRuntime {
         if (platform != null) platform.close();
         core = null;
         platform = null;
+    }
+
+    /**
+     * The anonymous configuration summary the proxy's bStats custom charts publish: whether the web server, a
+     * licence and the tunnel are on, and which history backend is configured. Before {@link #start()} every flag is
+     * off. It never contains a server name, address, licence id or placeholder value.
+     *
+     * @return The setup summary; never null.
+     */
+    public synchronized SetupSummary setupSummary() {
+        return core == null ? new SetupSummary(false, false, false, "unknown") : core.setupSummary();
     }
 
     /** Performs a full reload: stops everything, then starts again with current files on disk. */

@@ -188,9 +188,9 @@ public final class DashboardCommands {
         error(sender, "Player §f" + name + "§c is not online.");
     }
 
-    /** Placeholders until the app is listed; change them here when the store pages exist. */
+    /** Store pages of the app; the Android listing is public, the iOS listing uses the app's App Store id. */
     static final String ANDROID_URL = "https://play.google.com/store/apps/details?id=org.mcdashboard.app";
-    static final String IOS_URL = "https://apps.apple.com/app/mcdashboard/id0000000000";
+    static final String IOS_URL = "https://apps.apple.com/app/id6836318219";
 
     private static final List<Action> STORE_LINKS = List.of(
             Action.link("Android (Google Play)", ANDROID_URL, "Open the Google Play page of the MCDashboard app"),

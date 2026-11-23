@@ -31,12 +31,12 @@
     </developer>
   </developers>
   <scm>
-    <url>https://git.mvdw-software.com/mcdashboard/mcdashboard-plugin</url>
-    <connection>scm:git:https://git.mvdw-software.com/mcdashboard/mcdashboard-plugin.git</connection>
+    <url>https://github.com/MVdWSoftware/mcdashboard-plugin</url>
+    <connection>scm:git:https://github.com/MVdWSoftware/mcdashboard-plugin.git</connection>
   </scm>
   <issueManagement>
     <system>GitHub</system>
-    <url>https://git.mvdw-software.com/mcdashboard/mcdashboard-plugin/issues</url>
+    <url>https://github.com/MVdWSoftware/mcdashboard-plugin/issues</url>
   </issueManagement>
 
   <properties>
@@ -45,6 +45,8 @@
     <jacoco.version>0.8.14</jacoco.version>
     <!-- Pinned: the CI job runs `mvn sonar:sonar` when SONAR_HOST_URL is set (see .gitlab-ci.yml). -->
     <sonar.maven.plugin.version>5.1.0.4751</sonar.maven.plugin.version>
+    <!-- bStats is shaded and relocated into the Spigot, BungeeCord and Velocity jars. -->
+    <bstats.version>3.2.1</bstats.version>
     <!-- Sec-WebSocket-Accept is SHA-1 by RFC 6455, so java:S4790 does not apply to that one file. The Maven scanner
          reads its parameters from the pom, not from sonar-project.properties (that file is for the CLI), and its
          resourceKey is module-relative, hence the **/ pattern. -->

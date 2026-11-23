@@ -1,12 +1,12 @@
 # Copyright (c) 2026 MVdW-Software
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-or-later
 
 openapi: 3.1.0
 info:
   title: MCDashboard API
   version: 1.0.0
   description: |
-    REST API exposed by the MCDashboard Spigot plugin. Sensor data is encoded as SenML
+    REST API exposed by the MCDashboard plugin (Spigot, Nukkit, Velocity, BungeeCord). Sensor data is encoded as SenML
     (RFC 8428, `application/senml+json`), authentication uses JWT bearer tokens (RFC 7519/6750).
     Value responses carry `ETag` and `Cache-Control: max-age=<min-interval>`, and anonymous
     responses are `public`, so a reverse proxy or CDN may cache them. Per-player responses are
@@ -309,7 +309,7 @@ components:
         maxPlayers: { type: integer }
         gameVersion: { type: string }
         gamePort: { type: integer }
-        licenseId: { type: string, description: public id of the server's premium subscription }
+        licenseHash: { type: string, pattern: '^[0-9a-f]{64}$', description: 'SHA-256 (hex) of the public id of the server''s premium subscription; the id itself is never published' }
         minClientVersion: { type: string, pattern: '^\d+\.\d+\.\d+$', description: 'oldest app version the server accepts; older apps get 426' }
         limits:
           type: object
@@ -480,7 +480,7 @@ components:
       properties:
         placeholder: { type: string, description: the first placeholder; required unless placeholders is given }
         placeholders: { type: array, items: { type: string }, minItems: 1, maxItems: 12 }
-        widget: { type: string, enum: [text, image, number, progress, list, status, gauge, ring, line, area, bar, pie, stat, stacked, heatmap] }
+        widget: { type: string, enum: [text, ticker, image, number, countdown, progress, list, heads, leaderboard, status, gauge, ring, line, area, bar, pie, stat, stacked, heatmap, sky] }
         title: { type: string, maxLength: 80 }
         icon: { $ref: '#/components/schemas/Icon' }
         options: { $ref: '#/components/schemas/TileOptions' }

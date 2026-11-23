@@ -9,11 +9,12 @@
   game at that moment can pair for them. The app does not send a player name on a paired request. The one exception is the
   owner's explicit opt-in below. The code is shown as `ABCD-2345`, works once,
   expires after 5 minutes (`security.otp-timeout`), and a player has at most one live code. Ways to hand it to the app:
-  type it, click `[Copy code]` in chat, scan the QR map (a map item that only its owner sees; everyone else sees a
-  blank map), or open the `mcdashboard://connect…` link when `server.public-url` is set. Because the map contains a
-  pairing secret it is deliberately ephemeral: it self-destructs after at most five minutes, as soon as the code is
-  redeemed, or as soon as it leaves its owner's inventory (dropped, stored in a chest or container, moved by a
-  hopper, placed in an item frame, lost on death, or left behind on logout).
+  type it, click `[Copy code]` in chat, scan the QR map (a map item with the app logo in the middle that only its owner
+  sees; everyone else sees a blank map), or open the `mcdashboard://connect…` link when `server.public-url` is set.
+  Because the map contains a pairing secret it is deliberately ephemeral: it self-destructs after at most five minutes,
+  as soon as the code is redeemed, or as soon as it leaves its owner's inventory (dropped, stored in a chest or
+  container, moved by a hopper, placed in an item frame, lost on death, or left behind on logout). The command refuses
+  to hand out a map when the inventory has no empty storage slot, so a pairing code is never dropped on the ground.
 - **In-game notice.** When a device is linked the player gets a chat message with the device name and
   `/mcdashboard revoke <id>`, so a code that was shared or shoulder-surfed does not stay unnoticed.
 - **Tokens.** Redeeming a code creates a device with a JWT access token (15 min) and a rotating refresh token. Reusing

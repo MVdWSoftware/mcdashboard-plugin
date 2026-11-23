@@ -81,6 +81,22 @@ class MCDashboardCoreTest {
     }
 
     @Test
+    void theSetupSummaryForBstatsReadsTheConfigWithoutLeakingValues() throws Exception {
+        writeConfig("");
+        FakePlatform platform = new FakePlatform();
+        core = new MCDashboardCore(platform, new SnakeYamlCodec(), data);
+        // Before start() there is no configuration to read; every flag stays off.
+        assertFalse(core.setupSummary().serverEnabled());
+        assertEquals("unknown", core.setupSummary().historyBackend());
+        core.start();
+        var summary = core.setupSummary();
+        assertTrue(summary.serverEnabled());
+        assertFalse(summary.licensed(), "no licence id is configured");
+        assertFalse(summary.tunnelEnabled());
+        assertEquals("memory", summary.historyBackend());
+    }
+
+    @Test
     void permissionBasedRefreshOverridesAreWatchedByThePermissionCache() throws Exception {
         writeConfig("security:\n  min-interval: 900\n  min-interval-permissions:\n    x.fast: 15\n");
         FakePlatform platform = new FakePlatform();
@@ -114,6 +130,22 @@ class MCDashboardCoreTest {
             throw new AssertionError("nothing should be listening");
         } catch (java.net.ConnectException expected) {
             // not started
+        }
+    }
+
+    @Test
+    void aFailedBindStopsWhatAlreadyStarted() throws Exception {
+        try (ServerSocket occupied = new ServerSocket(0)) {
+            int port = occupied.getLocalPort();
+            Files.writeString(data.resolve("config.yml"), "server:\n  enabled: true\n  host: 127.0.0.1\n  port: " + port
+                    + "\n  tls:\n    mode: off\n  websocket:\n    enabled: false\n");
+            FakePlatform platform = new FakePlatform();
+            core = new MCDashboardCore(platform, new SnakeYamlCodec(), data);
+            core.start();
+            assertNull(core.otps(), "a dead API must not answer /mcdashboard link with a pairing code");
+            assertEquals(1, platform.cancelled.get(), "the repeating status task is cancelled again");
+            assertTrue(platform.logged.stream().anyMatch(m -> m.startsWith("SEVERE") && m.contains("Could not start MCDashboard")),
+                    platform.logged.toString());
         }
     }
 

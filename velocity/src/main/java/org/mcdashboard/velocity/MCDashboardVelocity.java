@@ -17,8 +17,10 @@ import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import org.bstats.velocity.Metrics;
 import org.mcdashboard.commands.DashboardCommands;
 import org.mcdashboard.platform.Log;
+import org.mcdashboard.proxy.ProxyMetrics;
 import org.mcdashboard.proxy.ProxyRuntime;
 import org.mcdashboard.proxy.ProxyYaml;
 import org.slf4j.Logger;
@@ -29,10 +31,15 @@ import java.util.List;
 /** The network dashboard for the MCDashboard app, on Velocity. The descriptor is {@code velocity-plugin.json}. */
 @Plugin(id = "mcdashboard", name = "MCDashboard", authors = "MVdW-Software")
 public final class MCDashboardVelocity {
+    /** The bStats plugin id of the Velocity jar. */
+    private static final int BSTATS_ID = 35537;
+
     private final ProxyServer proxy;
     private final Logger logger;
     private final Path dataDir;
+    private final Metrics.Factory metricsFactory;
     private ProxyRuntime runtime;
+    private Metrics metrics;
 
     /**
      * Creates the plugin instance injected by Velocity.
@@ -40,12 +47,14 @@ public final class MCDashboardVelocity {
      * @param proxy The proxy server this plugin runs on.
      * @param logger The plugin's logger.
      * @param dataDir The plugin's data directory.
+     * @param metricsFactory The bStats factory injected by Velocity.
      */
     @Inject
-    public MCDashboardVelocity(ProxyServer proxy, Logger logger, @DataDirectory Path dataDir) {
+    public MCDashboardVelocity(ProxyServer proxy, Logger logger, @DataDirectory Path dataDir, Metrics.Factory metricsFactory) {
         this.proxy = proxy;
         this.logger = logger;
         this.dataDir = dataDir;
+        this.metricsFactory = metricsFactory;
     }
 
     /**
@@ -74,6 +83,9 @@ public final class MCDashboardVelocity {
         };
         runtime = new ProxyRuntime(new VelocityAdapter(proxy, this), log, version, dataDir, new ProxyYaml());
         runtime.start();
+        // Anonymous bStats metrics; server owners can turn them off in plugins/bStats/config.txt.
+        metrics = metricsFactory.make(this, BSTATS_ID);
+        ProxyMetrics.register(metrics::addCustomChart, runtime::setupSummary);
         var meta = proxy.getCommandManager().metaBuilder("mcdashboard").aliases("mcd", "dashboard").plugin(this).build();
         proxy.getCommandManager().register(meta, new Command());
     }
@@ -85,6 +97,7 @@ public final class MCDashboardVelocity {
      */
     @Subscribe
     public void onShutdown(ProxyShutdownEvent event) {
+        if (metrics != null) metrics.shutdown();
         if (runtime != null) runtime.stop();
     }
 

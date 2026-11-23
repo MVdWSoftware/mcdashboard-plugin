@@ -32,8 +32,8 @@ Every setting of `plugins/MCDashboard/config.yml`, with its default. Restart the
 | `allow-player-names` | `false` | **Security risk.** Lets an unpaired app choose a player by typing a name in the app (resolved on the server) instead of redeeming a pairing code. That player's `PLAYER` placeholders, personal data and permission-gated dashboards become readable to anyone who can reach the API and knows or guesses the name, including staff dashboards. There is no authentication and no proof that the name belongs to the caller. The app only shows the name field when `/v1/info` says `allowPlayerNames` (or lists the `player-names` feature). When both this and `require-authentication` are on, a request needs either a paired token or a name; a name-only request is treated as that player. The plugin logs a warning at startup when this is on. Use only on a private or trusted network. |
 | `max-devices` | `5` | Paired devices per player. |
 | `otp-timeout` | `300` | Seconds a `/mcdashboard link` code stays valid. It works once. |
-| `access-token-timeout` | `900` | Seconds an access token is valid. |
-| `refresh-token-timeout` | `31536000` | Seconds a refresh token is valid (one year). |
+| `access-token-timeout` | `900` | Seconds an access token is valid (minimum 1; lower or negative values fall back to the default). |
+| `refresh-token-timeout` | `31536000` | Seconds a refresh token is valid, one year (minimum 1; lower or negative values fall back to the default). |
 | `auth-attempts-per-minute` | `10` | Pairing and refresh attempts per minute from one address. Behind a reverse proxy list the proxy in `trusted-proxies`, otherwise every player shares the proxy's address and this limit. |
 | `min-interval` | `1` | Seconds; no placeholder is resolved more often than this for callers without a permission override. `min-interval` in `placeholders.yml` can make one slower. |
 | `min-interval-permissions` | `{}` | Optional permission node to seconds map. A paired player holding a node uses that interval instead of `min-interval`; the fastest node they hold wins. Example: `mcdashboard.admin: 15` lets admins refresh every 15 seconds while everyone else keeps the default. Placeholder-level `min-interval` still makes one placeholder slower. |
@@ -134,6 +134,24 @@ together with the portal; until then the portal's own trial emails are the remin
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `error-reports` | `false` | Opt-in. When on, an **unexpected** plugin error (an uncaught exception or a failed start) is sent to MVdW's own GlitchTip (`monitor.mvdw-software.com`): the exception type, message and stack trace, the plugin version and `startup`/`uncaught`. Placeholder values, player names, server addresses and e-mail addresses are never sent, and a placeholder that does not resolve is not reported (those stay in the server log). Reports are deduplicated (one per error a minute, at most 20 an hour), kept 30 days and stored on MVdW's server in the EU. Off by default; see the [privacy statement](https://mcdashboard.org/en/privacy-statement/). |
+
+## Usage metrics (bStats)
+
+Each jar reports anonymous usage metrics through [bStats](https://bstats.org): Spigot/Paper id `35535`, BungeeCord/
+Waterfall `35536`, Velocity `35537`. Nukkit has no bStats adapter and stays silent. There is no key in `config.yml`:
+bStats has its own global file, `plugins/BStats/config.yml` (`config.txt` on Velocity). Set `enabled: false` there to stop
+all bStats metrics on that server or proxy.
+
+The custom charts are `server_enabled`, `licensed`, `tunnel` and `history_backend` (titles: Web server, Licence, Tunnel,
+History backend); they are registered on each plugin's bStats page. A new chart added in code needs a matching entry there
+(Edit → Add chart) with the same id, or bStats collects the values but shows no chart.
+
+What is sent: the number of servers and players, the server/proxy software and version, the Java version, the operating
+system, the CPU architecture and the country (the proxies also send their managed-server count and online-mode setting),
+plus the four custom charts. It never sends a server name, address, licence id, player name or placeholder value. bStats
+keeps the IP address for at most 60 minutes (rate limiting only) and publishes aggregate numbers on its public plugin
+page. That is a third-party service ([bStats privacy policy](https://bstats.org/privacy-policy)). See the
+[privacy statement](https://mcdashboard.org/en/privacy-statement/).
 
 ## `stats`
 

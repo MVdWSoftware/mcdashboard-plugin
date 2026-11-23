@@ -17,13 +17,23 @@ import org.bukkit.map.MapRenderer;
 import org.bukkit.map.MapView;
 import org.bukkit.persistence.PersistentDataType;
 
+import javax.imageio.ImageIO;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.logging.Level;
 
 /**
  * A filled map that shows a QR code, so a player can scan it with the app straight from the screen. The map is
  * rendered per viewer and only draws the code for the player it was made for: anyone else who sees it (item frame,
- * dropped item, another player) just sees a blank map.
+ * dropped item, another player) just sees a blank map. The code carries the MCDashboard logo in a light frame in the
+ * middle; {@link QrMapLayout} lays the picture out and keeps the hole inside the error correction.
  *
  * <p>Because the QR code is a pairing secret, the item is deliberately short-lived: it carries its owner and an
  * expiry in its persistent data, {@link QrMapGuard} destroys it when it leaves the owner's inventory (drop, chest,
@@ -169,11 +179,13 @@ public final class QrMap {
     private static final class Renderer extends MapRenderer {
         private final QrCode qr;
         private final UUID owner;
+        private final QrMapLayout layout;
 
         Renderer(QrCode qr, UUID owner) {
             super(true); // contextual: every viewer gets their own canvas
             this.qr = qr;
             this.owner = owner;
+            this.layout = new QrMapLayout(qr.size());
         }
 
         @SuppressWarnings("deprecation") // matchColor is the way to get palette bytes on 1.18
@@ -189,17 +201,80 @@ public final class QrMap {
         @Override
         public void render(MapView map, MapCanvas canvas, Player viewer) {
             boolean mine = viewer.getUniqueId().equals(owner);
-            int quiet = 4;
-            int scale = Math.max(1, 128 / (qr.size() + 2 * quiet));
-            int offset = (128 - (qr.size() + 2 * quiet) * scale) / 2;
             byte light = lightByte();
             byte dark = darkByte();
-            for (int y = 0; y < 128; y++) {
-                for (int x = 0; x < 128; x++) {
-                    int mx = Math.floorDiv(x - offset, scale) - quiet;
-                    int my = Math.floorDiv(y - offset, scale) - quiet;
-                    canvas.setPixel(x, y, mine && qr.dark(mx, my) ? dark : light);
+            for (int y = 0; y < QrMapLayout.MAP_SIZE; y++) {
+                for (int x = 0; x < QrMapLayout.MAP_SIZE; x++) {
+                    canvas.setPixel(x, y, mine && layout.dark(qr, x, y) ? dark : light);
                 }
+            }
+            if (!mine) return; // everyone else sees a blank map, logo included
+            // The logo sits in a light frame so it reads as a badge and not as part of the code.
+            for (int y = 0; y < QrMapLayout.MAP_SIZE; y++) {
+                for (int x = 0; x < QrMapLayout.MAP_SIZE; x++) {
+                    if (layout.logo(x, y)) canvas.setPixel(x, y, light);
+                }
+            }
+            drawLogo(canvas);
+        }
+
+        private void drawLogo(MapCanvas canvas) {
+            byte[] pixels = Logo.pixels(layout.logoSize());
+            if (pixels == null) return;
+            int size = layout.logoSize();
+            int start = layout.logoStart();
+            for (int y = 0; y < size; y++) {
+                for (int x = 0; x < size; x++) {
+                    canvas.setPixel(start + x, start + y, pixels[y * size + x]);
+                }
+            }
+        }
+    }
+
+    /** The app icon ({@code mcdashboard-app/app/resources/icon.png}), read once from the jar and scaled to each size. */
+    private static final class Logo {
+        private static final BufferedImage SOURCE = read();
+        private static final Map<Integer, byte[]> CACHE = new HashMap<>();
+
+        private static BufferedImage read() {
+            try (InputStream in = QrMap.class.getResourceAsStream("/org/mcdashboard/qr/qr-logo.png")) {
+                if (in == null) throw new IOException("qr-logo.png is missing from the jar");
+                BufferedImage image = ImageIO.read(in);
+                if (image == null) throw new IOException("qr-logo.png is not a readable image");
+                return image;
+            } catch (IOException | RuntimeException e) {
+                // A broken or missing asset must not break the map; it is still scannable without the logo.
+                Bukkit.getLogger().log(Level.WARNING, "MCDashboard could not load its QR map logo", e);
+                return null;
+            }
+        }
+
+        @SuppressWarnings("deprecation") // matchColor is the way to get palette bytes on 1.18
+        private static byte[] pixels(int size) {
+            if (SOURCE == null) return null;
+            synchronized (CACHE) {
+                byte[] cached = CACHE.get(size);
+                if (cached != null) return cached;
+                BufferedImage scaled = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+                Graphics2D graphics = scaled.createGraphics();
+                try {
+                    graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+                            RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                    graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+                    graphics.drawImage(SOURCE, 0, 0, size, size, null);
+                } finally {
+                    graphics.dispose();
+                }
+                byte[] pixels = new byte[size * size];
+                for (int y = 0; y < size; y++) {
+                    for (int x = 0; x < size; x++) {
+                        int rgb = scaled.getRGB(x, y);
+                        pixels[y * size + x] = MapPalette.matchColor((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF,
+                                rgb & 0xFF);
+                    }
+                }
+                CACHE.put(size, pixels);
+                return pixels;
             }
         }
     }

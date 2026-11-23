@@ -239,6 +239,28 @@ class RoutesGapsTest {
         assertEquals(1, DashboardUpload.parse(ok, service()).items().get(0).placeholders().size());
     }
 
+    @Test
+    void everyWidgetTheAppShipsCanBeUploaded() {
+        for (String widget : List.of("ticker", "countdown", "heads", "leaderboard", "sky")) {
+            assertEquals(widget, DashboardUpload.parse(board(List.of(item("widget", widget))), service())
+                    .items().get(0).widget(), widget);
+        }
+        badUpload(board(List.of(item("widget", "not-a-widget"))), "unknown widget");
+    }
+
+    @Test
+    void aMalformedQueryEscapeIsABadRequest() {
+        assertEquals("a b", Exchanges.decode("a%20b"));
+        assertThrows(BadRequest.class, () -> Exchanges.decode("%zz"));
+    }
+
+    @Test
+    void anAbsentOrEmptyIntegerParameterUsesTheFallback() {
+        assertEquals(7, Exchanges.intParam(Map.of(), "n", 7));
+        assertEquals(7, Exchanges.intParam(Map.of("n", ""), "n", 7));
+        assertEquals(-3, Exchanges.intParam(Map.of("n", " -3 "), "n", 7));
+    }
+
     // ---- SenML
     private static String sen(PlaceholderDefinition.Type type, String raw) {
         var def = PlaceholderDefinition.parseAll(List.of(Map.of("id", "x", "value", "%x%", "type", type.name())), m -> fail(m)).get(0);

@@ -27,6 +27,7 @@ One file: `plugins/MCDashboard/config.yml` (`plugins/mcdashboard/` on Velocity).
 | `events` | device revocation stream (`token`) and signed `webhooks` | off; the tunnel carries the events without either |
 | `developer` | allow dashboard uploads from the app (also `/mcdashboard developer`, which writes `developer.yml` and wins) | `false` |
 | `diagnostics` | opt-in error reports: an **unexpected** plugin error goes to MVdW's own error tracker, never a placeholder value or player data | `error-reports: false` |
+| bStats | anonymous usage metrics of the Spigot, BungeeCord and Velocity jars (opt-out in `plugins/BStats/config.yml`, `config.txt` on Velocity), never a server name, address, licence id or player value | on |
 | `stats` | also offer the plugin's own `%mcdashboard_*%` counters to the app | `offer-to-app: false` |
 | `messages` | `messages.prefix` (chat prefix, `&` codes) | MCDashboard prefix |
 | `license` | `license.id` (`mcl_...`) registered for this server's address in the portal | empty = free limits |

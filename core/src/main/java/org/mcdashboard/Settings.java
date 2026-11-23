@@ -68,8 +68,8 @@ record Settings(boolean enabled, String name, String defaultLanguage, String pub
                 cfg.getBoolean("security.allow-player-names", false),
                 cfg.getInt("security.max-devices", 5),
                 cfg.getLong("security.otp-timeout", 300),
-                cfg.getLong("security.access-token-timeout", 900),
-                cfg.getLong("security.refresh-token-timeout", 31_536_000),
+                positiveSeconds(cfg, "security.access-token-timeout", 900, warn),
+                positiveSeconds(cfg, "security.refresh-token-timeout", 31_536_000, warn),
                 Math.max(1, cfg.getInt("security.auth-attempts-per-minute", 10)),
                 cfg.getLong("security.min-interval", 1) * 1000,
                 minIntervalOverrides(cfg, warn),
@@ -125,6 +125,19 @@ record Settings(boolean enabled, String name, String defaultLanguage, String pub
             return 0;
         }
         return parsed;
+    }
+
+    /**
+     * A token lifetime in seconds; a negative value would issue a token without an {@code exp} (never expires) and zero
+     * would expire it at once, so anything below one second falls back to the default and the owner is warned.
+     */
+    static long positiveSeconds(ConfigView cfg, String key, long fallback, Consumer<String> warn) {
+        long seconds = cfg.getLong(key, fallback);
+        if (seconds < 1) {
+            warn.accept(key + " must be at least 1 second, got " + seconds + ". Using " + fallback + ".");
+            return fallback;
+        }
+        return seconds;
     }
 
     @SuppressWarnings("unchecked")

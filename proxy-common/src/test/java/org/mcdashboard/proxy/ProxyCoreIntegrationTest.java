@@ -94,6 +94,16 @@ class ProxyCoreIntegrationTest {
     }
 
     @Test
+    void theBstatsSummaryIsOffBeforeStartAndReadsTheConfigAfter() {
+        runtime = new ProxyRuntime(new FakeAdapter(), log(), "1.0.0", data, new ProxyYaml());
+        assertFalse(runtime.setupSummary().serverEnabled());
+        assertEquals("unknown", runtime.setupSummary().historyBackend());
+        runtime.start();
+        assertFalse(runtime.setupSummary().serverEnabled(), "a fresh proxy config has the server off");
+        assertEquals("memory", runtime.setupSummary().historyLabel());
+    }
+
+    @Test
     void theDefaultDashboardsFitTheFreeLimits() throws Exception {
         runtime = new ProxyRuntime(new FakeAdapter(), log(), "1.0.0", data, new ProxyYaml());
         runtime.start();
