@@ -162,7 +162,7 @@ final class Services {
         tlsFingerprint = tls == null ? null : tls.fingerprint();
         clients.background(new RateLimiter(clock, settings.backgroundRequestsPerMinute(), 60_000));
         ClientAssertions assertions = clientAssertions();
-        http = new HttpApi(ctx, clients).stats(stats);
+        http = new HttpApi(ctx, clients).stats(stats).workers(settings.workerThreads());
         http.background(settings.backgroundEnabled());
         if (assertions != null) http.verifyClients(assertions);
         if (tls != null) http.tls(tls.selfSigned() ? tls.fingerprint() : null);
@@ -254,7 +254,7 @@ final class Services {
     /** Plain listeners on 127.0.0.1 for the tunnel client only, on free ports. */
     private void startLoopback(ApiContext ctx, ClientPolicy clients) throws IOException {
         ClientAssertions assertions = clientAssertions();
-        loopbackHttp = new HttpApi(ctx, clients).stats(stats);
+        loopbackHttp = new HttpApi(ctx, clients).stats(stats).workers(settings.workerThreads());
         loopbackHttp.background(settings.backgroundEnabled());
         if (assertions != null) loopbackHttp.verifyClients(assertions);
         loopbackHttp.start("127.0.0.1", 0, null);

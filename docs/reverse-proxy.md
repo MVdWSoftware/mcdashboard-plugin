@@ -17,11 +17,11 @@ using only standard HTTP:
 
 The plugin only accepts the official app's `User-Agent` ([security.md](security.md)): a proxy must pass `User-Agent` through
 (nginx and Apache do by default) and must not replace it. A response served from a shared cache never reaches the plugin, so the
-check is not applied to it; `security.require-authentication: true` makes every response `private` and keeps cached data away
-from other clients. The live feed and the discovery endpoint follow the same rules (the discovery endpoint stays open).
+check is not applied to it. The live feed and the discovery endpoint follow the same rules (discovery stays open).
 
-Only responses for PUBLIC placeholders without any `Authorization` header are `public`. When
-`security.require-authentication` is on, nothing is shared-cacheable.
+Only responses for PUBLIC placeholders without an `Authorization` header are `public`, so with
+`security.require-authentication` on (the default) nothing is shared-cacheable. Where it is, PlaceholderAPI is hit at most
+once per `min-interval` however many clients poll.
 
 ## nginx (TLS + cache)
 
@@ -61,15 +61,9 @@ Set `server.host: "127.0.0.1"` so only the proxy can reach the plugin, and keep
 
 For public servers there is a purpose-built, open source (AGPL) proxy: [MCDashboard-proxy](https://github.com/MVdWSoftware/mcdashboard-proxy).
 It speaks the same API and adds a shared Redis cache, request coalescing, stale-if-error, rate limiting, request
-validation and optional token pre-checks. It follows device revocations through the [device events](events.md), so a revoked device is
-refused at once even when its answers are cached. The proxy can also be reached through a [reverse tunnel](tunnel.md): the plugin dials out over one WebSocket, so the server needs no inbound port for the API. Put it behind your TLS terminator instead of a plain nginx cache.
+validation and optional token pre-checks. It follows device revocations through the [device events](events.md), and can be reached through a
+[reverse tunnel](tunnel.md) so the server needs no inbound port for the API. Put it behind your TLS terminator instead of a plain nginx cache.
 
 ## Apache
 
 See [`examples/apache.vhost`](examples/apache.vhost); enable `mod_proxy`, `mod_proxy_wstunnel` and `mod_cache`.
-
-## Why a cache helps
-
-A busy server with many app users would otherwise resolve each placeholder per request. With the
-cache in front, PlaceholderAPI is hit at most once per `min-interval` per placeholder, however many
-clients poll.

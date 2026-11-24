@@ -23,10 +23,6 @@ Only placeholders you list in `placeholders.yml` are ever resolved, and nothing 
    `placeholders.yml`, set `server.enabled: true`.
 4. The plugin serves HTTPS itself (a self-signed certificate it generates, or your own); behind a TLS-terminating reverse proxy set `server.tls.mode: off`. Full guide: [docs/installation.md](docs/installation.md).
 
-## Pictures, lists and tiles
-
-Placeholders of type `IMAGE` can show a web-map picture (`map:dynmap`, `map:squaremap`, `map:pl3xmap`, `map:bluemap`, see [docs/maps.md](docs/maps.md)) or an `https` URL the app loads itself (`encode: false`), `LIST` placeholders send a table such as a leaderboard, and tiles take look options (`fit`, `position`, `padding`, `smoothing`, `markerIcon`, `speed`, `background`): see [docs/placeholders.md](docs/placeholders.md) and [docs/dashboards.md](docs/dashboards.md).
-
 ## Configuration skills (AI agents)
 
 The plugin writes six skills to `plugins/MCDashboard/.agents/skills/` (setup, configuration, placeholders, dashboards,
@@ -54,7 +50,7 @@ mvn -B verify    # spigot/target/MCDashboard.jar, nukkit/target/MCDashboard-Nukk
                  # velocity/target/MCDashboard-Velocity.jar, bungee/target/MCDashboard-Bungee.jar
 ```
 
-`mvn -B verify` also runs JaCoCo: the report is in `<module>/target/site/jacoco/index.html` and the build fails below the limits set per module (`jacoco.minimum.line` / `jacoco.minimum.branch` in each `pom.xml`; the limits only go up). `core/` is at about 98% lines / 95% branches, `proxy-common/` at about 83% / 73%; the platform modules need a running server and are covered only for their pure helpers.
+`mvn -B verify` also runs JaCoCo (`<module>/target/site/jacoco/index.html`) and fails below the per-module limits in each `pom.xml`; the limits only go up.
 
 `core/` holds everything that does not depend on a server platform (the API, authentication, history, tunnel and
 dashboards; JDK only). `spigot/` and `nukkit/` are the Spigot/Paper and PowerNukkitX plugins around it; `velocity/` and `bungee/` are the proxy plugins, sharing `proxy-common/`. Each shades `core/` into its jar.
@@ -71,74 +67,17 @@ The plugin's source code is licensed under the GNU AGPL v3 ([LICENSE](LICENSE)).
 licence service is governed by the [terms of service](https://mcdashboard.org/en/terms-of-service/) and the
 [privacy statement](https://mcdashboard.org/en/privacy-statement/).
 
-Error reports are **opt-in** (`diagnostics.error-reports`, default `false`). When enabled, only an unexpected plugin
-error (an uncaught exception or a failed start) is sent to MVdW's own error tracker, with the exception and its stack;
-placeholder values, player names and server addresses are never included, and a placeholder that does not resolve is
-not reported.
+Two things leave the server, and neither carries server names, addresses, player names or placeholder values: opt-in error
+reports (`diagnostics.error-reports`, default `false`) and anonymous [bStats](https://bstats.org) usage metrics (Spigot, Bungee and
+Velocity jars; turn off in `plugins/BStats/config.yml`). Details: [docs/configuration.md](docs/configuration.md#diagnostics).
 
-The Spigot/Paper, BungeeCord/Waterfall and Velocity jars report **anonymous usage metrics** through
-[bStats](https://bstats.org) (ids `35535`, `35536` and `35537`): server and player counts, software and Java version, OS
-and country, and whether the web server, a licence, the tunnel and which history backend are on. No server name, address,
-licence id, player name or placeholder value is sent. Nukkit does not report (bStats has no adapter). Turn it off in
-`plugins/BStats/config.yml` (`enabled: false`; `config.txt` on Velocity).
+## Concepts
 
-## Placeholder catalog
+- **Placeholders**: only entries of `placeholders.yml` are resolved; a `catalog:` offers a whole PlaceholderAPI expansion, `IMAGE`
+  and `LIST` types carry pictures and tables ([docs/placeholders.md](docs/placeholders.md)).
+- **Dashboards**: one YAML file each in `dashboards/`, permission derived from the file name; developers can upload from the
+  app ([docs/dashboards.md](docs/dashboards.md)).
+- **Update method and limits**: polling, live feed, refresh intervals, allowed clients and request limits
+  ([docs/configuration.md](docs/configuration.md), [docs/security.md](docs/security.md)).
+- **Device events** tell a caching proxy about revocations ([docs/events.md](docs/events.md)).
 
-`placeholders.yml` lists what the app may read. Entries take an optional `group` (default `General`) and `description`,
-and the types `AUTO` (number, boolean or text decided per value) and `IMAGE`. A top-level `catalog:` list adds every
-placeholder of a PlaceholderAPI expansion as an AUTO entry (`<expansion>_<name>`, parameterised ones skipped, names with
-`ip`, `password`, `token`, `secret` or `address` always denied, optional `params: [a, b]` to name placeholders explicitly (many
-expansions declare none; discovery then falls back to PlaceholderAPI's cloud data, and a warning tells you to use `params` when both are empty), `deny` globs and `max` per entry). It is read on the first
-server tick after startup; explicit entries win. IMAGE entries use `source: file:<path>` (inside `plugins/MCDashboard/images/`)
-or `source: url:<template>` (http/https, fetched off the main thread, 5 s timeout, 256 KB, cached 5 minutes at least);
-only PNG, JPEG, GIF and WebP are served.
-
-The placeholder list is searchable and paginated; see [`openapi.yaml`](openapi.yaml).
-
-## Dashboards
-
-One YAML file per dashboard in `dashboards/`; the permission is derived from the file name (`admin.yml` needs
-`mcdashboard.dashboard.admin`). The plugin reports what the caller may open and whether they can upload. In developer
-mode (`developer.enabled`, `/mcdashboard developer on`) a player with `mcdashboard.developer` can upload a dashboard;
-the plugin saves or replaces `dashboards/dev-<player>.yml`, visible only to developers. See
-[docs/dashboards.md](docs/dashboards.md).
-
-## Device events
-
-`events.token` opens the event stream and `events.webhooks` POSTs signed
-events to receivers, so a caching proxy learns of revocations immediately. Both are off by default; code in
-`org.mcdashboard.events` (`EventBus`, `EventStream`, `WebhookDispatcher`), emitted from `DeviceStore.onRemoved`. See
-[docs/events.md](docs/events.md).
-
-## Languages
-
-Dashboard YAML may translate `name`, `description` and item `title` with a language map (`en`, `nl`, `fr`, `de`, `es`);
-plain strings stay the same in every language. The plugin resolves
-those texts against the caller's `Accept-Language`, then `server.default-language`, then the first language the
-dashboard provides, and set `Vary: Authorization, Accept-Language`. The server publishes `defaultLanguage` and the
-`languages` in use. The server configuration stays in `config.yml`; `plugin.yml` only declares the command and
-permissions.
-
-## Update method and frequency
-
-- `server.polling.enabled` and `server.websocket.enabled` choose how values reach the app: either, or both (the app
-  polls only while the live feed is down). With polling off, value requests are refused and the server reports
-  `polling: false`; if both are off, polling stays on.
-- `security.require-authentication` (on by default) rejects unauthenticated requests, and live-feed connections that do not
-  authenticate within 10 seconds. A live connection whose device is revoked is closed within a second.
-- `security.allow-player-names` (off by default) is a deliberate exception: an app may type a player name instead of
-  pairing. It is not authentication, so anyone who can reach the API could read that player's data and dashboards.
-- `security.min-interval` is the global floor for every placeholder; `min-interval` in `placeholders.yml` sets it per
-  placeholder (the larger of the two wins, for polling, the live feed and caching headers).
-  `security.min-interval-permissions` (and `min-interval-permissions` per placeholder) lets players with a permission
-  node refresh faster; the fastest node they hold wins.
-
-## Clients and limits
-
-Only the official app may call the API: it sends `User-Agent: MCDashboard/<x.y.z> (android|ios)` and everything else gets `403`
-(the discovery endpoint stays open so a browser or an uptime check can still probe it, and the event stream has its own
-token). `security.allowed-clients` allows further clients by regular expression, `security.min-client-version` answers `426` to
-older apps and is published as `minClientVersion`. The live feed applies the same check to its handshake. Each
-device records the client it paired with (`/mcdashboard devices`), and requests are limited per paired device
-(`security.requests-per-minute`) or, when not paired, per address (`security.anonymous-requests-per-minute`). A User-Agent is
-identification, not authentication: see [docs/security.md](docs/security.md) for what it does and does not give you.

@@ -68,6 +68,7 @@ public final class HttpApi implements HttpHandler {
     private ClientAssertions assertions;
     private boolean background = true;
     private org.mcdashboard.stats.PluginStats stats;
+    private int workers = 16;
     /** The features the reverse-tunnel proxy can carry; null when no tunnel uses this API (or it is the public listener). */
     private volatile Supplier<Set<String>> proxyFeatures;
     /** How long the dashboard language list is reused; matches the {@code max-age} of the info response. */
@@ -110,6 +111,17 @@ public final class HttpApi implements HttpHandler {
         return this;
     }
 
+    /**
+     * Sets how many requests are handled at once; applies at the next {@link #start}.
+     *
+     * @param threads Worker threads, at least 1.
+     * @return This API.
+     */
+    public HttpApi workers(int threads) {
+        this.workers = Math.max(1, threads);
+        return this;
+    }
+
     private void limited() {
         if (stats != null) stats.rateLimited();
     }
@@ -131,7 +143,7 @@ public final class HttpApi implements HttpHandler {
         } else {
             server = HttpServer.create(addr, 0);
         }
-        executor = Executors.newFixedThreadPool(16, Threads.daemon("MCDashboard-http"));
+        executor = Executors.newFixedThreadPool(workers, Threads.daemon("MCDashboard-http"));
         server.setExecutor(executor);
         server.createContext("/v1", this);
         server.start();

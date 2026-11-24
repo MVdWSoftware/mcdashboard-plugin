@@ -33,6 +33,7 @@ server:
     # Extra host names / IP addresses a generated certificate must name (server.public-url's host is added).
     names: []
   # At least one of polling and websocket stays on.
+  worker-threads: 16   # requests handled at once (1-256); raise it when a busy server queues requests
   polling:
     enabled: true
   websocket:

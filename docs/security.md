@@ -25,9 +25,7 @@
 - **PLAYER placeholders** resolve for the paired player, and never for a name a client supplies unless the owner enabled
   `security.allow-player-names` (see below).
 - **Brute force.** Pairing and refresh are rate limited per client address (10 per minute).
-- **Tunnel.** The optional [reverse tunnel](tunnel.md) is outbound only and needs a 32+ character key; the plugin refuses
-  `ws://` unless the host is `localhost` or a private IP address (a host name never counts as private) and answers only
-  the API routes it is meant to (not the events stream) over it.
+- **Tunnel.** The optional [reverse tunnel](tunnel.md) is outbound only and needs a 32+ character key; see its security notes.
 - **Device names** are shown in chat, so colour codes and control characters are removed from them when a device pairs.
 - **Device list.** `/mcdashboard devices` shows a player their devices (app, licence, when linked, last seen) with a `[Revoke]` button.
 - **Official client.** The app identifies itself with `User-Agent: MCDashboard/<x.y.z> (android|ios)`. Every route except
@@ -43,10 +41,8 @@
   `Retry-After`. They key on the device, not on the User-Agent or address, so a client that spoofs or rotates those gets no extra
   budget; getting more devices needs a pairing code from a player in game, bounded by `security.max-devices`. The discovery endpoint is not
   counted.
-- **Refresh limits.** `security.min-interval` (and `min-interval` per placeholder) caps how often PlaceholderAPI is
-  asked for a value. `security.min-interval-permissions` lets paired players with a node use a different interval, so
-  trusted staff can see fresher values without letting every caller do the same; the fastest node a player holds wins.
-  This changes the refresh rate only, never which placeholders they may read.
+- **Refresh limits.** `security.min-interval` and `min-interval-permissions` (and `min-interval` per placeholder) cap how often
+  PlaceholderAPI is asked for a value; they change the refresh rate only, never which placeholders a caller may read.
 - **Transport.** Use TLS via a reverse proxy ([reverse-proxy.md](reverse-proxy.md)). Tokens are
   bearer tokens: without TLS they can be stolen.
 - **Secret.** `plugins/MCDashboard/secret.key` signs tokens (HS256). Deleting it invalidates all
@@ -62,13 +58,11 @@
 `X-MCDashboard-Player` header (and as `playerName` in the live feed's `auth` message). The server resolves that name to a
 player and answers as them. This exists for a private or trusted network where pairing every phone is impractical.
 
-It is **not authentication**. There is no secret and no proof that the caller is that player: anyone who can reach the
-API can type any name and read that player's `PLAYER` placeholders, personal data and permission-gated dashboards,
-including staff-only dashboards. With `security.require-authentication: true` a request still needs either a paired
-token or the name header; without either it is anonymous. A valid bearer token always wins over a typed name, and
-per-player answers stay `private` and vary on `X-MCDashboard-Player`, so a shared cache cannot hand one player's answer
-to another. The app only shows the name field after `/v1/info` reports `allowPlayerNames: true` (or the `player-names`
-feature).
+It is **not authentication**: anyone who can reach the API can type any name and read that player's `PLAYER` placeholders,
+personal data and permission-gated dashboards, including staff-only ones. With `security.require-authentication: true` a
+request still needs a paired token or the name header. A valid bearer token always wins over a typed name, and per-player
+answers stay `private` and vary on `X-MCDashboard-Player`, so a shared cache cannot hand one player's answer to another. The
+app shows the name field only when `/v1/info` reports `allowPlayerNames: true`.
 
 ## Transport: TLS
 
@@ -102,7 +96,7 @@ other server-side clients. An assertion that names a licensed server (`lid` clai
 
 ## Availability
 
-The API runs on 16 worker threads with 30 second request and response timeouts, so slow or idle connections cannot hold them.
+The API runs on `server.worker-threads` (16) worker threads with 30 second request and response timeouts, so slow or idle connections cannot hold them.
 Placeholders are resolved on the server thread: concurrent requests for one value share a single resolution, a source that keeps
 failing pauses resolving for five seconds (the last values are served meanwhile), a value that cannot be resolved for a minute
 (or five refresh intervals) is no longer served, and `GET /v1/values` answers with what it has after four seconds. The rate

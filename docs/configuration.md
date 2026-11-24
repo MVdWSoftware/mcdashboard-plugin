@@ -19,6 +19,7 @@ Every setting of `plugins/MCDashboard/config.yml`, with its default. Restart the
 | `tls.certificate`, `tls.key` | empty | `custom` mode: PEM certificate chain and an unencrypted PKCS#8 private key (`-----BEGIN PRIVATE KEY-----`; convert with `openssl pkcs8 -topk8 -nocrypt`). Relative paths are inside `plugins/MCDashboard/`. |
 | `tls.keystore`, `tls.keystore-password` | empty | `custom` mode alternative: a PKCS#12 (`.p12`, `.pfx`) or JKS keystore with a private key. |
 | `tls.names` | `[]` | Host names and IP addresses a generated certificate must name, besides `localhost`, the loopback addresses, the host of `public-url` and `host`. A new name makes the plugin generate a new certificate, so devices that pinned the old one pair again. |
+| `worker-threads` | `16` | Requests the API handles at once (1 to 256); the rest wait. Placeholders are still resolved on the server thread, so more threads help only with many slow clients or a proxy that allows more than 16 in flight (MCDashboard-proxy defaults to 32, `MAX_UPSTREAM_CONCURRENCY`). Applies to the tunnel too. |
 | `polling.enabled` | `true` | Plain requests for values. Turn it off to serve values over the live feed only; at least one of polling and the live feed stays on. Charts and dashboards work either way. |
 | `websocket.enabled` | `true` | The live feed, which pushes values when they change. |
 | `websocket.port` | `1554` | Live feed port. |
@@ -51,6 +52,8 @@ An assertion with a `lid` claim (issued to a server-side client of one licensed 
 | `requests-per-minute` | `120` | Requests per minute from one paired device. |
 | `anonymous-requests-per-minute` | `60` | Requests per minute from one address that is not paired. |
 | `trusted-proxies` | `["127.0.0.1", "0:0:0:0:0:0:0:1"]` | Peers whose `X-Forwarded-For` is believed (rate limits, discovery-only). Keep it to your reverse proxy. |
+
+An assertion with a `lid` claim (issued to a server-side client of one licensed server) is accepted only when `lid` equals this server's `license.id`; without `license.id` the server accepts none. Assertions without `lid` stay valid.
 
 ## `history`
 
@@ -122,13 +125,6 @@ Devices tell the plugin which licence they use (the server's licence, the App un
 `%mcdashboard_devices_server|app|free%` placeholders show ([security.md](security.md#device-entitlement)). That is informational: whether
 the id verifies is decided by the app and the portal, never by the plugin, and `license.id` alone sets `licensed`.
 
-Planned, not implemented: an in-game reminder when the server's trial is about to end. The heartbeat tells the plugin only
-whether the licence is active, licensed and registered, not when the trial ends. The licence token the portal issues carries
-only the server, the host and the plan (and expires after three days whatever the trial), so the app cannot learn the trial
-end from it either. A reminder needs a deliberate contract change first (for example a `trialEndsAt` claim in the token, a
-field in the heartbeat answer, or a field in the check response that the app reports with the entitlement header), designed
-together with the portal; until then the portal's own trial emails are the reminder.
-
 ## `diagnostics`
 
 | Key | Default | Meaning |
@@ -141,10 +137,6 @@ Each jar reports anonymous usage metrics through [bStats](https://bstats.org): S
 Waterfall `35536`, Velocity `35537`. Nukkit has no bStats adapter and stays silent. There is no key in `config.yml`:
 bStats has its own global file, `plugins/BStats/config.yml` (`config.txt` on Velocity). Set `enabled: false` there to stop
 all bStats metrics on that server or proxy.
-
-The custom charts are `server_enabled`, `licensed`, `tunnel` and `history_backend` (titles: Web server, Licence, Tunnel,
-History backend); they are registered on each plugin's bStats page. A new chart added in code needs a matching entry there
-(Edit → Add chart) with the same id, or bStats collects the values but shows no chart.
 
 What is sent: the number of servers and players, the server/proxy software and version, the Java version, the operating
 system, the CPU architecture and the country (the proxies also send their managed-server count and online-mode setting),

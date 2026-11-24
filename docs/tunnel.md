@@ -37,19 +37,14 @@ a key shorter than 32 characters and `ws://` to anything but `localhost` or a pr
 tunnel answers only the API routes it is meant to (never the events stream) and its own live port. The tunnel's address is
 added to `security.trusted-proxies` automatically (loopback) so the client address the proxy forwards is used for rate limiting.
 
-Health: the plugin pings the proxy every 20 s, drops a connection that has been silent for 60 s or that never answers `ready`,
-and reconnects with exponential backoff (1 s to 60 s, forever). The backoff resets only after a connection has stayed up
-30 s, so a flapping proxy cannot cause a reconnect storm. An outage is logged once, not on every attempt. `/mcdashboard tunnel`
+Health: the plugin pings every 20 s, drops a connection silent for 60 s, and reconnects with backoff (1 s to 60 s, forever;
+reset only after 30 s up). An outage is logged once. `/mcdashboard tunnel`
 (permission `mcdashboard.admin`) shows whether it is connected, the last error, the attempt number and the ping.
 
-Protocol: the `hello` frame carries the plugin's tunnel protocol (`TunnelClient.PROTOCOL`), and `ready` carries the proxy's
-protocol and the API features it can carry (`features`). The two protocols are independent of the plugin's and app's API
-`protocol`: unknown frame types are ignored on both sides, so a newer plugin works through an older proxy. The plugin
-publishes only the features the proxy can carry in `/v1/info`, so an older proxy hides `presets`, `history-points`,
-`upload`, `client-verification` or `player-names` instead of advertising what it would drop. A proxy that reports nothing
-is treated as carrying no optional features. See [docs/versioning.md](versioning.md).
-
-Protocol and the proxy's settings: [MCDashboard-proxy `docs/tunnel.md`](https://github.com/MVdWSoftware/mcdashboard-proxy).
+Protocol: the proxy reports the API features it can carry in `ready`, and the plugin publishes only those in `/v1/info`, so an
+older proxy hides `presets`, `history-points`, `upload`, `client-verification` or `player-names` instead of advertising what
+it would drop. Unknown frame types are ignored on both sides. Rules: [versioning.md](versioning.md); the proxy's settings and
+frames: [MCDashboard-proxy `docs/tunnel.md`](https://github.com/MVdWSoftware/mcdashboard-proxy/blob/main/docs/tunnel.md).
 
 ## With TLS
 
