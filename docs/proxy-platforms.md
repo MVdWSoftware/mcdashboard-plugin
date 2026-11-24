@@ -35,7 +35,8 @@ The default `placeholders.yml` lists the network wide ones as `online`, `max-pla
 adds `proxy_server_<name>_online` and `proxy_server_<name>_up` for every backend server the proxy has at startup (restart or
 `/mcdashboard reload` after adding one; names with characters other than letters, digits, `_`, `.` and `-` are skipped).
 
-The preset dashboards are `player` (4 tiles) and `network` (6 tiles), within the free limits of 2 dashboards and 12 tiles.
+The preset dashboards are `player` (4 tiles) and `network` (6 tiles). The free limit of 1 dashboard shows `player`; `network`
+needs a licence (or the app unlock) for its second tab.
 
 ## Permissions and commands
 

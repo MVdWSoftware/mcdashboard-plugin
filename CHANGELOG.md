@@ -12,6 +12,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
   fingerprint (`pin=`) and `/v1/info` publishes it (`tlsFingerprint`, `websocketTls`).
 
 ### Added
+- Dashboards are checked for a layout the app can draw: two tiles on the same cells or a tile past the fourth column are
+  reported in the console when the dashboard loads (once, not on every request), and a developer upload with such a layout
+  is refused with `400`. See [docs/dashboards.md](docs/dashboards.md).
 - Chat that looks like a plugin: every `/mcdashboard` message starts with a configurable prefix (`messages.prefix`, default `[MCDashboard]`), grey text, green for good news, red for problems; follow-up lines are indented. Players without the permission get a clear "You don't have permission to do that (needs mcdashboard.admin)", and a wrong sub-command says what to try instead of a bare usage line.
 - `/mcd` as a short alias of `/mcdashboard` on Spigot, PowerNukkitX, Velocity and BungeeCord.
 - A richer `/mcdashboard about`: what MCDashboard is, store links for the Android and iOS apps (fixed in the plugin) and how to link a device. Clickable buttons on Spigot, plain links elsewhere. The pairing code message points to it.

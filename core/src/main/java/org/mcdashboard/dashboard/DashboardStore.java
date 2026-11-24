@@ -19,6 +19,8 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 /**
@@ -29,6 +31,7 @@ public final class DashboardStore {
     private final Path directory;
     private final YamlCodec yaml;
     private final Consumer<String> warn;
+    private final Map<String, Set<String>> reportedLayoutProblems = new ConcurrentHashMap<>();
     private List<Dashboard> memory;
 
     /** A store backed by files; a file that is not valid YAML is reported through {@code warn} and read as an empty dashboard.
@@ -72,7 +75,9 @@ public final class DashboardStore {
         Arrays.sort(files);
         for (File f : files) {
             String id = f.getName().substring(0, f.getName().length() - 4);
-            out.add(Dashboard.fromMap(id, read(f)));
+            Dashboard dashboard = Dashboard.fromMap(id, read(f));
+            reportLayoutProblems(f.getName(), dashboard);
+            out.add(dashboard);
         }
         out.sort(Comparator.comparing((Dashboard d) -> !d.id().equals("default")).thenComparing(Dashboard::id));
         return out;
@@ -141,5 +146,22 @@ public final class DashboardStore {
             warn.accept("Could not read dashboards/" + file.getName() + ": " + e.getMessage());
             return Map.of();
         }
+    }
+
+    /**
+     * Reports a dashboard whose tiles overlap or leave the grid. The folder is read on every request, so only a problem
+     * that is new since the last read is printed; fixing and reintroducing the same mistake warns again.
+     */
+    private void reportLayoutProblems(String file, Dashboard dashboard) {
+        List<String> problems = dashboard.layoutProblems();
+        Set<String> previous = reportedLayoutProblems.getOrDefault(dashboard.id(), Set.of());
+        if (problems.isEmpty()) {
+            reportedLayoutProblems.remove(dashboard.id());
+            return;
+        }
+        List<String> added = problems.stream().filter(problem -> !previous.contains(problem)).toList();
+        if (added.isEmpty()) return;
+        reportedLayoutProblems.put(dashboard.id(), Set.copyOf(problems));
+        for (String problem : added) warn.accept("dashboards/" + file + ": " + problem + ".");
     }
 }

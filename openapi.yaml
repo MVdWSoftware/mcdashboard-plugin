@@ -130,7 +130,7 @@ paths:
             schema: { $ref: '#/components/schemas/DashboardUpload' }
       responses:
         '200': { description: 'Saved. Names and titles are translated for Accept-Language', content: { application/json: { schema: { $ref: '#/components/schemas/Dashboard' } } } }
-        '400': { description: Invalid dashboard (unknown placeholder or widget, no items, a value out of range) }
+        '400': { description: Invalid dashboard (unknown placeholder or widget, no items, a value out of range, overlapping tiles or a tile past the fourth column) }
         '401': { description: Not paired }
         '403': { description: Developer mode is off, or the caller lacks mcdashboard.developer }
         '422':

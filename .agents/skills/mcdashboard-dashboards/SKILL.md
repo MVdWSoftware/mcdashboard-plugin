@@ -34,6 +34,8 @@ items:
 ```
 
 - The grid is **4 columns** wide; `column`/`row` place the tile, `width`/`height` size it (a gauge is typically 2x2).
+  A tile that overlaps another or reaches past the fourth column is reported in the console when the dashboard loads;
+  fix the layout in the file. An app upload with such a layout is refused with `400`.
 - `placeholder` must be an `id` from `placeholders.yml`. `stacked` takes several: `placeholders: [a, b, c]`.
 - Tiles whose placeholder the player may not read are dropped; a dashboard with nothing left is not offered at all.
   That is why a preset can be missing for one player and present for another.

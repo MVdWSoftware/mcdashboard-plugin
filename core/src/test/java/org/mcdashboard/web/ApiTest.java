@@ -513,6 +513,23 @@ class ApiTest {
         assertEquals("dashboards-limit", Json.parseObject(second.body()).get("code"));
     }
 
+    @Test
+    void uploadWithOverlappingTilesIsRejected() throws Exception {
+        PermissionCache perms = new PermissionCache();
+        String devUuid = "00000000-0000-0000-0000-000000000012";
+        perms.update(UUID.fromString(devUuid), Set.of("mcdashboard.developer"));
+        developerServer(perms, new AtomicBoolean(true));
+        String dev = pair(devUuid, "Dev");
+        String overlap = "{\"name\":\"x\",\"items\":["
+                + "{\"placeholder\":\"tps\",\"widget\":\"text\",\"column\":0,\"row\":0,\"width\":2,\"height\":1},"
+                + "{\"placeholder\":\"online\",\"widget\":\"text\",\"column\":1,\"row\":0,\"width\":2,\"height\":1}]}";
+        var overlapping = post("/v1/dashboards", overlap, dev);
+        assertEquals(400, overlapping.statusCode());
+        assertTrue(overlapping.body().contains("overlap"), overlapping.body());
+        String pastGrid = "{\"name\":\"x\",\"items\":[{\"placeholder\":\"tps\",\"widget\":\"text\",\"column\":3,\"width\":2}]}";
+        assertEquals(400, post("/v1/dashboards", pastGrid, dev).statusCode());
+    }
+
     /** Starts a server whose dashboards are written to {@code temp} and whose developer mode is {@code mode}. */
     private DashboardStore developerServer(PermissionCache perms, AtomicBoolean mode) throws Exception {
         api.stop();

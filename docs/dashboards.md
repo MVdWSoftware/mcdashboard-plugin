@@ -34,6 +34,10 @@ items:
   free; the limits are on counts, history and player features, not on visualisations. `stat`, `line`, `area`, `stacked`
   and `heatmap` need history for the placeholder: `history:` in `placeholders.yml` or `history.include` in `config.yml`
   ([history.md](history.md)). The grid has 4 columns.
+- **The layout is checked.** A tile that reaches past the fourth column, or two tiles on the same cells, are reported in the
+  console when the dashboard loads (`dashboards/<file>.yml: tiles 1 and 2 overlap at column 2, row 1.`). The dashboard is
+  still served, so one mistake does not hide the rest; fix the file and the next read has no warning. A developer upload
+  with such a layout is refused with `400` and the same sentence.
 - **Maximum from another placeholder.** `max-from: max-players` on `online` makes gauges and rings show players online out
   of the real maximum, even when it changes.
 - Presets are created from the defaults only on the first start; delete a file to remove a preset.

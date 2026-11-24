@@ -162,6 +162,36 @@ public record Dashboard(String id, LocalizedText name, LocalizedText description
         return out;
     }
 
+    /**
+     * Problems that stop the dashboard from looking the way it is drawn: a tile outside the four-column grid (including a
+     * negative position) or two tiles on the same cells. They do not stop the dashboard from being served, so the plugin
+     * reports them in the console and the app still shows the dashboard.
+     *
+     * @return One readable problem per offending tile or pair of tiles, in tile order; empty when the layout is valid.
+     */
+    public List<String> layoutProblems() {
+        List<String> problems = new ArrayList<>();
+        for (int i = 0; i < items.size(); i++) {
+            Item a = items.get(i);
+            if (a.column() < 0 || a.row() < 0) {
+                problems.add("tile " + (i + 1) + " starts before the grid (column and row must be 0 or more)");
+            }
+            if (a.column() + a.width() > 4) {
+                problems.add("tile " + (i + 1) + " spans columns " + (a.column() + 1) + "-" + (a.column() + a.width())
+                        + ", past the 4-column grid");
+            }
+            for (int j = i + 1; j < items.size(); j++) {
+                Item b = items.get(j);
+                if (a.column() < b.column() + b.width() && b.column() < a.column() + a.width()
+                        && a.row() < b.row() + b.height() && b.row() < a.row() + a.height()) {
+                    problems.add("tiles " + (i + 1) + " and " + (j + 1) + " overlap at column "
+                            + (Math.max(a.column(), b.column()) + 1) + ", row " + (Math.max(a.row(), b.row()) + 1));
+                }
+            }
+        }
+        return problems;
+    }
+
     /** The ids of an item: {@code placeholders: [a, b]}, else the single {@code placeholder}. */
     private static List<String> placeholdersOf(Map<?, ?> item) {
         List<String> ids = new ArrayList<>();

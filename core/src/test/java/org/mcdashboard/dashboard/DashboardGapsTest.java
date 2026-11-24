@@ -130,6 +130,55 @@ class DashboardGapsTest {
     }
 
     @Test
+    void layoutProblemsFindOverlapsAndTilesPastTheGrid() {
+        Dashboard valid = Dashboard.fromMap("ok", map("items", List.of(
+                map("placeholder", "a", "column", 0, "row", 0, "width", 2, "height", 1),
+                map("placeholder", "b", "column", 2, "row", 0, "width", 2, "height", 1))));
+        assertEquals(List.of(), valid.layoutProblems());
+
+        Dashboard overlap = Dashboard.fromMap("overlap", map("items", List.of(
+                map("placeholder", "a", "column", 0, "row", 0, "width", 3, "height", 2),
+                map("placeholder", "b", "column", 2, "row", 1, "width", 2, "height", 2))));
+        assertEquals(List.of("tiles 1 and 2 overlap at column 3, row 2"), overlap.layoutProblems());
+
+        Dashboard pastGrid = Dashboard.fromMap("wide", map("items", List.of(map("placeholder", "a", "column", 3, "width", 2))));
+        assertEquals(List.of("tile 1 spans columns 4-5, past the 4-column grid"), pastGrid.layoutProblems());
+
+        Dashboard negative = Dashboard.fromMap("negative", map("items", List.of(map("placeholder", "a", "column", -1))));
+        assertEquals(List.of("tile 1 starts before the grid (column and row must be 0 or more)"), negative.layoutProblems());
+    }
+
+    @Test
+    void storeReportsALayoutProblemOnceAndAgainAfterItReturns() throws IOException {
+        Path folder = dir.resolve("layout");
+        Files.createDirectories(folder);
+        List<String> warnings = new ArrayList<>();
+        DashboardStore store = new DashboardStore(folder, new SnakeYamlCodec(), warnings::add);
+        String bad = """
+                items:
+                  - { placeholder: a, column: 0, row: 0, width: 2, height: 1 }
+                  - { placeholder: b, column: 1, row: 0, width: 2, height: 1 }
+                """;
+        String fixed = """
+                items:
+                  - { placeholder: a, column: 0, row: 0, width: 2, height: 1 }
+                  - { placeholder: b, column: 2, row: 0, width: 2, height: 1 }
+                """;
+        Files.writeString(folder.resolve("bad.yml"), bad);
+        assertEquals(1, store.all().size());
+        assertEquals(List.of("dashboards/bad.yml: tiles 1 and 2 overlap at column 2, row 1."), warnings);
+        // The folder is read on every request; the same mistake does not print on every request.
+        store.all();
+        assertEquals(1, warnings.size());
+        Files.writeString(folder.resolve("bad.yml"), fixed);
+        store.all();
+        assertEquals(1, warnings.size());
+        Files.writeString(folder.resolve("bad.yml"), bad);
+        store.all();
+        assertEquals(2, warnings.size());
+    }
+
+    @Test
     void storesSaveInMemoryAndToFilesAndReportBrokenFiles() throws IOException {
         DashboardStore memory = DashboardStore.inMemory(List.of(Dashboard.fromMap("b", map("items", List.of(map("placeholder", "a", "widget", "text"))))));
         memory.save(Dashboard.fromMap("default", map("items", List.of(map("placeholder", "a")))), null);
@@ -143,7 +192,7 @@ class DashboardGapsTest {
         Dashboard full = new Dashboard("full", LocalizedText.parse(map("en", "Full")), LocalizedText.of("desc"), 5, "stone",
                 TileLook.backgroundImage(map("url", "https://x.example/b.png")), List.of(
                 new Dashboard.Item(List.of("a", "b"), "list", LocalizedText.of("T"), 0, 0, 2, 1, "fa6-solid:heart", Map.of("style", "hearts")),
-                new Dashboard.Item(List.of("a"), "text", null, 1, 0, 1, 1)));
+                new Dashboard.Item(List.of("a"), "text", null, 2, 0, 1, 1)));
         files.save(full, "Up<script>-1");
         files.save(Dashboard.fromMap("default", map("items", List.of(map("placeholder", "a")))), null);
         String yaml = Files.readString(dir.resolve("d/full.yml"));

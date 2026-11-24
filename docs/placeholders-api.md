@@ -44,8 +44,8 @@ stats:
 ```
 
 in `config.yml` and restart the server to offer them. With it off, the entries are ignored; the PlaceholderAPI
-placeholders above work either way. Delete the entries you do not want, or change `access` / `permission` to restrict them. No dashboard
-uses them: the free limit is 2 dashboards, which the `player` and `server` presets already fill.
+placeholders above work either way. Delete the entries you do not want, or change `access` / `permission` to restrict them. The
+free limit is 1 dashboard, so the `player` preset shows it and a second tab (such as the `server` preset) needs a licence or the app unlock.
 
 ## Other platforms
 

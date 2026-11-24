@@ -76,6 +76,7 @@ class DashboardTest {
                 String nl = d.name().resolve(Languages.preferred("nl-BE"), "en");
                 assertEquals(id.equals("player") ? "Speler" : "Server", nl);
                 assertTrue(d.languages().containsAll(Languages.SUPPORTED), id + " translates its name into every shipped language");
+                assertEquals(List.of(), d.layoutProblems(), id + " has a layout the app can draw");
             }
         }
     }

@@ -69,7 +69,10 @@ final class DashboardUpload {
             if (item.get("options") != null && !(item.get("options") instanceof Map)) throw new BadRequest("options must be an object");
             items.add(new Dashboard.Item(ids, widget, LocalizedText.of(title), column, row, width, height, icon, TileLook.options(item.get("options"))));
         }
-        return new Dashboard("dev", LocalizedText.of(name), LocalizedText.of(description), 900, background, backgroundImage, items);
+        Dashboard draft = new Dashboard("dev", LocalizedText.of(name), LocalizedText.of(description), 900, background, backgroundImage, items);
+        List<String> layout = draft.layoutProblems();
+        if (!layout.isEmpty()) throw new BadRequest(layout.get(0));
+        return draft;
     }
 
     /** {@code placeholders: [a, b]}, else the single {@code placeholder}; duplicates dropped. */
