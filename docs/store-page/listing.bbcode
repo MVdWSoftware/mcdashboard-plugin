@@ -8,7 +8,7 @@
 [SIZE=6][B]Your server, in every player's pocket.[/B][/SIZE]
 [SIZE=5][I]Not another admin panel. A [B]live dashboard[/B] for the people who actually play on your server, built from the placeholders you already have.[/I][/SIZE]
 
-[SIZE=5]MCDashboard is a free plugin that turns PlaceholderAPI into a dashboard on [B]Android and iOS[/B]. Players see their stats, your world and your server health in an app that needs no account and has no ads or third-party analytics. Anonymous usage statistics help us improve it and can be turned off; child mode never sends them. You decide what is visible, one placeholder at a time, and nothing is exposed until you turn it on. [B]Every number, table, chart and picture on a dashboard is one of those placeholders[/B]; there is no separate content system.[/SIZE]
+[SIZE=5]MCDashboard is a free plugin that turns PlaceholderAPI into a dashboard on [B]Android and iOS[/B]. Players see their stats, your world and your server health in an app that needs no account and has no ads or third-party analytics. The app's anonymous usage statistics can be turned off and child mode never sends them; the plugin reports anonymous bStats metrics, which you can opt out of in plugins/BStats/config.yml. You decide what is visible, one placeholder at a time, and nothing is exposed until you turn it on. [B]Every number, table, chart and picture on a dashboard is one of those placeholders[/B]; there is no separate content system.[/SIZE]
 
 [CENTER][MEDIA=youtube]2DGKbVuuvOU[/MEDIA][/CENTER]
 
@@ -41,7 +41,7 @@
 [IMG]https://mcdashboard.org/assets/store/ic-network.png?v=3[/IMG] [B][SIZE=6]A network, not a pile of servers.[/SIZE][/B]
 [SIZE=5]The Velocity and BungeeCord jars put one dashboard on the whole proxy. On Bedrock, PowerNukkitX runs the same plugin and the same app.[/SIZE]
 
-[SIZE=3][I]Java 17, Spigot or Paper 1.18+, PlaceholderAPI. No other libraries: the HTTP server, the live feed and the JSON are the JDK's own.[/I][/SIZE]
+[SIZE=3][I]Java 17, Spigot or Paper 1.18+, PlaceholderAPI. No other plugins needed, and the only bundled library is the opt-out bStats metrics client: the HTTP server, the live feed and the JSON are the JDK's own.[/I][/SIZE]
 
 [IMG]https://mcdashboard.org/assets/store/sec-app.png[/IMG]
 [SIZE=5]The app is free on [B]Android and iOS[/B], needs no account, and follows your phone's light or dark mode and language (English, Dutch, French, German, Spanish).
@@ -62,7 +62,7 @@ Tap a tile for its value, unit, range and chart period. One glance tells you whe
 [SIZE=5]Start free. Stay free if that is enough. There are two paid options, for two different people: the person holding the phone, and the person running the server.[/SIZE]
 
 [CENTER][IMG]https://mcdashboard.org/assets/store/plan-free.png[/IMG][/CENTER]
-[SIZE=5][B][COLOR=#3b62d6]✔[/COLOR][/B] 2 dashboards and 12 tiles per server[/SIZE]
+[SIZE=5][B][COLOR=#3b62d6]✔[/COLOR][/B] 1 dashboard and 12 tiles per server[/SIZE]
 [SIZE=5][B][COLOR=#3b62d6]✔[/COLOR][/B] 24 hours of history[/SIZE]
 [SIZE=5][B][COLOR=#3b62d6]✔[/COLOR][/B] Every theme, widget and visualisation[/SIZE]
 [SIZE=5][B][COLOR=#3b62d6]✔[/COLOR][/B] Live values, pairing and the whole plugin[/SIZE]
@@ -75,6 +75,7 @@ Tap a tile for its value, unit, range and chart period. One glance tells you whe
 [SIZE=5][B][COLOR=#3b62d6]✔[/COLOR][/B] Unlimited servers, dashboards and tiles[/SIZE]
 [SIZE=5][B][COLOR=#3b62d6]✔[/COLOR][/B] Personal dashboards on any server[/SIZE]
 [SIZE=5][B][COLOR=#3b62d6]✔[/COLOR][/B] Home-screen widgets and notifications[/SIZE]
+[SIZE=5][B][COLOR=#3b62d6]✔[/COLOR][/B] Developer mode (design on your phone)[/SIZE]
 [SIZE=5][B][COLOR=#3b62d6]✔[/COLOR][/B] No 30-second minimum[/SIZE]
 [SIZE=5][B][COLOR=#3b62d6]✔[/COLOR][/B] Yours on every server, forever[/SIZE]
 [SIZE=5][COLOR=#9aa3b8]— History stays at 24 hours; a server licence extends it[/COLOR][/SIZE]
@@ -83,8 +84,8 @@ Tap a tile for its value, unit, range and chart period. One glance tells you whe
 [SIZE=5][B][COLOR=#3b62d6]✔[/COLOR][/B] Everything above, for [B]every player[/B], even on a free app[/SIZE]
 [SIZE=5][B][COLOR=#3b62d6]✔[/COLOR][/B] 30 days of history[/SIZE]
 [SIZE=5][B][COLOR=#3b62d6]✔[/COLOR][/B] Developer mode and the API for your own tools[/SIZE]
-[SIZE=5][B][COLOR=#3b62d6]✔[/COLOR][/B] Network tier for Velocity and BungeeCord; Cloud Proxy for a managed relay[/SIZE]
-[SIZE=5][B][COLOR=#3b62d6]✔[/COLOR][/B] 14-day free trial per server[/SIZE]
+[SIZE=5][B][COLOR=#3b62d6]✔[/COLOR][/B] Network tier for Velocity and BungeeCord[/SIZE]
+[SIZE=5][B][COLOR=#3b62d6]✔[/COLOR][/B] 14-day free trial per organization, for one server[/SIZE]
 
 [SIZE=5][B]Running the server?[/B] The server licence is the one that changes something for your community. [B]Just playing?[/B] The app unlock follows you to every server you join. If you have both, nothing changes: you already have everything.
 
@@ -110,7 +111,7 @@ By default every player pairs before they see anything ([I]security.require-auth
 [IMG]https://mcdashboard.org/assets/store/sec-about.png[/IMG]
 [SIZE=5]Hi, I'm Maxim. I have been making Minecraft plugins for more than 13 years, including FeatherBoard. The idea goes back to [URL='https://www.spigotmc.org/resources/mcplaceholderdashboard-legacy.16351/']MCPlaceholderDashboard[/URL], a project I released in 2015 that never stopped sparking my interest. The first MCDashboard prototypes followed in 2020, built for private servers that wanted a scoreboard outside the game. That is still the idea: players see their own progress and their favourite server without an admin panel in the middle, and owners publish exactly the information they choose, and nothing else.
 
-The plugin is open source under the AGPL-3.0, primarily so you can audit what runs on your server and verify that nothing leaves it that you did not allow. The app and the licence service are run by my company, [URL='https://mvdw-software.com']MVdW-Software[/URL]. You can read more about me on [URL='https://maximvdw.be/about']my website[/URL].
+The plugin is open source under the AGPL-3.0, primarily so you can audit what runs on your server and verify what leaves it: your placeholder values go only to the app that asks for them, and the only calls the plugin makes by itself are the opt-out bStats metrics and, if you set a licence id, an hourly licence report to the portal. The app and the licence service are run by my company, [URL='https://mvdw-software.com']MVdW-Software[/URL]. You can read more about me on [URL='https://maximvdw.be/about']my website[/URL].
 
 The plugin is free to download and free to use. The app is free too. The paid options exist to cover the servers, the app stores and the years of maintenance behind them, and they are listed above without small print.[/SIZE]
 
