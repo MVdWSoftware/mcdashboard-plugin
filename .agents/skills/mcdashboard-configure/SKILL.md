@@ -77,7 +77,7 @@ history:
 ```
 
 **Paired devices but no extra widgets** - the free limits are enforced by the app; a server licence removes the
-dashboard, tile and history limits for everyone on this server. `license.id` is public and only works for the address
+dashboard, tile and history limits for everyone on this server. `license.id` is never published (only its SHA-256 is) and only works for the address
 registered in the portal.
 
 ## Commands and permissions

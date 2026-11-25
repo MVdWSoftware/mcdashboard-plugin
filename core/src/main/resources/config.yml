@@ -169,7 +169,8 @@ stats:
 messages:
   prefix: "&8[&bMCDashboard&8] &r"
 
-# Public licence id from the MVdW portal; only valid for the address registered there.
+# Licence id from the MVdW portal. It is not published: /v1/info shows only its SHA-256 (licenseHash), which is only valid
+# for the address registered there. Keep the id out of public posts; the portal can issue a new one.
 license:
   id: ""
   # The portal API the plugin reports to. Once in a while the plugin tells the portal which licence it uses and which
