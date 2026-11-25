@@ -52,3 +52,25 @@ The tests drop and recreate the `mcd_*` tables in those databases: use throwaway
 2. Add or update tests; `mvn -B verify` must pass.
 3. Describe the behaviour change and add an entry under *Unreleased* in the changelog.
 4. By contributing you agree your work is released under the [GNU AGPL v3 licence](LICENSE).
+
+## Releasing
+
+A release is a `vX.Y.Z` tag; pushing it runs [.github/workflows/release.yml](.github/workflows/release.yml), which builds the
+four jars exactly as CI does and publishes them as assets of a GitHub Release, with that version's changelog section as the
+notes. The version comes from the poms, so the tag never sets it on its own: the workflow reads
+`mvn help:evaluate -Dexpression=project.version` and stops when it differs from the tag, because `plugin.yml`,
+`nukkit/plugin.yml`, `velocity-plugin.json` and `bungee.yml` filter that same value into the jar a server runs.
+
+1. Make sure `mvn -B verify` passes on `main` and that everything you want to ship is under *Unreleased* in the changelog.
+2. Set the version in `pom.xml` **and in the `<parent>` block of every module pom** (`core`, `spigot`, `nukkit`,
+   `proxy-common`, `velocity`, `bungee`) to `X.Y.Z`, without `-SNAPSHOT`.
+3. In `CHANGELOG.md`, turn `## [Unreleased]` into `## [X.Y.Z] - YYYY-MM-DD`, start a new empty *Unreleased* section, and add
+   the comparison and release links at the bottom.
+4. `git commit` as `chore: release vX.Y.Z`, then `git tag -a vX.Y.Z -m "MCDashboard X.Y.Z"` and push both the branch and the
+   tag. A tag with a pre-release part (`v1.1.0-rc1`) publishes a pre-release.
+5. Check the [Actions run](https://github.com/MVdWSoftware/mcdashboard-plugin/actions) and the
+   [release page](https://github.com/MVdWSoftware/mcdashboard-plugin/releases): four jars named `MCDashboard-<name>-X.Y.Z.jar`
+   and a `SHA256SUMS.txt`.
+
+Only a maintainer with write access may push a tag, and nothing else publishes a release: do not add another way to attach
+files to a release, and do not move a tag once it is released - cut a new version instead.

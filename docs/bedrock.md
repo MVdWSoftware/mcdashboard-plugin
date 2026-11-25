@@ -6,7 +6,8 @@ works as on Spigot: the same API, pairing, dashboards, history, events and tunne
 ## Install
 
 1. Put the [PlaceholderAPI for PowerNukkitX](https://powernukkitx.org/plugins/PowerNukkitX-Bundle.PlaceholderAPI)
-   (`pnx install PowerNukkitX-Bundle.PlaceholderAPI`) and `MCDashboard-Nukkit.jar` in `plugins/`.
+   (`pnx install PowerNukkitX-Bundle.PlaceholderAPI`) and `MCDashboard-Nukkit.jar` (the release asset is
+   `MCDashboard-Nukkit-<version>.jar`) in `plugins/`.
 2. Start the server once. Edit `plugins/MCDashboard/config.yml` and `placeholders.yml`, set `server.enabled: true`.
 3. Follow [installation.md](installation.md) for the reverse proxy and TLS.
 

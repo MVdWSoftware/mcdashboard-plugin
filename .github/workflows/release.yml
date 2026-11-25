@@ -1,0 +1,142 @@
+# Copyright (c) 2026 MVdW-Software
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Publishing a version. Pushing a `vX.Y.Z` tag builds the four plugin jars exactly as CI does and attaches them to a
+# GitHub Release, with the version's changelog section as its notes. The version is the one in the poms and the tag only
+# points at the commit, so the build stops when tag and poms disagree: a released jar can never claim a version its
+# source does not carry. Cut a release as described in CONTRIBUTING.md: bump every pom.xml to X.Y.Z, turn the changelog's
+# Unreleased section into `[X.Y.Z] - YYYY-MM-DD`, commit, tag `v<version>` and push the tag. A tag with a pre-release
+# part (`v1.1.0-rc1`) publishes a pre-release.
+name: Release
+on:
+  push:
+    tags: ['v*.*.*']
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false # a half-published release is worse than a slow one
+env:
+  # The jars `mvn -B verify` produces; each is published as `<name>-<version>.jar`.
+  JARS: |
+    spigot/target/MCDashboard.jar
+    nukkit/target/MCDashboard-Nukkit.jar
+    velocity/target/MCDashboard-Velocity.jar
+    bungee/target/MCDashboard-Bungee.jar
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with: { persist-credentials: false }
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
+        with: { distribution: temurin, java-version: '21', cache: maven }
+      # `plugin.yml`, `nukkit/plugin.yml`, `velocity-plugin.json` and `bungee.yml` filter ${project.version}, so this is
+      # the version the running plugin reports in `/mcdashboard about` and `/v1/info`.
+      - name: The version is the one in the poms
+        id: version
+        run: |
+          set -euo pipefail
+          version="$(mvn -B -ntp help:evaluate -Dexpression=project.version -q -DforceStdout)"
+          tag="${GITHUB_REF_NAME#v}"
+          if [ "$version" != "$tag" ]; then
+            echo "::error::the tag is v$tag but the poms say $version. Release from a commit that bumps every pom.xml to $tag (CONTRIBUTING.md)."
+            exit 1
+          fi
+          case "$version" in
+            *-*) echo "prerelease=true" >> "$GITHUB_OUTPUT" ;; # vX.Y.Z-rc1 is a pre-release
+            *) echo "prerelease=false" >> "$GITHUB_OUTPUT" ;;
+          esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Build, test and check coverage limits
+        run: mvn -B -ntp verify
+      - name: Jars contain only org/mcdashboard
+        run: |
+          set -euo pipefail
+          for jar in $JARS; do
+            if jar tf "$jar" | grep -vE '^(org/mcdashboard/|META-INF/|dashboards/|lang/|nukkit/|proxy/|skills/|[a-z-]+\.(yml|json)|org/$|dashboards/$|lang/$|nukkit/$|proxy/$)'; then
+              echo "::error::unexpected entries in $jar (nothing may be shaded)"; exit 1
+            fi
+          done
+      # The build keeps the plain names the docs use; the assets carry the version so an owner can tell at a glance
+      # which build they downloaded. A server does not care what the jar is called.
+      - name: Name the jars and checksum them
+        env: { VERSION: '${{ steps.version.outputs.version }}' }
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          for jar in $JARS; do
+            cp "$jar" "dist/$(basename "$jar" .jar)-$VERSION.jar"
+          done
+          (cd dist && sha256sum ./*.jar > SHA256SUMS.txt && cat SHA256SUMS.txt)
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: dist
+          path: dist
+          if-no-files-found: error
+          retention-days: 30
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write # the only job that may create a release
+    env:
+      VERSION: ${{ needs.build.outputs.version }}
+      PRERELEASE: ${{ needs.build.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with: { persist-credentials: false, fetch-depth: 1 }
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with: { name: dist, path: dist }
+      - name: Notes from the changelog
+        run: |
+          set -euo pipefail
+          # The `## [X.Y.Z] - date` section up to the next heading or the link definitions at the end of the file.
+          awk -v want="[$VERSION]" '
+            /^(## |\[)/ { if (keep) exit; keep = index($0, "## " want) == 1; next }
+            keep { print }
+          ' CHANGELOG.md > section.md
+          if [ ! -s section.md ]; then
+            echo "::warning::CHANGELOG.md has no \`## [$VERSION]\` section; add one in the release commit"
+          fi
+          {
+            echo "Built by the [Release workflow]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)"
+            echo "from [\`$GITHUB_SHA\`]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/tree/$GITHUB_SHA); every jar needs Java 17 or newer"
+            echo "(Java 21 for the PowerNukkitX jar)."
+            echo
+            if [ -s section.md ]; then
+              cat section.md
+            else
+              echo "No changelog section for $VERSION: see [CHANGELOG.md]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/$GITHUB_SHA/CHANGELOG.md)."
+            fi
+            echo
+            echo "| file | for |"
+            echo "|---|---|"
+            echo "| \`MCDashboard-$VERSION.jar\` | Spigot and Paper 1.18+ with PlaceholderAPI |"
+            echo "| \`MCDashboard-Nukkit-$VERSION.jar\` | PowerNukkitX 3 (Bedrock) |"
+            echo "| \`MCDashboard-Velocity-$VERSION.jar\` | Velocity |"
+            echo "| \`MCDashboard-Bungee-$VERSION.jar\` | BungeeCord and Waterfall |"
+            echo
+            echo "Check the download with \`sha256sum -c SHA256SUMS.txt\`."
+            echo "Installation: [docs/installation.md]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/$GITHUB_SHA/docs/installation.md)."
+          } > notes.md
+          cat notes.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish the release
+        env: { GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }
+        run: |
+          set -euo pipefail
+          args=(--target "$GITHUB_SHA" --verify-tag --title "MCDashboard $VERSION" --notes-file notes.md)
+          [ "$PRERELEASE" = true ] && args+=(--prerelease)
+          gh release create "$GITHUB_REF_NAME" "${args[@]}" dist/*
+      - name: What was published
+        run: |
+          {
+            echo "### Published [$GITHUB_REF_NAME]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$GITHUB_REF_NAME)"
+            echo
+            ls -1 dist | sed 's/^/`/; s/$/`/'
+          } >> "$GITHUB_STEP_SUMMARY"

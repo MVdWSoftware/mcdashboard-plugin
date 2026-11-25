@@ -2,6 +2,7 @@
 
 # MCDashboard plugin
 
+[![Release](https://img.shields.io/github/v/release/MVdWSoftware/mcdashboard-plugin)](https://github.com/MVdWSoftware/mcdashboard-plugin/releases/latest)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
 A Spigot/Paper plugin that publishes an allowlist of [PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.6245/)
@@ -18,7 +19,9 @@ Only placeholders you list in `placeholders.yml` are ever resolved, and nothing 
 ## Install
 
 1. Install PlaceholderAPI and the expansions you need.
-2. Download `MCDashboard.jar` and put it in `plugins/`, or build it yourself (below).
+2. Download the plugin from the [latest release](https://github.com/MVdWSoftware/mcdashboard-plugin/releases/latest)
+   (`MCDashboard-<version>.jar`) and put it in `plugins/`, or build it yourself (below). The server does not care what the
+   jar is called.
 3. Start the server once, review `plugins/MCDashboard/config.yml` ([reference](docs/configuration.md)) and
    `placeholders.yml`, set `server.enabled: true`.
 4. The plugin serves HTTPS itself (a self-signed certificate it generates, or your own); behind a TLS-terminating reverse proxy set `server.tls.mode: off`. Full guide: [docs/installation.md](docs/installation.md).
@@ -51,6 +54,10 @@ mvn -B verify    # spigot/target/MCDashboard.jar, nukkit/target/MCDashboard-Nukk
 ```
 
 `mvn -B verify` also runs JaCoCo (`<module>/target/site/jacoco/index.html`) and fails below the per-module limits in each `pom.xml`; the limits only go up.
+
+The [releases](https://github.com/MVdWSoftware/mcdashboard-plugin/releases) are these four jars, built by
+[.github/workflows/release.yml](.github/workflows/release.yml) from a `vX.Y.Z` tag, each named with its version
+(`MCDashboard-1.0.0.jar`) and listed with its SHA-256 in `SHA256SUMS.txt`.
 
 `core/` holds everything that does not depend on a server platform (the API, authentication, history, tunnel and
 dashboards; JDK only). `spigot/` and `nukkit/` are the Spigot/Paper and PowerNukkitX plugins around it; `velocity/` and `bungee/` are the proxy plugins, sharing `proxy-common/`. Each shades `core/` into its jar.

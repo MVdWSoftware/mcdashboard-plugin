@@ -6,7 +6,8 @@ events and tunnel, and the same app. This is the setup for the Network licence t
 
 ## Install
 
-1. Put the jar for your proxy in `plugins/`. No other plugin is needed.
+1. Put the jar for your proxy in `plugins/` - `MCDashboard-Velocity-<version>.jar` or `MCDashboard-Bungee-<version>.jar` from
+   the [releases page](https://github.com/MVdWSoftware/mcdashboard-plugin/releases). No other plugin is needed.
 2. Start the proxy once. Edit `plugins/MCDashboard/config.yml` (Velocity: `plugins/mcdashboard/`) and set `server.enabled: true`
    and `server.public-url`. The API listens on its own port (default 1553, plus 1554 for the live feed), so open them in the
    firewall or put it behind the [reverse proxy or tunnel](reverse-proxy.md).

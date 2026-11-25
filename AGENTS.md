@@ -22,6 +22,11 @@
 - **Javadoc is validated.** `mvn -B verify` runs doclint `all` and fails on every warning: document public/protected
   types, fields, constructors and methods, give each record component its `@param`, add `@return` to anything that
   returns and write tags as `@param name Description.` (no ` - `). Escape `<` inside `{@code ...}` as `{@code &lt;}`.
+- **A release is a tag.** Pushing `vX.Y.Z` runs `.github/workflows/release.yml`, which builds the four jars and publishes them
+  as a GitHub Release with a `SHA256SUMS.txt`. The version is the one in the poms: it is filtered into `plugin.yml`,
+  `nukkit/plugin.yml`, `velocity-plugin.json` and `bungee.yml`, and the workflow stops when tag and poms disagree. Cutting a
+  release therefore bumps `pom.xml` *and* the `<parent>` version of every module, and turns the changelog's *Unreleased*
+  section into the version (the steps are in `CONTRIBUTING.md`); a tagged commit never carries `-SNAPSHOT`.
 - **The marketing site is part of the change.** A new or changed placeholder type, command,
   permission, config key, dashboard feature, history behaviour, licence limit or network
   feature must update `docs/` **and** the public site

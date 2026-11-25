@@ -3,7 +3,9 @@
 On a Velocity or BungeeCord proxy there is no PlaceholderAPI: follow [proxy-platforms.md](proxy-platforms.md) instead of step 1.
 
 1. Install [PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.6245/) and any
-   expansions you want to expose, then copy `MCDashboard.jar` to `plugins/`.
+   expansions you want to expose, then copy the plugin jar to `plugins/`: `MCDashboard-<version>.jar` from the
+   [latest release](https://github.com/MVdWSoftware/mcdashboard-plugin/releases/latest), or `spigot/target/MCDashboard.jar`
+   if you built it yourself. The name is yours to choose.
 2. Start the server once, edit `plugins/MCDashboard/config.yml` and set `server.enabled: true`.
 3. List the placeholders players may see in `placeholders.yml` (one `id` each) and arrange them in
    `dashboards/player.yml` or a dashboard file of your own. The file name becomes its permission, so
