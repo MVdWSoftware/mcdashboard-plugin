@@ -5,6 +5,14 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-25
+
+First release. Everything the plugin does today: the SenML REST API and live feed, pairing and revocation, HTTPS,
+placeholders and dashboards, history, the tunnel, the PowerNukkitX plugin and the Velocity and BungeeCord plugins.
+Owners download the four jars from the [releases page](https://github.com/MVdWSoftware/mcdashboard-plugin/releases);
+each is built by CI from the tag, named `MCDashboard-<name>-1.0.0.jar`, and listed with its SHA-256 in `SHA256SUMS.txt`.
+How a release is cut: [CONTRIBUTING.md](CONTRIBUTING.md#releasing).
+
 ### Security
 - **Breaking default:** `security.require-authentication` is now `true`; anonymous reading of PUBLIC placeholders is opt-in.
 - **Breaking default:** the API and the live feed serve HTTPS (`server.tls.mode: self-signed`). Behind a reverse proxy that terminates TLS, set
@@ -137,3 +145,6 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - `GET /v1/history/{id}` answers 200 instead of 500 for an out-of-range `since`.
 - `plugin.yml` lists the `qr` and `tunnel` sub-commands; the bundled `server.yml` no longer carries an unused key.
 - `docs/examples/apache.vhost` is a working TLS, WebSocket and cache example.
+
+[Unreleased]: https://github.com/MVdWSoftware/mcdashboard-plugin/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/MVdWSoftware/mcdashboard-plugin/releases/tag/v1.0.0
