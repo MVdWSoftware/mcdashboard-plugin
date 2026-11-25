@@ -59,8 +59,7 @@ class SettingsGapsTest {
     }
 
     @Test
-    void tlsModeReadsBooleansTextAndBlank() {
-        assertEquals("self-signed", load(new ArrayList<>(), "server.tls.mode", true).tls().mode());
+    void tlsModeReadsBooleansTextAndBlank() {        assertEquals("self-signed", load(new ArrayList<>(), "server.tls.mode", true).tls().mode());
         assertEquals("off", load(new ArrayList<>(), "server.tls.mode", false).tls().mode());
         assertEquals("self-signed", load(new ArrayList<>(), "server.tls.mode", " ").tls().mode());
         assertEquals("custom", load(new ArrayList<>(), "server.tls.mode", " Custom ").tls().mode());
@@ -102,5 +101,29 @@ class SettingsGapsTest {
         assertTrue(load(new ArrayList<>(), "server.host", "10.1.1.1", "tunnel.enabled", true).trustedProxies().contains("10.1.1.1"));
         assertEquals("fallback", load(new ArrayList<>()).nameOr("fallback"));
         assertEquals("Named", load(new ArrayList<>(), "server.name", "Named").nameOr("fallback"));
+    }
+
+    @Test
+    void aWebhookOnlyNeedsAHostAndASchemeAndHttpsNeverWarns() {
+        List<String> w = new ArrayList<>();
+        Settings s = load(w, "events.webhooks", List.of(
+                Map.of("url", "//example.org/hook", "secret", "0123456789abcdef"),
+                Map.of("url", "example.org/hook", "secret", "0123456789abcdef"),
+                Map.of("url", "https://example.org/hook", "secret", "0123456789abcdef")));
+        assertEquals(1, s.webhooks().size(), w.toString());
+        assertEquals("https://example.org/hook", s.webhooks().get(0).url().toString());
+        assertEquals(2, w.stream().filter(m -> m.contains("ignoring")).count(), w.toString());
+        assertTrue(w.stream().noneMatch(m -> m.contains("plain HTTP")), w.toString());
+    }
+
+    @Test
+    void blankSettingsKeepTheirDefaultAndHistoryComesThroughAsConfig() {
+        List<String> w = new ArrayList<>();
+        Settings s = load(w, "server.host", "  ", "messages.prefix", "", "history.storage.port", 70000);
+        assertEquals("127.0.0.1", s.localHost(), "a blank bind address is every address");
+        assertEquals("", s.prefix(), "an empty prefix means the plugin does not decorate its chat lines");
+        assertTrue(w.stream().anyMatch(m -> m.equals("config.yml: history.storage.port must be a number from 1 to 65535: using 3306")),
+                w.toString());
+        assertEquals(3306, s.history().storage().port());
     }
 }

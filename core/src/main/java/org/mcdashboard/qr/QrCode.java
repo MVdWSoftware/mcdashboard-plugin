@@ -31,7 +31,7 @@ public final class QrCode {
         this.isFunction = new boolean[size][size];
         drawFunctionPatterns();
         drawCodewords(addEccAndInterleave(data));
-        applyMask(0);
+        applyMask();
         drawFormatBits(0);
     }
 
@@ -227,16 +227,15 @@ public final class QrCode {
         }
     }
 
-    private void applyMask(int mask) {
+    /**
+     * Mask 0, the only mask this encoder uses: every data cell whose {@code x + y} is even is inverted. The mask number is
+     * written into the format bits, so a scanner that prefers another mask still reads the picture; offering more than one
+     * mask would only mean encoding every symbol eight times to score them.
+     */
+    private void applyMask() {
         for (int y = 0; y < size; y++) {
             for (int x = 0; x < size; x++) {
-                boolean invert = switch (mask) {
-                    case 0 -> (x + y) % 2 == 0;
-                    case 1 -> y % 2 == 0;
-                    case 2 -> x % 3 == 0;
-                    default -> (x + y) % 3 == 0;
-                };
-                if (!isFunction[y][x] && invert) modules[y][x] = !modules[y][x];
+                if (!isFunction[y][x] && (x + y) % 2 == 0) modules[y][x] = !modules[y][x];
             }
         }
     }

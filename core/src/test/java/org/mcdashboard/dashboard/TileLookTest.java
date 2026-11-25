@@ -99,4 +99,21 @@ class TileLookTest {
         assertEquals(Map.of("url", "https://x.com/a.png", "dim", 0.4, "blur", 0.0, "fit", "cover"), imageOnly);
         assertNull(TileLook.options(Map.of("background", "red")));
     }
+
+    @Test
+    void aStyleOrBlurThatCannotBeUsedIsNotPassedToTheApp() {
+        assertNull(TileLook.options(Map.of("style", "hearts!")), "not one of the progress styles");
+        assertNull(TileLook.options(Map.of("style", 7)), "not a name at all");
+        Map<String, Object> bg = new LinkedHashMap<>();
+        bg.put("url", "https://x.com/a.png");
+        bg.put("blur", Double.NaN);
+        bg.put("dim", Double.POSITIVE_INFINITY);
+        bg.put("fit", 5);
+        TileLook.BackgroundImage image = TileLook.backgroundImage(bg);
+        assertEquals(0, image.blur(), "NaN would blur the whole tile away");
+        assertEquals(0.4, image.dim());
+        assertEquals("cover", image.fit());
+        assertNull(TileLook.icon("mdi:home!"));
+        assertNull(TileLook.icon("mdi/home:home"));
+    }
 }

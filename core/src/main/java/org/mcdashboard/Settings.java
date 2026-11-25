@@ -59,7 +59,7 @@ record Settings(boolean enabled, String name, String defaultLanguage, String pub
                 blankToNull(cfg.getString("server.public-url", "")),
                 cfg.getStringList("server.endpoints"),
                 cfg.getBoolean("server.discovery-only", false),
-                host == null ? "" : host,
+                host,
                 cfg.getInt("server.port", 1553),
                 polling,
                 websocketPort,
@@ -148,7 +148,7 @@ record Settings(boolean enabled, String name, String defaultLanguage, String pub
 
     /** {@code messages.prefix} with {@code &} colour codes turned into {@code §}; empty means no prefix. */
     String prefix() {
-        return chatPrefix == null ? "" : chatPrefix.replace('&', '§');
+        return chatPrefix.replace('&', '§');
     }
 
     /** {@code server.name}, or {@code fallback} when it is not set. */
@@ -162,7 +162,7 @@ record Settings(boolean enabled, String name, String defaultLanguage, String pub
     }
 
     private static String localHost(String host) {
-        return host == null || host.isBlank() || host.equals("0.0.0.0") || host.equals("::") ? "127.0.0.1" : host;
+        return host.isBlank() || host.equals("0.0.0.0") || host.equals("::") ? "127.0.0.1" : host;
     }
 
     /** {@code server.tls.mode}; a bare {@code off} is read by YAML 1.1 as the boolean false, so that means off too. */

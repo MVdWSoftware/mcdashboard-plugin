@@ -201,6 +201,28 @@ class HistoryGapsTest {
     }
 
     @Test
+    void imagesAndListsAreNeverSampledAndANumberOutsideItsRangeFallsBack() {
+        List<String> warnings = new ArrayList<>();
+        HistorySettings s = HistorySettings.parse(Map.of("include", List.of("*"),
+                "storage", Map.of("type", "sqlite", "port", 70_000)), "srv", warnings::add);
+        assertEquals(3306, s.storage().port(), "a port out of range falls back to the default");
+        assertTrue(warnings.stream().anyMatch(m -> m.contains("history.storage.port must be a number from 1 to 65535")), warnings.toString());
+
+        Map<String, Object> list = new java.util.LinkedHashMap<>();
+        list.put("id", "top");
+        list.put("type", "LIST");
+        list.put("rows", 5);
+        list.put("columns", Map.of("name", "%lb_{n}_name%"));
+        list.put("history", 60);
+        List<PlaceholderDefinition> defs = PlaceholderDefinition.parseAll(List.of(
+                Map.of("id", "pic", "type", "IMAGE", "source", "url:https://example.org/a.png", "history", 60), list), m -> fail(m));
+        for (PlaceholderDefinition d : s.apply(defs)) {
+            assertEquals(0, d.historyMinutes(), d.id() + " carries a picture or a table: nothing to sample");
+            assertEquals(s.retentionDays() * 86_400_000L, s.retentionMs(d), "so its range is the server's retention");
+        }
+    }
+
+    @Test
     void dialectsDifferWhereTheyShould() {
         assertNull(SqlDialect.of(null));
         assertNull(SqlDialect.of("oracle"));

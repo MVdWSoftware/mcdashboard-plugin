@@ -78,6 +78,33 @@ class CoreVariantsTest {
         assertTrue(logged("Tunnel not started"), platform.logged.toString());
     }
 
+    /** The bind address goes into the certificate's subject alternative names, except when it is every address. */
+    @Test
+    void bindingEveryAddressKeepsTheCertificateOnTheHostNamesOnly() throws Exception {
+        Files.writeString(data.resolve("config.yml"), "server:\n  enabled: true\n  host: 0.0.0.0\n  port: " + freePort()
+                + "\n  tls:\n    mode: self-signed\n  websocket:\n    enabled: false\n  public-url: https://mc.example.org/api\n");
+        platform = new FakePlatform();
+        core = new MCDashboardCore(platform, new SnakeYamlCodec(), data);
+        core.start();
+        assertTrue(logged("TLS certificate (self-signed)"), platform.logged.toString());
+        assertTrue(logged("SHA-256 fingerprint"), platform.logged.toString());
+    }
+
+    /** The loopback listeners exist for the tunnel only, and only carry the live feed when the live feed is on. */
+    @Test
+    void aTunnelWithoutTheLiveFeedGetsNoLoopbackFeed() throws Exception {
+        start("self-signed", "false", "tunnel:\n  enabled: true\n  url: ws://127.0.0.1:9/tunnel\n"
+                + "  key: kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk\n  allow-insecure: true\n");
+        assertNotNull(core.tunnel());
+        assertFalse(logged("Live feed"), platform.logged.toString());
+    }
+
+    @Test
+    void typedPlayerNamesWarnTheOwnerLoudly() throws Exception {
+        start("off", "true", "security:\n  allow-player-names: true\n");
+        assertTrue(logged("security.allow-player-names is on"), platform.logged.toString());
+    }
+
     @Test
     void tunnelWithTlsStartsTheLoopbackListeners() throws Exception {
         start("self-signed", "true", "tunnel:\n  enabled: true\n  url: ws://127.0.0.1:9/tunnel\n  key: kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk\n  allow-insecure: true\n");

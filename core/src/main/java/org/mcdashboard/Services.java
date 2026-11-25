@@ -275,8 +275,8 @@ final class Services {
         return "MCDashboard".equals(d.group()) && d.value() != null && d.value().startsWith("%mcdashboard_");
     }
 
-    /** Live-feed connections on the public and the loopback listener. */
-    private int liveConnections() {
+    /** Live-feed connections on the public and the loopback listener; 0 for either listener that is not running. */
+    int liveConnections() {
         return (live == null ? 0 : live.connections()) + (loopbackLive == null ? 0 : loopbackLive.connections());
     }
 
