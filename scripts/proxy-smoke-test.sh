@@ -4,8 +4,8 @@
 # the backend's placeholders.
 # Needs docker, curl, python3, unzip and a built tree (mvn -B package). Uses throwaway containers named mcd-smoke-* and the
 # docker network mcd-smoke-net (no published ports: the API is read through a curl container on the same network), and removes them at the end.
-# The servers run as this user (UID/GID for the paper image, PUID/PGID for the proxy one), so the config files they
-# write between the two passes are ours to edit; without that the containers write them as root and the edits fail on CI.
+# The servers own the files they write, so every edit between the two passes runs in a one-shot container: on CI the job
+# user is not the uid the images use, and host-side sed fails with "couldn't open temporary file ... Permission denied".
 # Usage: scripts/proxy-smoke-test.sh [workdir]
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -34,9 +34,17 @@ wait_for() { # wait_for <seconds> <test command...>: give a passing test a deadl
     sleep 3
   done
 }
+edit() { # edit <file under $W> <sed expression>...: rewrite a file a server wrote, as the user that owns it. The images
+        # run their server as their own uid (1000 on the paper image, bungeecord/velocity on the proxy one), which on CI
+        # is not the job user, so the same sed run host-side cannot even create its temporary file.
+  docker run -i --rm --network none -v "$W:/w" -w /w --entrypoint sh itzg/minecraft-server -s -- "$@" <<'SH'
+f=$1; shift
+[ -f "$f" ] || { echo "no such file: $f" >&2; exit 1; }
+for e in "$@"; do sed -i "$e" "$f"; done
+SH
+}
 cfg() { # config.yml: open the API without TLS or pairing, poll quickly, federate the lobby
-  sed -i '0,/enabled: false/s//enabled: true/; s/mode: self-signed/mode: off/; s/require-authentication: true/require-authentication: false/; s/ping-interval: 15/ping-interval: 5/; s/federation-interval: 15/federation-interval: 5/' "$1"
-  sed -i 's/^  backends: \[\]/  backends:\n    - name: lobby\n      url: "http:\/\/mcd-smoke-paper:1553"\n      key: ""\n      pin: ""/' "$1"
+  edit "$1" '0,/enabled: false/s//enabled: true/' 's/mode: self-signed/mode: off/' 's/require-authentication: true/require-authentication: false/' 's/ping-interval: 15/ping-interval: 5/' 's/federation-interval: 15/federation-interval: 5/' 's/^  backends: \[\]/  backends:\n    - name: lobby\n      url: "http:\/\/mcd-smoke-paper:1553"\n      key: ""\n      pin: ""/'
 }
 mkdir -p "$W"/{paper/plugins/PlaceholderAPI/expansions,vel/plugins,bun/plugins}
 cd "$W"
@@ -49,20 +57,20 @@ curl -sfL -o paper/plugins/PlaceholderAPI/expansions/Server.jar https://dl.place
 
 # Pass 1: let every server write its default files, then configure them.
 docker run -d --name mcd-smoke-paper --network $NET -e EULA=TRUE -e TYPE=PAPER -e VERSION=1.21.4 -e ONLINE_MODE=false \
-  -e MEMORY=1G -e UID="$(id -u)" -e GID="$(id -g)" -v "$W/paper:/data" itzg/minecraft-server >/dev/null
-docker run -d --name mcd-smoke-vel --network $NET -e TYPE=VELOCITY -e MEMORY=512M -e PUID="$(id -u)" -e PGID="$(id -g)" -v "$W/vel:/server" itzg/mc-proxy >/dev/null
-docker run -d --name mcd-smoke-bun --network $NET -e TYPE=BUNGEECORD -e MEMORY=512M -e PUID="$(id -u)" -e PGID="$(id -g)" -v "$W/bun:/server" itzg/mc-proxy >/dev/null
+  -e MEMORY=1G -v "$W/paper:/data" itzg/minecraft-server >/dev/null
+docker run -d --name mcd-smoke-vel --network $NET -e TYPE=VELOCITY -e MEMORY=512M -v "$W/vel:/server" itzg/mc-proxy >/dev/null
+docker run -d --name mcd-smoke-bun --network $NET -e TYPE=BUNGEECORD -e MEMORY=512M -v "$W/bun:/server" itzg/mc-proxy >/dev/null
 wait_for 300 sh -c 'for f in paper/plugins/MCDashboard/config.yml vel/plugins/mcdashboard/config.yml bun/plugins/MCDashboard/config.yml vel/velocity.toml bun/config.yml; do [ -f "$f" ] || exit 1; done'
 sleep 5
 docker stop mcd-smoke-paper mcd-smoke-vel mcd-smoke-bun >/dev/null
-sed -i '0,/enabled: false/s//enabled: true/; s/mode: self-signed/mode: off/; s/require-authentication: true/require-authentication: false/; s/allowed-clients: \[\]/allowed-clients: ["MCDashboard-Proxy\/.*"]/; s/offer-to-app: false/offer-to-app: true/' paper/plugins/MCDashboard/config.yml
+edit paper/plugins/MCDashboard/config.yml '0,/enabled: false/s//enabled: true/' 's/mode: self-signed/mode: off/' 's/require-authentication: true/require-authentication: false/' 's/allowed-clients: \[\]/allowed-clients: ["MCDashboard-Proxy\/.*"]/' 's/offer-to-app: false/offer-to-app: true/'
 cfg vel/plugins/mcdashboard/config.yml
 cfg bun/plugins/MCDashboard/config.yml
 for f in vel/plugins/mcdashboard/placeholders.yml bun/plugins/MCDashboard/placeholders.yml; do
-  sed -i 's/^#  - expansion: backend/  - expansion: backend/; s/^#    group: Backends/    group: Backends/; s/^#    access: PUBLIC/    access: PUBLIC/' "$f"
+  edit "$f" 's/^#  - expansion: backend/  - expansion: backend/' 's/^#    group: Backends/    group: Backends/' 's/^#    access: PUBLIC/    access: PUBLIC/'
 done
-sed -i 's/^online-mode = true/online-mode = false/; s#lobby = "127.0.0.1:30066"#lobby = "mcd-smoke-paper:25565"#; s#minigames = "127.0.0.1:30068"#minigames = "mcd-smoke-paper:25999"#' vel/velocity.toml
-sed -i 's/^online_mode: true/online_mode: false/; s/address: localhost:25565/address: mcd-smoke-paper:25565/; s/^    restricted: false/    restricted: false\n  minigames:\n    motd: down\n    address: mcd-smoke-paper:25999\n    restricted: false/' bun/config.yml
+edit vel/velocity.toml 's/^online-mode = true/online-mode = false/' 's#lobby = "127.0.0.1:30066"#lobby = "mcd-smoke-paper:25565"#' 's#minigames = "127.0.0.1:30068"#minigames = "mcd-smoke-paper:25999"#'
+edit bun/config.yml 's/^online_mode: true/online_mode: false/' 's/address: localhost:25565/address: mcd-smoke-paper:25565/' 's/^    restricted: false/    restricted: false\n  minigames:\n    motd: down\n    address: mcd-smoke-paper:25999\n    restricted: false/'
 
 # Pass 2: run.
 docker start mcd-smoke-paper >/dev/null
