@@ -54,6 +54,8 @@ Tap a tile for its value, unit, range and chart period. One glance tells you whe
 
 [CENTER][IMG]https://mcdashboard.org/assets/store/widgets.png[/IMG][/CENTER]
 
+[CENTER][URL='https://play.google.com/store/apps/details?id=org.mcdashboard.app'][IMG]https://mcdashboard.org/assets/store/badge-google-play.png[/IMG][/URL] [URL='https://apps.apple.com/app/id6836318219'][IMG]https://mcdashboard.org/assets/store/badge-app-store.png[/IMG][/URL][/CENTER]
+
 [SIZE=5][B]The world tab[/B] is not a separate map integration: it is an IMAGE placeholder. Point it at dynmap, squaremap, Pl3xMap or BlueMap, or at any picture, and it appears next to the stats like any other tile. It looks like this.[/SIZE]
 
 [CENTER][IMG]https://mcdashboard.org/assets/store/map.png[/IMG][/CENTER]
@@ -94,13 +96,24 @@ Prices include VAT. Cancel any time. Nothing is deleted when a licence ends: ext
 [IMG]https://mcdashboard.org/assets/store/sec-install.png[/IMG]
 [SIZE=5]Four steps, and the security is as strict as you want it to be.[/SIZE]
 
-[SIZE=5][B]1.[/B] [B]Install[/B] [URL='https://www.spigotmc.org/resources/placeholderapi.6245/']PlaceholderAPI[/URL] and the expansions you want to show, then put [B]MCDashboard.jar[/B] in [I]plugins/[/I].[/SIZE]
+[SIZE=5][B]1.[/B] [B]Install[/B] [URL='https://www.spigotmc.org/resources/placeholderapi.6245/']PlaceholderAPI[/URL] and the expansions you want to show, then put the jar for your platform in [I]plugins/[/I] (see Downloads below).[/SIZE]
 
 [SIZE=5][B]2.[/B] [B]Start the server once[/B], open [I]plugins/MCDashboard/config.yml[/I] and set [I]server.enabled: true[/I]. Choose the certificate: self-signed, your own, or TLS off behind a reverse proxy.[/SIZE]
 
 [SIZE=5][B]3.[/B] [B]Choose what is visible[/B] in [I]placeholders.yml[/I], and arrange the preset dashboards in [I]dashboards/[/I]. A placeholder can be PUBLIC (anyone with the address) or PLAYER (only the paired player), and can require a permission.[/SIZE]
 
 [SIZE=5][B]4.[/B] [B]Run [I]/mcdashboard link[/I][/B], open the app, add the server and enter the code. [I]/mcdashboard devices[/I] lists the paired devices; [I]/mcdashboard revoke <id>[/I] cuts one off immediately.[/SIZE]
+
+[SIZE=5][B]Downloads.[/B] Every version is published on [URL='https://github.com/MVdWSoftware/mcdashboard-plugin/releases']GitHub Releases[/URL], with a checksums file and the changelog. Pick the jar for your platform ([URL='https://github.com/MVdWSoftware/mcdashboard-plugin/releases/latest']latest release[/URL]):[/SIZE]
+
+[LIST]
+[*][B]Spigot / Paper 1.18+[/B] (Java 17, needs PlaceholderAPI): [I]MCDashboard-<version>.jar[/I]
+[*][B]BungeeCord / Waterfall[/B] (Java 17): [I]MCDashboard-Bungee-<version>.jar[/I]
+[*][B]Velocity 3.x[/B] (Java 17): [I]MCDashboard-Velocity-<version>.jar[/I]
+[*][B]PowerNukkitX 3, Bedrock[/B] (Java 21, needs PlaceholderAPI for PowerNukkitX): [I]MCDashboard-Nukkit-<version>.jar[/I]
+[/LIST]
+
+[SIZE=3][I]Pre-releases (for example v1.1.0-rc1) are marked as such on GitHub and are not the latest release.[/I][/SIZE]
 
 [SIZE=5][B]Required:[/B] Java 17 and Spigot or Paper 1.18+, with PlaceholderAPI. [B]Bedrock:[/B] PowerNukkitX 3 and Java 21, with the PlaceholderAPI for PowerNukkitX. [B]Networks:[/B] Velocity 3.x or BungeeCord/Waterfall, Java 17, no PlaceholderAPI needed.
 

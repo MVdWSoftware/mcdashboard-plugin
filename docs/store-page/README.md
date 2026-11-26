@@ -10,6 +10,7 @@ served from <https://mcdashboard.org/assets/store/>.
 | `sec-*.png` | Section headers: Features, The app, Free vs paid, Getting started, About. |
 | `ic-*.png` | The 40px feature tiles (live, shield, lock, chart, widgets, map, layout, network), inline before each feature line. |
 | `plan-*.png` | The Free, App unlock and Server licence cards above their comparison lists. |
+| `badge-*.png` | The official Google Play and App Store badges (static; `badge-*-nl.png` are the Dutch variants), linked to the store listings. |
 | `btn-*.png` | The linked buttons, three per row, FeatherBoard style. |
 | `app.png` | Three app screens: dashboard, Minecraft style, edit mode. |
 | `widgets.png` | Android and iOS home-screen widgets. |
