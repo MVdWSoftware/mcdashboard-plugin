@@ -1,20 +1,30 @@
 #!/usr/bin/env bash
-# Smoke test of the Velocity and BungeeCord jars on real proxies in Docker (see docs/proxy-platforms.md).
+# Smoke test of the Paper backend plus the Velocity and BungeeCord jars on real servers in Docker
+# (see docs/proxy-platforms.md): every jar is checked on its own platform, and the proxies are checked again federating
+# the backend's placeholders.
 # Needs docker, curl, python3 and a built tree (mvn -B package). Uses throwaway containers named mcd-smoke-* and the
-# docker network mcd-smoke-net (no published ports: the API is read through `docker exec`), and removes them at the end.
+# docker network mcd-smoke-net (no published ports: the API is read through a curl container on the same network), and removes them at the end.
 # Usage: scripts/proxy-smoke-test.sh [workdir]
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 W=${1:-$(mktemp -d)}
 NET=mcd-smoke-net
 fail=0
-cleanup() { docker rm -f mcd-smoke-paper mcd-smoke-vel mcd-smoke-bun mcd-smoke-curl >/dev/null 2>&1 || true; docker network rm $NET >/dev/null 2>&1 || true; }
+cleanup() { for c in mcd-smoke-paper mcd-smoke-vel mcd-smoke-bun; do docker logs $c > "$W/logs-$c.txt" 2>&1 || true; docker rm -f $c >/dev/null 2>&1 || true; done; docker network rm $NET >/dev/null 2>&1 || true; }
 trap cleanup EXIT
+for c in mcd-smoke-paper mcd-smoke-vel mcd-smoke-bun; do docker rm -f $c >/dev/null 2>&1 || true; done
 check() { if [ "$2" = "$3" ]; then echo "ok    $1"; else echo "FAIL  $1: expected '$3', got '$2'"; fail=1; fi; }
 # get <host> <path>: the API of a container, with the app's User-Agent (a throwaway curl container on the same network).
 get() { docker run --rm --network $NET curlimages/curl -s -A 'MCDashboard/1.0.0 (android)' "http://$1:1553$2"; }
 val() { # host id -> v, vb or vs of the first record of /v1/values
   get "$1" "/v1/values?ids=$2" | python3 -c "import json,sys; r=json.load(sys.stdin)[0]; print(r.get('vb', r.get('v', r.get('vs'))))" | tr 'A-Z' 'a-z'
+}
+wait_for() { # wait_for <seconds> <test command...>: give a passing test a deadline
+  local end=$((SECONDS+$1)); shift
+  until "$@" 2>/dev/null; do
+    [ $SECONDS -lt $end ] || return 1
+    sleep 3
+  done
 }
 cfg() { # config.yml: open the API without TLS or pairing, poll quickly, federate the lobby
   sed -i '0,/enabled: false/s//enabled: true/; s/mode: self-signed/mode: off/; s/require-authentication: true/require-authentication: false/; s/ping-interval: 15/ping-interval: 5/; s/federation-interval: 15/federation-interval: 5/' "$1"
@@ -22,7 +32,7 @@ cfg() { # config.yml: open the API without TLS or pairing, poll quickly, federat
 }
 mkdir -p "$W"/{paper/plugins/PlaceholderAPI/expansions,vel/plugins,bun/plugins}
 cd "$W"
-docker network create $NET >/dev/null
+docker network create $NET >/dev/null 2>&1 || true
 cp "$ROOT/spigot/target/MCDashboard.jar" paper/plugins/
 cp "$ROOT/velocity/target/MCDashboard-Velocity.jar" vel/plugins/
 cp "$ROOT/bungee/target/MCDashboard-Bungee.jar" bun/plugins/
@@ -34,11 +44,10 @@ docker run -d --name mcd-smoke-paper --network $NET -e EULA=TRUE -e TYPE=PAPER -
   -e MEMORY=1G -v "$W/paper:/data" itzg/minecraft-server >/dev/null
 docker run -d --name mcd-smoke-vel --network $NET -e TYPE=VELOCITY -e MEMORY=512M -v "$W/vel:/server" itzg/mc-proxy >/dev/null
 docker run -d --name mcd-smoke-bun --network $NET -e TYPE=BUNGEECORD -e MEMORY=512M -v "$W/bun:/server" itzg/mc-proxy >/dev/null
-until [ -f paper/plugins/MCDashboard/config.yml ] && [ -f vel/plugins/mcdashboard/config.yml ] && [ -f bun/plugins/MCDashboard/config.yml ] \
-  && [ -f vel/velocity.toml ] && [ -f bun/config.yml ]; do sleep 3; done
+wait_for 300 sh -c 'for f in paper/plugins/MCDashboard/config.yml vel/plugins/mcdashboard/config.yml bun/plugins/MCDashboard/config.yml vel/velocity.toml bun/config.yml; do [ -f "$f" ] || exit 1; done'
 sleep 5
 docker stop mcd-smoke-paper mcd-smoke-vel mcd-smoke-bun >/dev/null
-sed -i '0,/enabled: false/s//enabled: true/; s/mode: self-signed/mode: off/; s/require-authentication: true/require-authentication: false/; s/allowed-clients: \[\]/allowed-clients: ["MCDashboard-Proxy\/.*"]/' paper/plugins/MCDashboard/config.yml
+sed -i '0,/enabled: false/s//enabled: true/; s/mode: self-signed/mode: off/; s/require-authentication: true/require-authentication: false/; s/allowed-clients: \[\]/allowed-clients: ["MCDashboard-Proxy\/.*"]/; s/offer-to-app: false/offer-to-app: true/' paper/plugins/MCDashboard/config.yml
 cfg vel/plugins/mcdashboard/config.yml
 cfg bun/plugins/MCDashboard/config.yml
 for f in vel/plugins/mcdashboard/placeholders.yml bun/plugins/MCDashboard/placeholders.yml; do
@@ -49,9 +58,17 @@ sed -i 's/^online_mode: true/online_mode: false/; s/address: localhost:25565/add
 
 # Pass 2: run.
 docker start mcd-smoke-paper >/dev/null
-until docker logs mcd-smoke-paper 2>&1 | grep -q 'Done ('; do sleep 3; done
+wait_for 300 sh -c "docker logs mcd-smoke-paper 2>&1 | grep -q 'Done ('"
 docker start mcd-smoke-vel mcd-smoke-bun >/dev/null
 sleep 50
+echo "== paper"
+check "paper plugin loaded without errors" "$(docker logs mcd-smoke-paper 2>&1 | grep -c -E 'Exception|NoClassDefFound|Could not load plugin' || true)" 0
+check "paper /v1/info plugin" "$(get mcd-smoke-paper /v1/info | python3 -c 'import json,sys; print(json.load(sys.stdin)["plugin"])')" MCDashboard
+check "paper /v1/info server" "$(get mcd-smoke-paper /v1/info | python3 -c 'import json,sys; print(json.load(sys.stdin)["name"])')" Paper
+check "paper online" "$(val mcd-smoke-paper online)" 0
+check "paper max_players is not negative" "$(val mcd-smoke-paper max-players | grep -c -- '^-' || true)" 0
+check "paper tps is a number" "$(val mcd-smoke-paper tps | grep -cE '^[0-9]+(\.[0-9]+)?$' || true)" 1
+check "paper mcdashboard-devices" "$(val mcd-smoke-paper mcdashboard-devices)" 0
 for p in "velocity vel Velocity 3" "bungee bun BungeeCord 2"; do
   set -- $p
   echo "== $1"

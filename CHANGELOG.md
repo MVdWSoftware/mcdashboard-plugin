@@ -5,6 +5,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Testing
+- End-to-end smoke tests now cover every platform: `scripts/nukkit-smoke-test.sh` runs `MCDashboard-Nukkit.jar` on a real
+  PowerNukkitX in Docker (with the PlaceholderAPI for PowerNukkitX) and checks the API and the plugin's own placeholders;
+  `scripts/proxy-smoke-test.sh` additionally checks the Paper backend's own API, not just the proxies federating it. Both
+  run in CI on changes to the scripts and nightly ([.github/workflows/e2e.yml](.github/workflows/e2e.yml)).
+
 ## [1.0.0] - 2026-11-25
 
 First release. Everything the plugin does today: the SenML REST API and live feed, pairing and revocation, HTTPS,

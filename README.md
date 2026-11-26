@@ -55,6 +55,14 @@ mvn -B verify    # spigot/target/MCDashboard.jar, nukkit/target/MCDashboard-Nukk
 
 `mvn -B verify` also runs JaCoCo (`<module>/target/site/jacoco/index.html`) and fails below the per-module limits in each `pom.xml`; the limits only go up.
 
+## End-to-end smoke tests
+
+Beyond the unit tests, `scripts/` runs each jar on a real server in Docker and reads its API the way the app does:
+`scripts/proxy-smoke-test.sh` (a Paper backend plus a Velocity and a BungeeCord proxy, including federation of the
+backend's placeholders) and `scripts/nukkit-smoke-test.sh` (PowerNukkitX with its PlaceholderAPI). They need docker,
+curl and python3 plus built jars (`mvn -B package`), and CI runs them on every change to the scripts and nightly
+([.github/workflows/e2e.yml](.github/workflows/e2e.yml)).
+
 The [releases](https://github.com/MVdWSoftware/mcdashboard-plugin/releases) are these four jars, built by
 [.github/workflows/release.yml](.github/workflows/release.yml) from a `vX.Y.Z` tag, each named with its version
 (`MCDashboard-1.0.0.jar`) and listed with its SHA-256 in `SHA256SUMS.txt`.
