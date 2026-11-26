@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Smoke test of the MCDashboard-Nukkit jar on a real PowerNukkitX server in Docker (see docs/bedrock.md).
-# Needs docker, curl, python3 and a built tree (mvn -B package). Uses a throwaway container named mcd-smoke-pnx and the
+# Needs docker, curl, python3, unzip and a built tree (mvn -B package). Uses a throwaway container named mcd-smoke-pnx and the
 # docker network mcd-smoke-net (no published ports: the API is read through a curl container on the same network), and
 # removes them at the end. The server runs as the current user so that config.yml can be edited between the passes.
 # Usage: scripts/nukkit-smoke-test.sh [workdir]
@@ -18,6 +18,9 @@ check() { if [ "$2" = "$3" ]; then echo "ok    $1"; else echo "FAIL  $1: expecte
 get() { docker run --rm --network $NET curlimages/curl -s -A 'MCDashboard/1.0.0 (android)' "http://$1:1553$2"; }
 val() { # host id -> v, vb or vs of the first record of /v1/values
   get "$1" "/v1/values?ids=$2" | python3 -c "import json,sys; r=json.load(sys.stdin)[0]; print(r.get('vb', r.get('v', r.get('vs'))))" | tr 'A-Z' 'a-z'
+}
+yml_version() { # <jar> <plugin.yml> -> the version the server will report
+  unzip -p "$1" "$2" | sed -n 's/^version: *"\{0,1\}\([^"]*\)"\{0,1\}$/\1/p' | head -1
 }
 wait_for() { # wait_for <seconds> <test command...>: give a passing test a deadline
   local end=$((SECONDS+$1)); shift
@@ -49,6 +52,7 @@ check "powernukkitx plugin loaded without errors" "$(docker logs mcd-smoke-pnx 2
 check "powernukkitx plugin enabled" "$(docker logs mcd-smoke-pnx 2>&1 | grep -c 'Enabling MCDashboard v' || true)" 1
 check "powernukkitx /v1/info plugin" "$(get mcd-smoke-pnx /v1/info | python3 -c 'import json,sys; print(json.load(sys.stdin)["plugin"])')" MCDashboard
 check "powernukkitx /v1/info server" "$(get mcd-smoke-pnx /v1/info | python3 -c 'import json,sys; print(json.load(sys.stdin)["name"])')" PowerNukkitX
+check "powernukkitx reports its jar's version" "$(get mcd-smoke-pnx /v1/info | python3 -c 'import json,sys; print(json.load(sys.stdin)["version"])')" "$(yml_version pnx/plugins/MCDashboard-Nukkit.jar plugin.yml)"
 check "powernukkitx online" "$(val mcd-smoke-pnx online)" 0
 check "powernukkitx max_players is not negative" "$(val mcd-smoke-pnx max-players | grep -c -- '^-' || true)" 0
 check "powernukkitx tps is a number" "$(val mcd-smoke-pnx tps | grep -cE '^[0-9]+(\.[0-9]+)?$' || true)" 1

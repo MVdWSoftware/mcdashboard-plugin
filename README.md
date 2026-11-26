@@ -60,8 +60,9 @@ mvn -B verify    # spigot/target/MCDashboard.jar, nukkit/target/MCDashboard-Nukk
 Beyond the unit tests, `scripts/` runs each jar on a real server in Docker and reads its API the way the app does:
 `scripts/proxy-smoke-test.sh` (a Paper backend plus a Velocity and a BungeeCord proxy, including federation of the
 backend's placeholders) and `scripts/nukkit-smoke-test.sh` (PowerNukkitX with its PlaceholderAPI). They need docker,
-curl and python3 plus built jars (`mvn -B package`), and CI runs them on every change to the scripts and nightly
-([.github/workflows/e2e.yml](.github/workflows/e2e.yml)).
+curl, python3 and unzip plus built jars (`mvn -B package`), and CI runs them on every change to the scripts and nightly
+([.github/workflows/e2e.yml](.github/workflows/e2e.yml)). Each also checks that the running server reports the version in
+its own jar, which is how a jar with a mangled descriptor is caught on a real server and not only in CI.
 
 The [releases](https://github.com/MVdWSoftware/mcdashboard-plugin/releases) are these four jars, built by
 [.github/workflows/release.yml](.github/workflows/release.yml) from a `vX.Y.Z` tag, each named with its version
