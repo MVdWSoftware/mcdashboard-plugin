@@ -74,7 +74,17 @@
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+        <configuration>
+          <!-- No annotation processing. velocity-api ships a processor for @Plugin that writes its own
+               velocity-plugin.json into target/classes, overwriting the filtered resource above: the generated
+               descriptor carries no version, description or url, so the plugin would report "dev" (the JDK has to
+               look for processors on the class path for that to happen, which is why it only showed up on CI).
+               The descriptor is written by hand and filtered, so turn the processor off explicitly.
+               scripts/check-jar-descriptors.sh fails the build if a jar ever loses its version. -->
+          <proc>none</proc>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

@@ -26,6 +26,10 @@ jobs:
               echo "::error::unexpected entries in $jar (nothing may be shaded)"; exit 1
             fi
           done
+      # The version in each jar's descriptor is what the app and /v1/info report; the Velocity one in particular is
+      # filtered by Maven and would be overwritten by Velocity's own @Plugin processor (see velocity/pom.xml).
+      - name: Every jar carries its version
+        run: scripts/check-jar-descriptors.sh
       - name: Coverage summary
         if: always()
         run: |

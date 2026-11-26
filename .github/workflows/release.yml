@@ -62,6 +62,10 @@ jobs:
               echo "::error::unexpected entries in $jar (nothing may be shaded)"; exit 1
             fi
           done
+      # The version in the descriptor is what the app and /v1/info report, so a jar that loses it must never be published.
+      - name: Every jar carries its version
+        env: { VERSION: '${{ steps.version.outputs.version }}' }
+        run: scripts/check-jar-descriptors.sh "$VERSION"
       # The build keeps the plain names the docs use; the assets carry the version so an owner can tell at a glance
       # which build they downloaded. A server does not care what the jar is called.
       - name: Name the jars and checksum them

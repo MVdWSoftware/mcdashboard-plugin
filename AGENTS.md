@@ -32,6 +32,10 @@
   `nukkit/plugin.yml`, `velocity-plugin.json` and `bungee.yml`, and the workflow stops when tag and poms disagree. Cutting a
   release therefore bumps `pom.xml` *and* the `<parent>` version of every module, and turns the changelog's *Unreleased*
   section into the version (the steps are in `CONTRIBUTING.md`); a tagged commit never carries `-SNAPSHOT`.
+- **The descriptors are written by hand, not generated.** `scripts/check-jar-descriptors.sh` (CI and the release workflow)
+  fails if a jar's descriptor lost the version, because that is what `/v1/info` and the app report. Keep
+  `<proc>none</proc>` in `velocity/pom.xml`: the `@Plugin` processor in velocity-api writes its own
+  `velocity-plugin.json` over the filtered one, without version, description or url, and the plugin then reports `dev`.
 - **The marketing site is part of the change.** A new or changed placeholder type, command,
   permission, config key, dashboard feature, history behaviour, licence limit or network
   feature must update `docs/` **and** the public site

@@ -32,6 +32,11 @@ come from, and `sha256sum -c SHA256SUMS.txt` in that directory checks them.
 
 JaCoCo runs with the tests (`<module>/target/site/jacoco/index.html`); `mvn -B verify` fails when a module drops below the limits in its `pom.xml`. Raise a limit when you raise coverage, never lower it.
 
+Each jar must carry its own descriptor with the version from the poms - that is what `/v1/info` and the app report - so CI also
+runs `scripts/check-jar-descriptors.sh`. It is a real trap in the Velocity module: the `@Plugin` annotation processor in
+velocity-api would replace the filtered `velocity-plugin.json` with a copy that has no version, so `velocity/pom.xml` turns
+annotation processing off.
+
 `mvn -B verify` also runs Javadoc with doclint's `all` checks and fails on any warning: every public and protected type,
 field, constructor and method carries a doc comment, `@param` names match the signature (record components included),
 anything that returns has `@return`, and `{@link}`/`{@code}` are valid. Write tags as `@param name Description.` (no
