@@ -25,6 +25,11 @@ You need JDK 21 and Maven (the Spigot plugin and `core/` are compiled for Java 1
 mvn -B verify          # compile, unit tests, jars in spigot/target/ and nukkit/target/
 ```
 
+Apart from Maven Central, nothing is downloaded: the PowerNukkitX API that `nukkit/` compiles against is vendored in
+`third-party/maven-repo`, because PowerNukkitX's own Maven repository has been offline since 2026-11-25 and nothing
+else serves those artifacts. [third-party/maven-repo/README.md](third-party/maven-repo/README.md) says where the jars
+come from, and `sha256sum -c SHA256SUMS.txt` in that directory checks them.
+
 JaCoCo runs with the tests (`<module>/target/site/jacoco/index.html`); `mvn -B verify` fails when a module drops below the limits in its `pom.xml`. Raise a limit when you raise coverage, never lower it.
 
 `mvn -B verify` also runs Javadoc with doclint's `all` checks and fails on any warning: every public and protected type,

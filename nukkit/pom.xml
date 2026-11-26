@@ -22,10 +22,19 @@
     <maven.compiler.release>21</maven.compiler.release>
   </properties>
 
+  <!-- PowerNukkitX publishes to https://repo.powernukkitx.org/releases, which has been offline since
+       2026-11-25 and was the only source for these two artifacts, so they are vendored in the repository.
+       See third-party/maven-repo/README.md for where the bytes come from and how to verify them. -->
   <repositories>
     <repository>
-      <id>PowerNukkitX-releases</id>
-      <url>https://repo.powernukkitx.org/releases</url>
+      <id>mcdashboard-vendored</id>
+      <url>file://${project.basedir}/../third-party/maven-repo</url>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
     </repository>
   </repositories>
 
@@ -38,9 +47,11 @@
     <dependency>
       <groupId>org.powernukkitx</groupId>
       <artifactId>server</artifactId>
-      <version>3.0.6-SNAPSHOT</version>
+      <version>3.0.6</version>
       <scope>provided</scope>
-      <!-- The server brings its own libraries at runtime; only what this plugin names is added below. -->
+      <!-- The server brings its own libraries at runtime; only what this plugin names is added below.
+           Its pom also names snapshot artifacts from the offline PowerNukkitX repository, so nothing
+           transitive is followed at all. -->
       <exclusions>
         <exclusion>
           <groupId>*</groupId>

@@ -53,7 +53,7 @@ mvn -B verify    # spigot/target/MCDashboard.jar, nukkit/target/MCDashboard-Nukk
                  # velocity/target/MCDashboard-Velocity.jar, bungee/target/MCDashboard-Bungee.jar
 ```
 
-`mvn -B verify` also runs JaCoCo (`<module>/target/site/jacoco/index.html`) and fails below the per-module limits in each `pom.xml`; the limits only go up.
+`mvn -B verify` also runs JaCoCo (`<module>/target/site/jacoco/index.html`) and fails below the per-module limits in each `pom.xml`; the limits only go up. Building from source needs nothing but Maven Central: the PowerNukkitX API the Bedrock plugin compiles against is vendored in `third-party/maven-repo/`, since PowerNukkitX's own Maven repository has been offline since 2026-11-25.
 
 ## End-to-end smoke tests
 

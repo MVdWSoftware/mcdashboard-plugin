@@ -2,6 +2,11 @@
 
 - **No runtime dependencies.** spigot-api, PlaceholderAPI, velocity-api and bungeecord-api are `provided`; JDK only otherwise (two exceptions: `velocity/` shades SnakeYAML relocated to `org/mcdashboard/libs/`, because Velocity has no YAML library for plugins, and `spigot/`, `bungee/` and `velocity/` shade bStats relocated to `org/mcdashboard/lib/bstats` for anonymous usage metrics; Nukkit has no bStats adapter). CI fails if the
   jar contains anything but `org/mcdashboard`. JDBC drivers are never shaded (`history/JdbcConnector`).
+- **The PowerNukkitX API is vendored.** `repo.powernukkitx.org` has been offline since 2026-11-25 and was the only place
+  `org.powernukkitx:server:3.0.6` and its PlaceholderAPI were published, so `nukkit/` resolves them from the `file://`
+  repository in `third-party/maven-repo` (origin, SHA-256 hashes and licence notes in its README). Keep the `*:*`
+  exclusion on the server dependency: its published pom still names snapshot artifacts from that offline repository.
+  If upstream comes back, point the `<url>` in `nukkit/pom.xml` at it again and delete the directory.
 - **`core/` knows no server platform.** It must not import `org.bukkit` or `me.clip`; everything it needs from the
   server (logger, placeholder engine, permissions, main thread, player count) comes through `platform/Platform`,
   and YAML through `config/YamlCodec`. Platform code goes in `spigot/`, `nukkit/`, `velocity/` or `bungee/` (the proxy ones share `proxy-common/`, which has no proxy API) and is wired up

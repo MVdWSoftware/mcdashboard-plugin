@@ -1,0 +1,4 @@
+7f2d96c6970c77346dd28e7c1d4be891d9190819d4ef030eb65b03781b97bf2f  org/powernukkitx/placeholderapi/PlaceholderAPI/1.2.4/PlaceholderAPI-1.2.4.jar
+ebca518f2ef4bafc073a774fd241e5c7be08a3044e96496ef525c2cd7587b6d5  org/powernukkitx/placeholderapi/PlaceholderAPI/1.2.4/PlaceholderAPI-1.2.4.pom
+07c74021ec87a5aa9eb81b3affbde6cca3d31947e741cdd3723ab36c0e57de59  org/powernukkitx/server/3.0.6/server-3.0.6.jar
+44344c6e4b5ddb1c793a7e577959dd42fdfd0f79d958e547170c773424ec5493  org/powernukkitx/server/3.0.6/server-3.0.6.pom

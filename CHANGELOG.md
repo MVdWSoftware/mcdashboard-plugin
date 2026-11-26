@@ -17,7 +17,9 @@ First release. Everything the plugin does today: the SenML REST API and live fee
 placeholders and dashboards, history, the tunnel, the PowerNukkitX plugin and the Velocity and BungeeCord plugins.
 Owners download the four jars from the [releases page](https://github.com/MVdWSoftware/mcdashboard-plugin/releases);
 each is built by CI from the tag, named `MCDashboard-<name>-1.0.0.jar`, and listed with its SHA-256 in `SHA256SUMS.txt`.
-How a release is cut: [CONTRIBUTING.md](CONTRIBUTING.md#releasing).
+How a release is cut: [CONTRIBUTING.md](CONTRIBUTING.md#releasing). The PowerNukkitX plugin is compiled against
+PowerNukkitX 3.0.6, whose API jars are vendored under `third-party/maven-repo/` because PowerNukkitX's Maven repository
+went offline while this release was being built.
 
 ### Security
 - **Breaking default:** `security.require-authentication` is now `true`; anonymous reading of PUBLIC placeholders is opt-in.
