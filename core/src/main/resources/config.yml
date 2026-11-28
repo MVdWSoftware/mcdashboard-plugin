@@ -183,3 +183,10 @@ license:
   host: ""
   # Minutes between reports; 0 turns them off.
   heartbeat-minutes: 60
+
+push:
+  # Push notifications to the app (alert rules the app asks this server to watch, delivered even when the app is closed).
+  # Only for licensed servers: the notifications travel through the portal (license.api-url), end-to-end encrypted, so
+  # neither the portal nor Google or Apple can read them. Without a licence, or with false here, the plugin does not
+  # offer the feature and sends nothing.
+  enabled: true

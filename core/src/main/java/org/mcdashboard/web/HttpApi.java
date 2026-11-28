@@ -71,6 +71,7 @@ public final class HttpApi implements HttpHandler {
     private int workers = 16;
     /** The features the reverse-tunnel proxy can carry; null when no tunnel uses this API (or it is the public listener). */
     private volatile Supplier<Set<String>> proxyFeatures;
+    private volatile PushRoutes push;
     /** How long the dashboard language list is reused; matches the {@code max-age} of the info response. */
     private static final long LANGUAGES_TTL_MS = 60_000;
     /** The cached dashboard languages and when they were read; null before the first info request. */
@@ -198,6 +199,17 @@ public final class HttpApi implements HttpHandler {
      */
     public void proxyFeatures(Supplier<Set<String>> features) {
         this.proxyFeatures = features;
+    }
+
+    /**
+     * Offers push notifications: the {@code push} feature in {@code /v1/info} and the device's own push route.
+     *
+     * @param service The push service; without it the route answers 404, as in plugin 1.0.
+     * @return This API.
+     */
+    public HttpApi push(org.mcdashboard.push.PushService service) {
+        this.push = service == null ? null : new PushRoutes(service);
+        return this;
     }
 
     /**
@@ -381,6 +393,12 @@ public final class HttpApi implements HttpHandler {
             dashboards.one(ex, path.substring(DASHBOARD.length()), player);
         } else if (get && path.equals("/v1/dashboard")) {
             dashboards.first(ex, player);
+        } else if (path.equals(PushRoutes.PATH) && push != null) {
+            if (who.isEmpty()) {
+                error(ex, 401, "authentication required");
+                return;
+            }
+            push.handle(ex, who.get().deviceId());
         } else if (method.equals("DELETE") && path.equals("/v1/devices/self")) {
             if (who.isEmpty()) {
                 error(ex, 401, "authentication required");
@@ -428,6 +446,8 @@ public final class HttpApi implements HttpHandler {
         if (tls) features.add("tls");
         if (background) features.add("background");
         if (assertions != null) features.add("client-verification");
+        PushRoutes pushRoutes = push;
+        if (pushRoutes != null && pushRoutes.available()) features.add("push");
         boolean allowPlayerNames = ctx.allowPlayerNames();
         if (allowPlayerNames) features.add("player-names");
         // Through a proxy, only what that proxy can carry is usable: an older proxy reports nothing and hides the rest.

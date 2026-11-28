@@ -170,6 +170,40 @@ paths:
       security: [ { bearer: [] } ]
       responses:
         '200': { description: Revoked }
+  /devices/self/push:
+    get:
+      summary: The calling device's push notification settings
+      description: |
+        Only exists while `features` contains `push` (a licensed server with `push.enabled`); otherwise `404`, as in
+        plugin 1.0. The route token is never echoed back.
+      security: [ { bearer: [] } ]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/PushSettings' } } } }
+        '404': { description: Push is not available on this server }
+    put:
+      summary: Turn push on for the calling device, or replace its rules
+      description: |
+        The app registers once with the portal, asks the portal for a route for this server (`POST /v1/push/routes` with
+        `licenseHash` from `/info`) and sends that opaque `routeToken` here with a P-256 `publicKey` it created for this
+        server. The server encrypts every notification for that key (ECDH P-256, HKDF-SHA256, AES-256-GCM; see
+        `docs/push.md`), so the portal and the push services only carry ciphertext. `rules` are threshold alerts the
+        server watches on its sampler: when `placeholder op threshold` has held for `forSeconds` it sends `title`/`body`
+        (with `{label}`, `{value}`, `{server}` filled in) and stays quiet for `cooldownSeconds` (at least 60). A rule can
+        only watch a placeholder the device's player may read.
+      security: [ { bearer: [] } ]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/PushBinding' } } }
+      responses:
+        '200': { description: Saved, content: { application/json: { schema: { $ref: '#/components/schemas/PushSettings' } } } }
+        '400': { description: An invalid route, key or rule }
+        '404': { description: Push is not available on this server }
+    delete:
+      summary: Turn push off for the calling device
+      security: [ { bearer: [] } ]
+      responses:
+        '200': { description: Off, content: { application/json: { schema: { type: object, properties: { enabled: { type: boolean }, removed: { type: boolean } } } } } }
+        '404': { description: Push is not available on this server }
   /events:
     get:
       summary: Stream of device events for a service such as MCDashboard-proxy (server-sent events)
@@ -261,6 +295,33 @@ components:
         Cache-Control: { schema: { type: string }, description: 'public|private, max-age=<seconds>' }
       content: { application/senml+json: { schema: { type: array, items: { $ref: '#/components/schemas/SenMLRecord' } } } }
   schemas:
+    PushRule:
+      type: object
+      required: [id, placeholder, op, threshold, title, body]
+      properties:
+        id: { type: string, pattern: '^[a-z0-9][a-z0-9_-]{0,39}$', description: Unique per device }
+        placeholder: { type: string, description: A placeholder id the device's player may read }
+        op: { type: string, enum: [gt, gte, lt, lte, eq, ne] }
+        threshold: { type: number }
+        forSeconds: { type: integer, minimum: 0, maximum: 86400, default: 0, description: How long the condition must hold before it fires }
+        cooldownSeconds: { type: integer, minimum: 60, maximum: 604800, default: 900, description: Lower values are raised to 60 }
+        label: { type: string, maxLength: 40, description: 'Fills `{label}`' }
+        title: { type: string, maxLength: 80, description: 'Written by the app in its own language; `{label}`, `{value}` and `{server}` are filled in' }
+        body: { type: string, maxLength: 200 }
+    PushBinding:
+      type: object
+      required: [routeToken, publicKey]
+      properties:
+        routeToken: { type: string, pattern: '^[A-Za-z0-9_-]{16,128}$', description: The opaque route the portal issued for this device and this server }
+        publicKey: { type: string, description: 'The device''s P-256 public key for this server: base64url of the uncompressed point (65 bytes)' }
+        rules: { type: array, maxItems: 20, items: { $ref: '#/components/schemas/PushRule' } }
+    PushSettings:
+      type: object
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
+        publicKey: { type: string }
+        rules: { type: array, items: { $ref: '#/components/schemas/PushRule' } }
     DeviceRevokedEvent:
       type: object
       required: [type, epoch, seq, time, deviceId, player]
@@ -283,7 +344,7 @@ components:
           x-known: [presets, history-points, upload, tls, background, client-verification, player-names]
           type: array
           items: { type: string }
-          description: 'optional capabilities of this connection (for example presets, history-points, upload, tls). Additions never bump `protocol`. Through a proxy this is the intersection with what that proxy can carry, so an older proxy hides a feature instead of advertising a route, header or query parameter it would drop. Absent on older plugins. A client gates features that need the plugin on this list and works without them'
+          description: 'optional capabilities of this connection (for example presets, history-points, upload, tls, push). Additions never bump `protocol`. Through a proxy this is the intersection with what that proxy can carry, so an older proxy hides a feature instead of advertising a route, header or query parameter it would drop. Absent on older plugins. A client gates features that need the plugin on this list and works without them'
         authRequired: { type: boolean }
         allowPlayerNames:
           type: boolean

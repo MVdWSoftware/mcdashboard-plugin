@@ -111,6 +111,14 @@ A negative or invalid value counts as `0` and logs a warning.
 | `host` | empty | The address players connect to. Empty: derived from `server.public-url`, then the first `server.endpoints` entry. |
 | `heartbeat-minutes` | `60` | How often the plugin reports the licence and this address; `0` turns it off. |
 
+## `push`
+
+Push notifications to the app, for licensed servers ([details](push.md)).
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `enabled` | `true` | Offer push notifications. They still need a licence (the plugin advertises `push` only while the licence heartbeat says the server is licensed), and nothing is sent to a device that did not turn them on. `false` removes the feature completely. |
+
 Once in a while the plugin sends `POST /v1/licenses/{id}/heartbeat` with this address and its version. The portal answers
 whether the licence exists, is banned, has a running subscription and covers this address, and records the report for the
 platform administrator's licence overview. **This is UI/UX and a help against putting a licence id on the wrong server,

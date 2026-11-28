@@ -27,6 +27,9 @@ import org.mcdashboard.placeholder.PlaceholderService;
 import org.mcdashboard.platform.Log;
 import org.mcdashboard.platform.Permissions;
 import org.mcdashboard.platform.Platform;
+import org.mcdashboard.push.PushClient;
+import org.mcdashboard.push.PushService;
+import org.mcdashboard.push.PushStore;
 import org.mcdashboard.platform.ScheduledTask;
 import org.mcdashboard.stats.PluginStats;
 import org.mcdashboard.tls.TlsSupport;
@@ -73,6 +76,7 @@ final class Services {
     private WebhookDispatcher webhooks;
     private HistoryService history;
     private LicenseHeartbeat licenseHeartbeat;
+    private volatile PushService push;
     private ScheduledExecutorService sampler;
     private ScheduledTask statusTask;
     private final PluginStats stats;
@@ -175,6 +179,7 @@ final class Services {
                 LicenseHeartbeat.hostFor(settings.licenseHost(), settings.publicUrl(), settings.endpoints()),
                 settings.licenseHeartbeatMinutes(), platform.pluginVersion(), log);
         licenseHeartbeat.start();
+        startPush(name, ctx, placeholders, permissions);
         if (settings.websocketPort() > 0) {
             live = new LiveServer(ctx, settings.maxLiveConnections(), clients);
             stats.liveClients(this::liveConnections);
@@ -254,7 +259,7 @@ final class Services {
     /** Plain listeners on 127.0.0.1 for the tunnel client only, on free ports. */
     private void startLoopback(ApiContext ctx, ClientPolicy clients) throws IOException {
         ClientAssertions assertions = clientAssertions();
-        loopbackHttp = new HttpApi(ctx, clients).stats(stats).workers(settings.workerThreads());
+        loopbackHttp = new HttpApi(ctx, clients).stats(stats).workers(settings.workerThreads()).push(push);
         loopbackHttp.background(settings.backgroundEnabled());
         if (assertions != null) loopbackHttp.verifyClients(assertions);
         loopbackHttp.start("127.0.0.1", 0, null);
@@ -326,6 +331,9 @@ final class Services {
             live.stop();
             live = null;
         }
+        PushService pushService = push;
+        push = null;
+        if (pushService != null) pushService.close();
         if (licenseHeartbeat != null) {
             licenseHeartbeat.close();
             licenseHeartbeat = null;
@@ -365,7 +373,31 @@ final class Services {
                 placeholders.definition(id).ifPresent(d -> placeholders.read(id, null)
                         .ifPresent(v -> history.record(id, v.value(), history.stepMs(d, placeholders.intervalMs(d)))));
             }
+            PushService alerts = push;
+            if (alerts != null) {
+                try {
+                    alerts.evaluate();
+                } catch (RuntimeException e) {
+                    log.warning("Push alert rules could not be evaluated: " + e.getMessage());
+                }
+            }
         }, 5, 5, TimeUnit.SECONDS);
+    }
+
+    /**
+     * Starts push notifications: bindings of the paired devices, their alert rules and the portal relay. Only licensed
+     * servers use it ({@link PushService#available()}); with {@code push.enabled: false} nothing is created.
+     */
+    private void startPush(String name, ApiContext ctx, PlaceholderService placeholders, Permissions permissions) {
+        if (!settings.pushEnabled()) return;
+        PushService service = new PushService(new PushStore(files.resolve("push.json")),
+                new PushClient(settings.licenseId(), settings.licenseApiUrl()), licenseHeartbeat::licensed, true, name, ctx.licenseHash(),
+                id -> devices.get(id).map(DeviceStore.Device::playerUuid),
+                PushService.values(placeholders, permissions.cache()),
+                clock, log);
+        devices.onRemoved(d -> service.unbind(d.id()));
+        push = service;
+        http.push(service);
     }
 
     /** The database for history, or null to keep it in memory. */

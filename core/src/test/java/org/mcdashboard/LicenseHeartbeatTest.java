@@ -5,6 +5,7 @@
 package org.mcdashboard;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -84,7 +85,9 @@ class LicenseHeartbeatTest {
         CapturingLog log = new CapturingLog();
         LicenseHeartbeat heartbeat = new LicenseHeartbeat("mcl_test", base, "MC.Example.com.", 60, "1.2.3", log);
 
+        assertFalse(heartbeat.licensed(), "not licensed until the portal says so");
         heartbeat.beat();
+        assertTrue(heartbeat.licensed());
         assertTrue(body.get().contains("\"host\":\"mc.example.com\""));
         assertTrue(body.get().contains("\"version\":\"1.2.3\""));
         assertTrue(log.warnings.isEmpty());
@@ -92,6 +95,7 @@ class LicenseHeartbeatTest {
         reply.set("{\"active\":false}");
         heartbeat.beat();
         heartbeat.beat();
+        assertFalse(heartbeat.licensed());
         assertEquals(1, log.warnings.size(), "the same problem is reported once");
         assertTrue(log.warnings.get(0).contains("revoked"));
 
@@ -102,10 +106,12 @@ class LicenseHeartbeatTest {
         reply.set("{\"active\":true,\"licensed\":false,\"registered\":true}");
         heartbeat.beat();
         assertTrue(log.warnings.get(2).contains("no running subscription"));
+        assertFalse(heartbeat.licensed());
 
         reply.set("{\"active\":true,\"licensed\":true,\"registered\":true}");
         heartbeat.beat();
         assertTrue(log.infos.stream().anyMatch(line -> line.contains("healthy again")));
+        assertTrue(heartbeat.licensed());
 
         status.set(500);
         heartbeat.beat();

@@ -32,9 +32,9 @@ public final class ProxyLink {
     /**
      * Features that only work when the proxy forwards the matching header or accepts the matching route/parameter:
      * {@code presets} and {@code upload} need the dashboard routes, {@code history-points} the {@code points} parameter,
-     * {@code player-names} the player header and {@code client-verification} the attestation header.
+     * {@code player-names} the player header, {@code push} the device push route and {@code client-verification} the attestation header.
      */
-    public static final Set<String> CARRIED = Set.of("presets", "history-points", "upload", "client-verification", "player-names");
+    public static final Set<String> CARRIED = Set.of("presets", "history-points", "upload", "client-verification", "player-names", "push");
 
     private ProxyLink() {
     }

@@ -42,6 +42,8 @@ public final class LicenseHeartbeat implements AutoCloseable {
     private ScheduledExecutorService executor;
     /** The last problem reported, so a repeated failure does not spam the log every hour. */
     private volatile String lastProblem;
+    /** Whether the last heartbeat said this server is registered, active and licensed. */
+    private volatile boolean licensed;
 
     /**
      * Creates a heartbeat reporter for the licence server.
@@ -96,6 +98,8 @@ public final class LicenseHeartbeat implements AutoCloseable {
                 problem("the portal answered an unexpected body");
                 return;
             }
+            licensed = Boolean.TRUE.equals(answer.get("licensed")) && !Boolean.FALSE.equals(answer.get("active"))
+                    && !Boolean.FALSE.equals(answer.get("registered"));
             if (Boolean.FALSE.equals(answer.get("active"))) {
                 problem("the portal reports that this licence has been revoked by a platform administrator");
             } else if (Boolean.FALSE.equals(answer.get("registered"))) {
@@ -111,6 +115,16 @@ public final class LicenseHeartbeat implements AutoCloseable {
         } catch (Exception e) {
             problem("could not reach the portal: " + e.getMessage());
         }
+    }
+
+    /**
+     * Whether the last heartbeat said this server is registered, active and licensed. False until the first one answers, and
+     * when the heartbeat is off. Features that only licensed servers get (push notifications) depend on it.
+     *
+     * @return True when the portal said the licence is running.
+     */
+    public boolean licensed() {
+        return licensed;
     }
 
     /** Logs a problem once, until it changes or a heartbeat succeeds. */
